@@ -15,6 +15,7 @@ import {
 import type { Tag } from "./tags";
 import type { Group } from "./groups";
 import { normalizeGroups } from "./groups";
+import { useGraphStore } from "@/store/graphStore";
 import { SNAPSHOT_VERSION, type SavedGraphData } from "./savedGraphs";
 import { pruneNodeForSave } from "./snapshot";
 import { APP_VERSION, FEWER_CREDIT } from "./branding";
@@ -87,6 +88,10 @@ function imageRenderOptions(
     dashOffset: readDashOffset(),
     collapsedIds: opts.collapsedIds?.size ? opts.collapsedIds : undefined,
     tags: opts.tags,
+    // T-215: exports paint tags exactly as the canvas does — same palette
+    // remap, same initials, read off the store the way the UI writes them.
+    a11yColorBlindSafe: useGraphStore.getState().a11y?.colorBlindSafe ?? false,
+    a11yInitials: useGraphStore.getState().a11y?.tagInitials ?? false,
     direction: opts.direction,
   };
 }

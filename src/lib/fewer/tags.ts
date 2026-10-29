@@ -20,6 +20,38 @@ export const TAG_PALETTE: string[] = [
 /** Distinct fallback color for tags whose id isn't in the registry (shared graphs). */
 export const TAG_FALLBACK_COLOR = "#94a3b8";
 
+/**
+ * Colour-blind-safe variant of TAG_PALETTE (T-215 / #514): the Okabe-Ito
+ * hues — the reference set for dichromacy — ordered so neighbouring tags also
+ * differ in luminance, which is the channel every colour vision deficiency
+ * keeps. The default rainbow collapses for that reader (its first five entries
+ * are red/orange/amber/lime/emerald: one yellowish band under deuteranopia).
+ *
+ * Applied at PAINT time only: stored tag colours never change, so turning the
+ * setting off restores the original colours with no migration.
+ */
+export const TAG_PALETTE_CB: string[] = [
+  "#56b4e9", // sky blue
+  "#e69f00", // orange
+  "#009e73", // bluish green
+  "#f0e442", // yellow
+  "#cc79a7", // reddish purple
+  "#0072b2", // blue
+  "#d55e00", // vermillion
+  "#8c8c8c", // mid grey
+  "#e8e8e8", // light grey
+];
+
+const TAG_PALETTE_INDEX = new Map(TAG_PALETTE.map((c, i) => [c.toLowerCase(), i]));
+
+/** Map one stored colour onto its safe counterpart. Colours outside
+ *  TAG_PALETTE (custom or imported) are returned unchanged: there is no
+ *  defensible position to move them to, and they keep their own signal. */
+export function safeTagColor(color: string): string {
+  const i = TAG_PALETTE_INDEX.get(color.toLowerCase());
+  return i === undefined ? color : TAG_PALETTE_CB[i];
+}
+
 /** Tag colors shown on a ring — anything beyond this is counted as "+N" overflow. */
 export const TAG_RING_CAP = 5;
 
@@ -173,10 +205,13 @@ export function makeTagLabelLookup(tags: Tag[]): (id: string) => string {
   return (id: string) => map.get(id) ?? "";
 }
 
-/** Resolve a tag's color from the registry, falling back to a neutral color. */
-export function colorForTag(tags: Tag[], id: string): string {
+/** Resolve a tag's color from the registry, falling back to a neutral color.
+ *  With `colorBlindSafe` the palette index is remapped through
+ *  TAG_PALETTE_CB — a paint-time decision, so the stored colour is untouched. */
+export function colorForTag(tags: Tag[], id: string, colorBlindSafe = false): string {
   const found = tags.find((t) => t.id === id);
-  return found ? found.color : TAG_FALLBACK_COLOR;
+  const color = found ? found.color : TAG_FALLBACK_COLOR;
+  return colorBlindSafe ? safeTagColor(color) : color;
 }
 
 /**
@@ -195,11 +230,12 @@ export function colorForTag(tags: Tag[], id: string): string {
 export function tagRingColors(
   tags: Tag[] | undefined,
   tagIds: readonly string[] | undefined,
+  colorBlindSafe = false,
 ): string[] {
   if (!tags?.length || !tagIds?.length) return [];
   const colors: string[] = [];
   for (const id of tagIds) {
-    const color = colorForTag(tags, id);
+    const color = colorForTag(tags, id, colorBlindSafe);
     if (!color) continue;
     colors.push(color);
     if (colors.length === TAG_RING_CAP) break;

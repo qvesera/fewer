@@ -2,6 +2,8 @@
 
 import { useMemo } from "react";
 import { cn } from "@/lib/utils";
+import { useGraphStore } from "@/store/graphStore";
+import { lumaHex } from "@/lib/fewer/themeColors";
 import {
   buildTagRingGradient,
   colorForTag,
@@ -10,6 +12,12 @@ import {
   TAG_RING_WIDTH,
   type Tag,
 } from "@/lib/fewer/tags";
+
+/** Letter colour for an initials chip: dark on a light tag, white on a dark
+ *  one — the 128 luma split the theme already uses for card text. */
+function chipTextColor(color: string): string {
+  return (lumaHex(color) ?? 0) > 128 ? "#111827" : "#ffffff";
+}
 
 /**
  * Tag highlight ring for a node card. Rendered INSIDE the card (which is
@@ -41,8 +49,14 @@ export function TagRing({
 }) {
   // The shared ring contract (tags.ts) — the same helper the SVG/PNG exporter
   // paints from, so the two can never disagree about which tags show, or in
-  // what order. Both drop unpaintable colors before applying the cap.
-  const colors = useMemo(() => tagRingColors(tags, tagIds), [tagIds, tags]);
+  // what order. Both drop unpaintable colors before applying the cap, and both
+  // remap through the colour-blind-safe palette when that preference is on.
+  const colorBlindSafe = useGraphStore((s) => s.a11y.colorBlindSafe);
+  const colors = useMemo(() => tagRingColors(tags, tagIds, colorBlindSafe), [
+    tagIds,
+    tags,
+    colorBlindSafe,
+  ]);
 
   if (selected || colors.length === 0) return null;
 
@@ -80,15 +94,34 @@ export function TagDots({
 }) {
   const shown = tagIds.slice(0, TAG_RING_CAP);
   const overflow = tagIds.length - shown.length;
+  const colorBlindSafe = useGraphStore((s) => s.a11y.colorBlindSafe);
+  const initials = useGraphStore((s) => s.a11y.tagInitials);
   return (
     <span className={cn("flex items-center gap-1", className)} title={tagIds.map((id) => tags.find((t) => t.id === id)?.label ?? id).join(", ")}>
-      {shown.map((id) => (
-        <span
-          key={id}
-          className="h-2.5 w-2.5 rounded-full ring-1 ring-white/40"
-          style={{ background: colorForTag(tags, id) }}
-        />
-      ))}
+      {shown.map((id) => {
+        const color = colorForTag(tags, id, colorBlindSafe);
+        if (!initials) {
+          return (
+            <span
+              key={id}
+              className="h-2.5 w-2.5 rounded-full ring-1 ring-white/40"
+              style={{ background: color }}
+            />
+          );
+        }
+        // Initials mode: a 14px chip (pitch 18 with gap-1) — the same geometry
+        // the exporter paints, so tagDotsWidth budgets match on both sides.
+        const label = tags.find((t) => t.id === id)?.label ?? "";
+        return (
+          <span
+            key={id}
+            className="grid h-3.5 w-3.5 shrink-0 place-items-center rounded-full text-2xs font-semibold leading-none ring-1 ring-white/40"
+            style={{ background: color, color: chipTextColor(color) }}
+          >
+            {label.slice(0, 1).toUpperCase()}
+          </span>
+        );
+      })}
       {overflow > 0 && (
         <span className="text-2xs font-semibold text-muted-foreground/70">
           +{overflow}

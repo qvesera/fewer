@@ -20,6 +20,7 @@ import {
 } from "@xyflow/react";
 import { FEWER_HOME_URL } from "./branding";
 import { colorForTag, tagRingColors, TAG_RING_CAP, TAG_RING_WIDTH, type Tag } from "./tags";
+import { lumaHex } from "./themeColors";
 import { ancestorPathHighlight, buildTreeLookups } from "./edgeHighlight";
 
 /* -------------------------------------------------------------------------- */
@@ -72,6 +73,12 @@ export interface GraphRenderOptions {
   collapsedIds?: Set<string>;
   /** Tag registry, so exported rings/dots use the same colors as the canvas. */
   tags?: Tag[];
+  /** T-215: remap tag colours through the colour-blind-safe palette. The canvas
+   *  reads the same preference off the store, so both sides stay in step. */
+  a11yColorBlindSafe?: boolean;
+  /** T-215: paint each tag's initial instead of a bare coloured dot (14px chip,
+   *  18px pitch — the same geometry TagDots uses). */
+  a11yInitials?: boolean;
   /**
    * The layout direction the exported view uses. The canvas places handles from
    * the VIEW's direction (GraphViewContext), not from each card's
@@ -424,14 +431,16 @@ function cardRadius(n: FewerNode): number {
 /** Tag colors assigned to a node, in display order — the shared ring contract
  *  from tags.ts, so the export paints the same tags the canvas does. */
 function tagColors(n: FewerNode, o: GraphRenderOptions): string[] {
-  return tagRingColors(o.tags, n.data.tagIds);
+  return tagRingColors(o.tags, n.data.tagIds, o.a11yColorBlindSafe);
 }
 
-/** Width the tag dots row needs (14px pitch + a 14px slack for the "+N"). */
-function tagDotsWidth(n: FewerNode): number {
+/** Width the tag dots row needs (14px pitch + a 14px slack for the "+N") — or
+ *  18px pitch in initials mode, matching TagDots' 14px chip + 4px gap. */
+function tagDotsWidth(n: FewerNode, o: GraphRenderOptions): number {
   const count = n.data.tagIds?.length ?? 0;
   if (count === 0) return 0;
-  return Math.min(count, TAG_RING_CAP) * 14 + (count > TAG_RING_CAP ? 14 : 0);
+  const pitch = o.a11yInitials ? 18 : 14;
+  return Math.min(count, TAG_RING_CAP) * pitch + (count > TAG_RING_CAP ? 14 : 0);
 }
 
 /**
@@ -537,15 +546,25 @@ function renderTagDots(
   if (!ids?.length || !o.tags?.length) return "";
   const tags = o.tags;
   const shown = ids.slice(0, TAG_RING_CAP);
+  const initials = o.a11yInitials ?? false;
+  const pitch = initials ? 18 : 14;
   const dots = shown
-    .map(
-      (id, i) =>
-        `<circle cx="${x + i * 14 + 5}" cy="${y}" r="5" fill="${escapeXml(colorForTag(tags, id))}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>`,
-    )
+    .map((id, i) => {
+      const color = colorForTag(tags, id, o.a11yColorBlindSafe);
+      const cx = x + i * pitch + (initials ? 7 : 5);
+      if (!initials) {
+        return `<circle cx="${cx}" cy="${y}" r="5" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>`;
+      }
+      // Initials mode: the label's first letter, coloured for contrast against
+      // its own chip (same 128-luma split TagDots uses).
+      const label = tags.find((t) => t.id === id)?.label ?? "";
+      const ink = (lumaHex(color) ?? 0) > 128 ? "#111827" : "#ffffff";
+      return `<g><circle cx="${cx}" cy="${y}" r="7" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/><text x="${cx}" y="${y + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="${ink}">${escapeXml(label.slice(0, 1).toUpperCase())}</text></g>`;
+    })
     .join("");
   const overflow = ids.length - shown.length;
   if (overflow <= 0) return dots;
-  return `${dots}<text x="${x + shown.length * 14 + 2}" y="${y + 5}" font-size="11" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
+  return `${dots}<text x="${x + shown.length * pitch + 2}" y="${y + 5}" font-size="11" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
 }
 
 /** Shared highlight/border ring logic for folder + file cards. `highlighted`
@@ -649,7 +668,7 @@ function renderFolderCard(
   const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
   // Header tag dots sit right-aligned (canvas: TagDots + chevron in the header
   // row), so the label keeps whatever width they don't use.
-  const dotsW = tagDotsWidth(n);
+  const dotsW = tagDotsWidth(n, o);
   const dotsX = x + w - 14 - dotsW;
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
@@ -698,7 +717,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const iconY = y + (h - 20) / 2;
   // Canvas: TagDots sit in a `shrink-0 pr-2` slot after the text column, so the
   // label's budget shrinks by whatever the dots need.
-  const dotsW = tagDotsWidth(n);
+  const dotsW = tagDotsWidth(n, o);
   const textX = x + boxX + boxW + gap;
   const labelBudget = w - (textX - x) - 10 - dotsW;
   const label = truncateToWidth(n.data.label, labelBudget, 14, 600);

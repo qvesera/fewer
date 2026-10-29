@@ -341,3 +341,27 @@ test("symlink export parity: broken link renders the amber warning ring + badge"
   expect(scene.svg).toContain("\u26a0 broken \u2192 nowhere");
   expect(scene.svg).toContain('stroke="#fbbf24"');
 });
+
+test("colour-vision preferences ride into the export (T-215)", () => {
+  const registry: Tag[] = [{ id: "t1", label: "One", color: "#f87171" }];
+  const file = makeNode("f", "index.ts", { type: "file", category: "code" });
+  file.measured = { width: 240, height: 36 };
+  file.data.tagIds = ["t1"];
+
+  // Safe palette: #f87171 sits at TAG_PALETTE[0], whose safe counterpart is
+  // sky blue — the canvas reads the same preference, so both repaint together.
+  const safe = buildGraphSVG([file], [], opts({ tags: registry, a11yColorBlindSafe: true }));
+  expect(safe.svg).toContain("#56b4e9");
+  expect(safe.svg).not.toContain("#f87171");
+
+  // Initials: a 7px-radius chip carrying an 11px letter instead of a bare dot.
+  const initials = buildGraphSVG([file], [], opts({ tags: registry, a11yInitials: true }));
+  expect(initials.svg).toContain('r="7"');
+  expect(initials.svg).toContain('font-size="11"');
+  expect(initials.svg).toContain(">O</text>");
+
+  // Default stays the plain dot.
+  const plain = buildGraphSVG([file], [], opts({ tags: registry }));
+  expect(plain.svg).toContain('r="5"');
+  expect(plain.svg).not.toContain(">O</text>");
+});
