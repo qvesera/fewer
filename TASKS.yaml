@@ -6094,7 +6094,7 @@ tasks:
   session_count: 1
 - id: "T-217"
   title: "Header logo text: plain foreground instead of the orange gradient"
-  status: "review"
+  status: "triaged"
   type: "fix"
   area: "theme"
   tier: null
@@ -6119,5 +6119,11 @@ tasks:
     note: "Logo.tsx:23 text-gradient-fewer → text-foreground; deleted the dead .text-gradient-fewer rule; changelog Changed entry. Gates: tsc 0, lint 0 errors, tests 1850+258 pass, build OK; both themes screenshotted."
     proof: ["1b22544"]
     effort: {commits: 1, files: 6, insertions: 45, deletions: 7}
-  spent_min: 8
-  session_count: 1
+  - start: "2026-10-29T07:58:12Z"
+    end: "2026-10-29T07:58:50Z"
+    measured: true
+    note: "Follow-up session: removed two scratch files that a git add -A swept into the commit, plus .gitignore guards /.tmp-* and /.g-*."
+    proof: ["a64a1ce"]
+    effort: {commits: 1, files: 2, insertions: 0, deletions: 14}
+  spent_min: 9
+  session_count: 2
