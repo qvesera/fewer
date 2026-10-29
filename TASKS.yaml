@@ -6094,14 +6094,14 @@ tasks:
   session_count: 1
 - id: "T-217"
   title: "Header logo text: plain foreground instead of the orange gradient"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "theme"
   tier: null
   estimate_min: 30
   estimate_basis: "cli"
   issue: 517
-  pr: null
+  pr: 518
   internal: false
   milestone: null
   blocked_by: []
