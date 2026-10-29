@@ -1,5 +1,6 @@
 import { describe, expect, it } from "bun:test";
 import {
+  slotContrast,
   DIALOG_WIDTH,
   TOP_OFFSET,
   THEME_EDITOR_SECTIONS,
@@ -453,4 +454,31 @@ describe("classifyThemeApiError", () => {
       expect(result.description).toContain("403");
     }
   });
+});
+
+// ─── contrast pairs (T-215 / #514) ─────────────────────────────────────────
+
+it("slotContrast measures a text slot against its own surface", () => {
+  const theme = makeTheme({
+    defaultText: { color: "#ffffff", opacity: 1 },
+    background: { color: "#000000", opacity: 1 },
+  });
+  const measured = slotContrast(theme, "defaultText");
+  expect(measured?.against).toBe("background");
+  expect(measured?.target).toBe(4.5);
+  expect(measured?.ratio).toBeCloseTo(21, 5);
+
+  // Folder text is judged against the folder body, never the canvas behind it.
+  const folder = makeTheme({
+    folderText: { color: "#000000", opacity: 1 },
+    folderBg: { color: "#ffffff", opacity: 1 },
+  });
+  expect(slotContrast(folder, "folderText")?.against).toBe("folderBg");
+
+  // Non-text pairs carry the 3:1 threshold (WCAG 1.4.11).
+  expect(slotContrast(makeTheme({}), "folderIcon")?.target).toBe(3);
+
+  // Slots with no meaningful counterpart report nothing (no chip rendered).
+  expect(slotContrast(makeTheme({}), "background")).toBeNull();
+  expect(slotContrast(makeTheme({}), "itemHover")).toBeNull();
 });

@@ -108,6 +108,55 @@ export function mixHex(a: string, b: string, t: number): string {
   return `#${mix(ra.r, rb.r).toString(16).padStart(2, "0")}${mix(ra.g, rb.g).toString(16).padStart(2, "0")}${mix(ra.b, rb.b).toString(16).padStart(2, "0")}`;
 }
 
+/**
+ * WCAG 2.1 relative luminance (sRGB, with the linearisation step). This is NOT
+ * the BT.601 `luma` above: luma answers "is this surface light or dark?",
+ * luminance is the contrast formula's input, and they disagree by enough to
+ * flip a result at the AA boundary.
+ */
+function relativeLuminance(rgb: { r: number; g: number; b: number }): number {
+  const lin = (v: number) => {
+    const c = v / 255;
+    return c <= 0.04045 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * lin(rgb.r) + 0.7152 * lin(rgb.g) + 0.0722 * lin(rgb.b);
+}
+
+/** Contrast ratio of two hex colours (WCAG 2.1): 1 = identical, 21 = black on
+ *  white. Symmetric, so callers never need to care which is "in front".
+ *  Null when either value is unparseable. */
+export function contrastRatio(fg: string, bg: string): number | null {
+  const a = hexToRgb(fg);
+  const b = hexToRgb(bg);
+  if (!a || !b) return null;
+  const la = relativeLuminance(a);
+  const lb = relativeLuminance(b);
+  const [hi, lo] = la > lb ? [la, lb] : [lb, la];
+  return (hi + 0.05) / (lo + 0.05);
+}
+
+/**
+ * The smallest edit to `color` that clears `target` against `bg`: walk toward
+ * white and toward black in 5% steps and keep whichever direction gets there
+ * first — fewer steps, fewer side effects. Returns the input unchanged when it
+ * already passes (or when neither value parses).
+ */
+export function ensureContrast(color: string, bg: string, target: number): string {
+  const now = contrastRatio(color, bg);
+  if (now === null || now >= target) return color;
+  let best: { color: string; steps: number } | null = null;
+  for (const dest of ["#ffffff", "#000000"]) {
+    for (let step = 1; step <= 20; step++) {
+      const candidate = mixHex(color, dest, step / 20);
+      if ((contrastRatio(candidate, bg) ?? 0) >= target) {
+        if (!best || step < best.steps) best = { color: candidate, steps: step };
+        break;
+      }
+    }
+  }
+  return best ? best.color : color;
+}
+
 /** Default opposite endpoint for a new gradient: darker for light colors, lighter for dark ones. */
 export function suggestGradientEnd(base: string): string {
   const rgb = hexToRgb(base);
