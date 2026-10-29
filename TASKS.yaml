@@ -6065,14 +6065,14 @@ tasks:
   session_count: 0
 - id: "T-216"
   title: "Interface scale: viewport-aware default + Settings control"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: null
   estimate_min: 300
   estimate_basis: "cli"
   issue: 516
-  pr: null
+  pr: 515
   internal: false
   milestone: null
   blocked_by: []
