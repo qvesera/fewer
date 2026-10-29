@@ -6013,7 +6013,7 @@ tasks:
   session_count: 1
 - id: "T-214"
   title: "Readable type floor: px->rem codemod, 11px minimum"
-  status: "in-progress"
+  status: "triaged"
   type: "refactor"
   area: "ux"
   tier: null
@@ -6026,19 +6026,19 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-28T22:52:51Z"
   notes: []
   sessions:
   - start: "2026-10-28T23:16:34Z"
-    end: null
+    end: "2026-10-29T00:01:39Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Codemod 236 px sizes to rem tokens (text-2xs 11px floor), --ui-scale root lever, 34 uppercase labels dropped below 12px, Settings dialog 520->600px so the tab strip fits, SVG/PNG export sizes moved with the canvas; new e2e/typefloor.spec.ts guards the floor and the tab fit. Gates: lint 0, tsc 0, unit+component 2108 pass, build OK, playwright typefloor 3/3 on the standalone build (port 3100 - port 3000 is the dev server)."
+    proof: ["cb19682"]
+    effort: {commits: 1, files: 51, insertions: 406, deletions: 243}
+  spent_min: 45
   session_count: 1
 - id: "T-215"
   title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
