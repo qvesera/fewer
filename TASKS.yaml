@@ -6042,7 +6042,7 @@ tasks:
   session_count: 1
 - id: "T-215"
   title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
-  status: "triaged"
+  status: "blocked"
   type: "feat"
   area: "ux"
   tier: null
