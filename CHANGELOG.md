@@ -20,6 +20,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Interface scale in Settings → Appearance: Auto / 100% / 125% / 150%, one multiplier for text, spacing, icons and corner radii that persists with your other settings; Auto follows the window (100% under 2000px, 112% from 2000px, 125% from 3000px) so a large screen is readable without anyone hunting for a setting, and an inline --ui-scale on <html> applies it before first paint
+- New Settings → Accessibility tab (available on every plan, every screen): interface scale Auto/100/125/150%, high contrast (also honoured from the OS increased-contrast setting), solid surfaces (also from reduced transparency), colour-blind-safe tag palette + tag initials that repaint canvas and exports without touching stored colours, reduce motion on top of the OS setting, larger hit targets and a heavier focus ring, a skip link that lands on the workspace, and an sr-only live region that announces the card under arrow-key navigation; the Custom Theme Editor now shows a live WCAG ratio per colour slot with a one-click Fix
 
 ## [0.8.0] - 2026-10-28
 

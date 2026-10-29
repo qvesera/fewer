@@ -3,7 +3,7 @@ title: Settings, Power User Mode & Notifications
 description: Configure Fewer via the Settings dialog: theme, minimap, card dimensions, power user mode, notifications, and the About/Help tabs.
 ---
 
-The gear icon in the top navbar opens **Settings**, a dialog with tabs for **Account**, **About**, **Appearance**, **Watched** (Power User), **Cloud** (Power User), **Advanced** and **Help**.
+The gear icon in the top navbar opens **Settings**, a dialog with tabs for **Account**, **About**, **Appearance**, **Accessibility**, **Watched** (Power User), **Cloud** (Power User), **Advanced** and **Help**.
 
 ## About
 
@@ -16,10 +16,20 @@ The gear icon in the top navbar opens **Settings**, a dialog with tabs for **Acc
 
 ## Appearance
 
-- **Interface scale**: one multiplier for the whole interface — **Auto** / **100%** / **125%** / **150%**. Text, spacing, icons and corner radii scale together, so labels grow without clipping anything around them. **Auto** follows your window: 100% below 2000px wide, 112% from 2000px, 125% from 3000px — a big screen starts readable without anyone hunting for a setting. Your choice is stored with the rest of your settings (localStorage plus the cloud, when signed in), and browser zoom still works on top of it.
 - **Theme mode selector**: Light / Dark / Custom (Custom is only shown in Power User mode and opens the theme editor)
 - **Show Files toggle**: show or hide file-level cards on the canvas (folders only)
 - **Connection Motion**: **Animate Selected Connections Only** toggle: when on, the connections along the selected cards' path to the root animate in the chosen **Selected Connection Pattern** (dashed or dotted). The sidebar's **Motion** and **Pattern** controls then apply to all _other_ (non-selected) connections. When off, sidebar controls apply globally. The all-connections motion toggle lives in the sidebar (Power User mode), not in this dialog. Connection motion is a signed-in (Power User) feature: it's hidden for signed-out users, and non-auth graphs render with static connections.
+
+## Accessibility
+
+Every control here is available to every user, on every screen size and on any plan — accessibility is never gated. Full detail: [Accessibility](/docs/accessibility).
+
+- **Interface scale**: Auto / 100% / 125% / 150% — one multiplier for text, spacing, icons and radii. **Auto** follows the window (100% under 2000px wide, 112% from 2000px, 125% from 3000px), the choice is stored with your other settings, and browser zoom still works on top.
+- **Vision**: **High contrast** (your OS increased-contrast setting turns the same treatment on) and **Solid surfaces** (your OS reduced-transparency setting does the same).
+- **Colour vision**: **Colour-blind-safe tag palette** and **Show tag initials** — both applied while painting, so stored tag colours never change and exports match the canvas.
+- **Motion**: **Reduce motion**, forced independently of your system setting.
+- **Pointer & focus**: **Larger hit targets** and a **Stronger focus ring**.
+- The canvas announces the selected card through a screen-reader live region, and the skip link jumps straight to the workspace.
 
 ## Advanced
 
