@@ -689,12 +689,6 @@ html[data-shell] .react-flow__node > div {
   background-clip: text;
   color: transparent;
 }
-.text-gradient-fewer {
-  background: linear-gradient(90deg, #f97316, #f59e0b, #d97706);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
 
 /* Glass with cool gradient overlay */
 .gm-glass-cool {

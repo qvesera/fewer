@@ -20,7 +20,7 @@ export function Logo({ className, size = 28, showText = false }: LogoProps) {
         className="shrink-0 h-auto w-auto"
         style={{ height: size, width, maxWidth: "none" }}
       />
-      {showText && <span className="text-xl font-bold tracking-tight text-gradient-fewer ml-3">fewer</span>}
+      {showText && <span className="text-xl font-bold tracking-tight text-foreground ml-3">fewer</span>}
     </div>
   );
 }

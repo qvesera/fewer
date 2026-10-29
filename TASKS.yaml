@@ -6092,3 +6092,32 @@ tasks:
     effort: {commits: 1, files: 12, insertions: 3120, deletions: 3}
   spent_min: 34
   session_count: 1
+- id: "T-217"
+  title: "Header logo text: plain foreground instead of the orange gradient"
+  status: "in-progress"
+  type: "fix"
+  area: "theme"
+  tier: null
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: 517
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-29T07:35:27Z"
+  notes: ["2026-10-29T07:36:18Z · Logo.tsx:23 carries text-gradient-fewer (orange gradient + transparent colour); pre-gradient it inherited text-foreground. Restore plain text; drop the now-dead CSS class."]
+  sessions:
+  - start: "2026-10-29T07:43:14Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

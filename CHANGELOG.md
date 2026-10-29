@@ -15,6 +15,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Dependency wave C: within-range refresh of 49 packages (radix suite, supabase-js/ssr, @xyflow/react, react-day-picker, zustand, eslint chain, ...) — 58 → 9 outdated, the 9 being major-only holds (prisma 7, stripe 23, lucide 1, eslint 10, ...). The refreshed react-hooks rules surfaced render-phase ref access: GraphGallerySection now keeps its fetch results in state (dropping the x/y dep hack), GraphCanvas' #285 stamp cache and TutorialDialog's run-once guard carry scoped, justified disables.
 - Text is legible everywhere: the 236 hardcoded 8-11px sizes across 44 files became a rem-based 11px floor (new `text-2xs` token driven by a `--ui-scale` root font-size), uppercase headings below 12px dropped to sentence case, two micro-labels gained weight, the Settings dialog is 600px so all five tabs fit on one row without scrolling, and SVG/PNG export text matches the canvas sizes again
+- The header wordmark is plain theme text again (white in dark, near-black in light) instead of the orange gradient it had picked up; the now-unused .text-gradient-fewer rule is gone
 
 ### Added
 
