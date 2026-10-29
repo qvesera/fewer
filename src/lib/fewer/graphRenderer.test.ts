@@ -164,7 +164,9 @@ test("file card text is aligned to the icon box and vertically centered", () => 
   // Icon sits flush (centered in 36px box) at x=9; text column starts after gap.
   expect(scene.svg).toContain('<g transform="translate(9, 8)">');
   const labelY = scene.svg.match(/<text x="49" y="(\d+)"/)?.[1];
-  const metaY = scene.svg.match(/<text x="49" y="(\d+)"[^>]*style="text-transform:uppercase/)?.[1];
+  // The meta line is no longer uppercased (the UI's type floor dropped
+  // uppercase below 12px), so it is pinned by its size instead of its style.
+  const metaY = scene.svg.match(/<text x="49" y="(\d+)"[^>]*font-size="11"/)?.[1];
   const lY = Number(labelY);
   const mY = Number(metaY);
   expect(Number.isInteger(lY) && Number.isInteger(mY)).toBe(true);

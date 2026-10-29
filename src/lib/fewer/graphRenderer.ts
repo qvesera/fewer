@@ -409,7 +409,7 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
   return `<g${dim}>
       <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
       <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
-      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(metricColor)}">${escapeXml(metric)}</text>
+      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="11" fill="${escapeXml(metricColor)}">${escapeXml(metric)}</text>
       <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
     </g>`;
 }
@@ -545,7 +545,7 @@ function renderTagDots(
     .join("");
   const overflow = ids.length - shown.length;
   if (overflow <= 0) return dots;
-  return `${dots}<text x="${x + shown.length * 14 + 2}" y="${y + 4}" font-size="9" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
+  return `${dots}<text x="${x + shown.length * 14 + 2}" y="${y + 5}" font-size="11" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
 }
 
 /** Shared highlight/border ring logic for folder + file cards. `highlighted`
@@ -595,8 +595,8 @@ function renderCollapsedFolderCard(
     <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.symlink ? "folder-symlink" : n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
     <text x="${x + 60}" y="${y + 16}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 96, 14, 600))}</text>
     ${n.data.symlink
-      ? `<text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(n.data.symlink.broken ? "#fbbf24" : subtleColor)}">${escapeXml(truncateToWidth(symlinkBadgeText(n.data.symlink), w - 96, 10, 400))}</text>`
-      : `<text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(plural(childCount, "item"))}</text>`}
+      ? `<text x="${x + 60}" y="${y + 29}" font-size="11" fill="${escapeXml(n.data.symlink.broken ? "#fbbf24" : subtleColor)}">${escapeXml(truncateToWidth(symlinkBadgeText(n.data.symlink), w - 96, 11, 400))}</text>`
+      : `<text x="${x + 60}" y="${y + 29}" font-size="11" fill="${escapeXml(subtleColor)}">${escapeXml(plural(childCount, "item"))}</text>`}
     ${renderTagDots(n, o, x + w - 34 - Math.min(n.data.tagIds?.length ?? 0, TAG_RING_CAP) * 14, y + h / 2)}
     <g transform="translate(${x + w - 30}, ${y + 11})">${iconSvg("chevron-right", 16, subtleColor)}</g>
   </g>`;
@@ -659,12 +659,12 @@ function renderFolderCard(
     ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FOLDER_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
     <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48 - dotsW, 14, 600))}</text>
-    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(badgeColor)}">${escapeXml(truncateToWidth(pathText, w - 48 - dotsW, 10, 400))}</text>
+    <text x="${x + 36}" y="${y + 33}" font-size="11" fill="${escapeXml(badgeColor)}">${escapeXml(truncateToWidth(pathText, w - 48 - dotsW, 11, 400))}</text>
     ${renderTagDots(n, o, dotsX, y + 26)}
     <line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + w}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
     <g transform="translate(${x}, ${y})">${bodyHtml}</g>
     <line x1="${x}" y1="${y + footerTop}" x2="${x + w}" y2="${y + footerTop}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
-    <text x="${x + 12}" y="${y + footerTop + 18}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(rowsCount)}</text>
+    <text x="${x + 12}" y="${y + footerTop + 18}" font-size="11" fill="${escapeXml(subtleColor)}">${escapeXml(rowsCount)}</text>
   </g>`;
 }
 
@@ -717,7 +717,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
     ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FILE_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
     <g transform="translate(${iconX}, ${iconY})">${iconSvg(icon, 20, p.fileIcon)}</g>
     <text x="${textX}" y="${labelBaseline}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(label)}</text>
-    <text x="${textX}" y="${metaBaseline}" font-size="10" fill="${escapeXml(n.data.symlink?.broken ? "#fbbf24" : subtleColor)}"${n.data.symlink ? "" : ' style="text-transform:uppercase;letter-spacing:0.5px"'}>${escapeXml(meta)}</text>
+    <text x="${textX}" y="${metaBaseline}" font-size="11" fill="${escapeXml(n.data.symlink?.broken ? "#fbbf24" : subtleColor)}">${escapeXml(meta)}</text>
     ${renderTagDots(n, o, x + w - 8 - dotsW, y + h / 2)}
   </g>`;
 }

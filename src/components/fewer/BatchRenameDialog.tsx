@@ -141,7 +141,7 @@ export function BatchRenameDialog() {
                 </div>
               ))}
               {ids.length > preview.length && (
-                <div className="text-[10px] text-muted-foreground">+ {ids.length - preview.length} more</div>
+                <div className="text-2xs text-muted-foreground">+ {ids.length - preview.length} more</div>
               )}
             </div>
           )}

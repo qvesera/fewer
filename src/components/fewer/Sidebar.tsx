@@ -244,7 +244,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       >
         <div className="flex flex-col gap-3 w-full min-w-0">
           <div className="space-y-1.5 w-full min-w-0">
-            <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Style</Label>
             <SlidingToggle options={availableEdgeStyles} value={activeLeaf?.resolved.edgeStyle ?? edgeStyle} onValueChange={(v) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { edgeStyle: v as EdgeStyle }); else setEdgeStyle(v as EdgeStyle); }} />
           </div>
         </div>

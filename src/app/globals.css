@@ -42,6 +42,13 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /* Type floor. 2xs is the smallest size the UI is allowed to use (11px):
+     8-10px text was unreadable on a 32" 2K screen, and every arbitrary
+     `text-[Npx]` size was moved onto this token so the type is rem-based and
+     rides the --ui-scale root font-size set in :root below. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.45;
+
   /* brand */
   --color-brand-fuchsia: var(--brand-fuchsia-500);
   --color-brand-purple: var(--brand-purple-500);
@@ -80,6 +87,11 @@
 
 :root {
   --radius: 0.625rem;
+  /* Interface scale lever: every rem-based size (type, spacing, icons, radii)
+     multiplies through this. 1 = default. Written from a setting in the
+     accessibility work; never set directly elsewhere. */
+  --ui-scale: 1;
+  font-size: calc(16px * var(--ui-scale));
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;

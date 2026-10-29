@@ -76,7 +76,7 @@ export function NotificationPanel({ open, onClose }: { open: boolean; onClose: (
                       )}
                     </div>
                     {(item as any).timestamp && (
-                      <span className="shrink-0 text-[10px] text-muted-foreground/60 tabular-nums">
+                      <span className="shrink-0 text-2xs text-muted-foreground/60 tabular-nums">
                         {formatTime((item as any).timestamp)}
                       </span>
                     )}

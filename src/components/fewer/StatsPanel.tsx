@@ -50,7 +50,7 @@ export function StatsPanel() {
     <div className="space-y-3">
       <div className="grid grid-cols-2 gap-2">
         <div className="rounded-xl border border-fewer-folder-border bg-fewer-folder-bg p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-icon">
+          <div className="flex items-center gap-1.5 text-2xs text-fewer-folder-icon">
             <Folder className="h-3 w-3" /> Folders
           </div>
           <div className="mt-0.5 text-2xl font-bold tabular-nums">
@@ -58,7 +58,7 @@ export function StatsPanel() {
           </div>
         </div>
         <div className="rounded-xl border border-fewer-file-border bg-fewer-file-bg p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-fewer-file-icon">
+          <div className="flex items-center gap-1.5 text-2xs text-fewer-file-icon">
             <FileIcon className="h-3 w-3" /> Files
           </div>
           <div className="mt-0.5 text-2xl font-bold tabular-nums">
@@ -69,7 +69,7 @@ export function StatsPanel() {
 
       {stats.totalSymlinks > 0 && (
         <div className="rounded-xl border border-border/40 bg-card/40 p-3">
-          <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+          <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
             <Link2 className="h-3 w-3" /> Symlinks
           </div>
           <div className="mt-0.5 text-lg font-bold tabular-nums">
@@ -79,13 +79,13 @@ export function StatsPanel() {
       )}
 
       <div className="rounded-xl border border-border/40 bg-card/40 p-3">
-        <div className="flex items-center gap-1.5 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="flex items-center gap-1.5 text-2xs text-muted-foreground">
           <HardDrive className="h-3 w-3" /> Total size
         </div>
         <div className="mt-0.5 text-lg font-bold tabular-nums">
           {formatBytes(stats.totalSize)}
         </div>
-        <div className="text-[10px] text-muted-foreground">
+        <div className="text-2xs text-muted-foreground">
           {stats.totalSize.toLocaleString()} bytes raw
         </div>
       </div>
@@ -93,13 +93,13 @@ export function StatsPanel() {
       {sortedCategories.length > 0 && (
         <div className="rounded-xl border border-border/40 bg-card/40 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               By category
             </span>
             {categoryFilter.length > 0 && (
               <button
                 onClick={() => clearCategoryFilter()}
-                className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
+                className="rounded border border-border/50 px-1.5 py-0.5 text-2xs font-semibold text-primary hover:bg-primary/10"
               >
                 Clear filter
               </button>
@@ -125,7 +125,7 @@ export function StatsPanel() {
                     <span className="flex items-center gap-1.5">
                       <Icon className={cn("h-3.5 w-3.5", meta.color)} />
                       <span className={cn("font-medium", active && "text-foreground")}>{meta.label}</span>
-                      {active && <span className="text-[9px] font-semibold uppercase tracking-wide text-primary">Filtering</span>}
+                      {active && <span className="text-2xs font-semibold text-primary">Filtering</span>}
                     </span>
                     <span className="tabular-nums text-muted-foreground">
                       {count}
@@ -148,13 +148,13 @@ export function StatsPanel() {
       {can("tags", tier) && tags.length > 0 && (
         <div className="rounded-xl border border-border/40 bg-card/40 p-3">
           <div className="mb-2 flex items-center justify-between">
-            <span className="text-[10px] uppercase tracking-wider text-muted-foreground">
+            <span className="text-2xs text-muted-foreground">
               By tag
             </span>
             {tagFilter.length > 0 && (
               <button
                 onClick={() => useGraphStore.getState().setTagFilter([])}
-                className="rounded border border-border/50 px-1.5 py-0.5 text-[9px] font-semibold text-primary hover:bg-primary/10"
+                className="rounded border border-border/50 px-1.5 py-0.5 text-2xs font-semibold text-primary hover:bg-primary/10"
               >
                 Clear filter
               </button>
@@ -184,7 +184,7 @@ export function StatsPanel() {
                         aria-hidden="true"
                       />
                       <span className={cn("font-medium", active && "text-foreground")}>{tag.label}</span>
-                      {active && <span className="text-[9px] font-semibold uppercase tracking-wide text-primary">Filtering</span>}
+                      {active && <span className="text-2xs font-semibold text-primary">Filtering</span>}
                     </span>
                     <span className="tabular-nums text-muted-foreground">{count}</span>
                   </div>

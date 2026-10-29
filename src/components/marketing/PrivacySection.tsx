@@ -80,7 +80,7 @@ function CardLabel({ icon, children }: { icon: ReactNode; children: ReactNode })
       >
         {icon}
       </span>
-      <span className="mk-tile-kicker font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+      <span className="mk-tile-kicker font-mono text-xs uppercase tracking-[0.08em] text-muted-foreground">
         {children}
       </span>
     </div>
@@ -186,7 +186,7 @@ export function PrivacySection() {
 
             <ClaimCard className="mk-claim-card--display">
               <TileTitle>
-                <span className="mk-tile-kicker font-mono text-[11px] uppercase tracking-[0.08em] text-muted-foreground">
+                <span className="mk-tile-kicker font-mono text-xs uppercase tracking-[0.08em] text-muted-foreground">
                   Account required
                 </span>
                 <p className="mk-tile-display mt-1 text-4xl font-bold leading-tight tracking-tight sm:text-5xl">
@@ -241,7 +241,7 @@ export function PrivacySection() {
                 <span className="font-mono text-base font-semibold tabular-nums text-foreground sm:text-lg">
                   {stat.value}
                 </span>
-                <span className="text-[11px] uppercase leading-snug tracking-wider text-muted-foreground">
+                <span className="text-xs uppercase leading-snug tracking-wider text-muted-foreground">
                   {stat.label}
                 </span>
               </div>

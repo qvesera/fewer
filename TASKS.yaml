@@ -6011,3 +6011,55 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 241, deletions: 347}
   spent_min: 12
   session_count: 1
+- id: "T-214"
+  title: "Readable type floor: px->rem codemod, 11px minimum"
+  status: "in-progress"
+  type: "refactor"
+  area: "ux"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 513
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T22:52:51Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T23:16:34Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
+- id: "T-215"
+  title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
+  status: "triaged"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 1140
+  estimate_basis: "cli"
+  issue: 514
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-214"]
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T22:59:12Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0

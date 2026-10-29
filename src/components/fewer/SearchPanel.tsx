@@ -158,7 +158,7 @@ export function SearchPanel() {
         </div>
 
         {categoryFilter.length > 0 && (
-          <div className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-[10px] text-primary">
+          <div className="flex items-center gap-1.5 rounded-lg border border-primary/30 bg-primary/10 px-2 py-1 text-2xs text-primary">
             <span className="font-semibold uppercase tracking-wide">Filter:</span>
             <span>{categoryFilter.map((c) => c.charAt(0).toUpperCase() + c.slice(1)).join(", ")} files</span>
             <button
@@ -183,7 +183,7 @@ export function SearchPanel() {
                   onClick={() => toggleTagFilter(tag.id)}
                   aria-pressed={active}
                   className={cn(
-                    "flex items-center gap-1 rounded-full border px-2 py-0.5 text-[10px] font-medium transition-colors",
+                    "flex items-center gap-1 rounded-full border px-2 py-0.5 text-2xs font-medium transition-colors",
                     active
                       ? "border-transparent text-white"
                       : "border-border/50 bg-card/30 text-muted-foreground hover:text-foreground",
@@ -220,11 +220,11 @@ export function SearchPanel() {
           {view === "history" ? (
             <div className="p-1.5 space-y-0.5 min-w-0">
               <div className="flex items-center justify-between px-1 pb-1">
-                <span className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground/70">Recent searches</span>
+                <span className="text-2xs font-semibold text-muted-foreground/70">Recent searches</span>
                 <button
                   type="button"
                   onClick={() => clearSearchHistory()}
-                  className="text-[10px] text-muted-foreground/60 hover:text-foreground rounded px-1"
+                  className="text-2xs text-muted-foreground/60 hover:text-foreground rounded px-1"
                   aria-label="Clear search history"
                 >
                   Clear
@@ -281,11 +281,11 @@ export function SearchPanel() {
                     
                     <div className="flex flex-col min-w-0 flex-1 leading-snug">
                       <span className="truncate font-semibold">{n.data.label}</span>
-                      <span className="truncate text-[10px] text-muted-foreground/75 font-mono">{n.data.path}</span>
+                      <span className="truncate text-2xs text-muted-foreground/75 font-mono">{n.data.path}</span>
                     </div>
 
                     {isHidden && (
-                      <span className="shrink-0 flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-[9px] font-semibold text-amber-600 dark:text-amber-300 border border-amber-500/20">
+                      <span className="shrink-0 flex items-center gap-1 rounded bg-amber-500/20 px-1.5 py-0.5 text-2xs font-semibold text-amber-600 dark:text-amber-300 border border-amber-500/20">
                         <EyeOff className="h-2.5 w-2.5" /> hidden
                       </span>
                     )}
@@ -297,17 +297,17 @@ export function SearchPanel() {
         </div>
 
         {/* Operational Interface Key Guide */}
-        <div className="flex items-center justify-between text-[10px] text-muted-foreground/80 border-t border-border/15 pt-2 px-1">
+        <div className="flex items-center justify-between text-2xs text-muted-foreground/80 border-t border-border/15 pt-2 px-1">
           <span className="flex items-center gap-1.5">
             <span className="flex gap-0.5">
-              <kbd className="rounded border border-border/50 bg-muted px-1 py-0.2 font-mono text-[9px]">↑</kbd>
-              <kbd className="rounded border border-border/50 bg-muted px-1 py-0.2 font-mono text-[9px]">↓</kbd>
+              <kbd className="rounded border border-border/50 bg-muted px-1 py-0.2 font-mono text-2xs">↑</kbd>
+              <kbd className="rounded border border-border/50 bg-muted px-1 py-0.2 font-mono text-2xs">↓</kbd>
             </span>
             navigate
           </span>
           <span>{query ? `${matches.length} found` : ""}</span>
           <span className="flex items-center gap-1.5">
-            <kbd className="rounded border border-border/50 bg-muted px-1 py-0.2 font-mono text-[9px]">Esc</kbd>
+            <kbd className="rounded border border-border/50 bg-muted px-1 py-0.2 font-mono text-2xs">Esc</kbd>
             close
           </span>
         </div>

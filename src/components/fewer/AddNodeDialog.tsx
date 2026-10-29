@@ -193,7 +193,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                 )}
               />
               {isDuplicate && name.trim() && (
-                <div className="flex items-center gap-1.5 text-[11px] text-red-400 animate-[tutorial-fade-in_0.2s_ease-out]">
+                <div className="flex items-center gap-1.5 text-xs text-red-400 animate-[tutorial-fade-in_0.2s_ease-out]">
                   <AlertTriangle className="h-3 w-3 shrink-0" />
                   <span>A card with this name already exists here</span>
                 </div>
@@ -234,7 +234,7 @@ export function AddNodeDialog({ open, onOpenChange, mode }: AddNodeDialogProps) 
                   📄 File
                 </button>
               </div>
-              <p className="text-[10px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 Use ← → arrow keys to switch type · Enter to create
               </p>
             </div>

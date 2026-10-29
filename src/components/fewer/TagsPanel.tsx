@@ -48,7 +48,7 @@ export function TagsPanel() {
   return (
     <div className="flex flex-col gap-2 w-full min-w-0">
       {tags.length === 0 && !creating && (
-        <p className="text-[11px] leading-relaxed text-muted-foreground/70">
+        <p className="text-xs leading-relaxed text-muted-foreground/70">
           No tags yet. Tags highlight cards with a colored ring and let you
           filter the graph from Graph Analytics.
         </p>
@@ -142,7 +142,7 @@ export function TagsPanel() {
                 style={{ background: color }}
               />
             ))}
-            <span className="text-[10px] text-muted-foreground/60">color (optional)</span>
+            <span className="text-2xs text-muted-foreground/60">color (optional)</span>
           </div>
         </div>
       ) : (

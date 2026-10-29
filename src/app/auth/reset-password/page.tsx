@@ -122,7 +122,7 @@ export default function ResetPasswordPage() {
                     return (
                       <li
                         key={h.id}
-                        className={`flex items-center gap-1.5 text-[11px] ${
+                        className={`flex items-center gap-1.5 text-xs ${
                           ok ? "text-green-600 dark:text-green-500" : "text-muted-foreground/70"
                         }`}
                       >
@@ -154,7 +154,7 @@ export default function ResetPasswordPage() {
                 aria-invalid={confirmPassword.length > 0 && confirmPassword !== password}
               />
               {confirmPassword.length > 0 && confirmPassword !== password && (
-                <p className="text-[11px] text-muted-foreground/70">Passwords do not match yet.</p>
+                <p className="text-xs text-muted-foreground/70">Passwords do not match yet.</p>
               )}
             </div>
 
