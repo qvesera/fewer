@@ -104,3 +104,7 @@ lighthouse/*
 
 # desktop shell builds live in the private fewer-desktop repo
 !scripts/sign-license.ts
+
+# agent/dev scratch files — command output staged by accident once, never again
+/.tmp-*
+/.g-*

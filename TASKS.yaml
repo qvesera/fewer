@@ -6042,27 +6042,33 @@ tasks:
   session_count: 1
 - id: "T-215"
   title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
-  status: "blocked"
+  status: "review"
   type: "feat"
   area: "ux"
   tier: null
   estimate_min: 1140
   estimate_basis: "cli"
   issue: 514
-  pr: null
+  pr: 519
   internal: false
   milestone: null
   blocked_by: ["T-214"]
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-28T22:59:12Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-10-29T08:01:17Z"
+    end: "2026-10-29T10:24:37Z"
+    measured: true
+    note: "Accessibility tab shipped in 4 slices: (1) tab scaffold + a11ySettings (5 html-class flags + 2 paint flags), globals.css blocks with prefers-contrast/preferred-reduced-transparency mirrors, dashClock class check, main#main-content skip-link target, CanvasLiveRegion + describeNode announcer, dialog 600px->44rem for 6 tabs; (2) TAG_PALETTE_CB Okabe-Ito remap by index + tag initials (14px chip, pitch 18) through the shared tags seam with export parity via GraphRenderOptions; (3) contrastRatio + ensureContrast in themeColors, CONTRAST_PAIRS/slotContrast in themeEditor, ContrastControls chips + Fix in the 16-slot theme editor; (4) content/docs/accessibility.md + settings.md + migration 0054 reseed + changelog. Gates: tsc 0, lint 0 errors, unit+component 1869+258 pass, build OK (CI tier flag), full local e2e 76/76 against standalone :3100, migrations verify 0 warnings, changelog validate OK."
+    proof: ["18fae3f", "19e6de2", "14eddbb", "4122a9b", "#519"]
+    effort: {commits: 4, files: 34, insertions: 4111, deletions: 74}
+  spent_min: 143
+  session_count: 1
 - id: "T-216"
   title: "Interface scale: viewport-aware default + Settings control"
   status: "done"

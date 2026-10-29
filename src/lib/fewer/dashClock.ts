@@ -37,7 +37,10 @@ function tick(now: number) {
     setOffset(0);
     return; // stay frozen; don't reschedule
   }
-  setOffset(-((now * PX_PER_MS) % WRAP));
+  // The in-app Reduce motion toggle keeps this loop alive but paints no motion,
+  // so switching it off in Settings resumes the dashes without a remount.
+  const frozen = document.documentElement.classList.contains("a11y-reduce-motion");
+  setOffset(frozen ? 0 : -((now * PX_PER_MS) % WRAP));
   rafId = requestAnimationFrame(tick);
 }
 

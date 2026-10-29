@@ -1,4 +1,5 @@
 import { THEME_COLOR_META, type ThemeColorMeta, type CustomTheme, type CustomThemeColor } from "./types";
+import { contrastRatio } from "./themeColors";
 
 /**
  * Pure logic for the floating theme editor dialog (positioning, docking,
@@ -265,6 +266,56 @@ export function classifyThemeApiError(
 }
 
 /** Editable color slots grouped into the editor's display sections. */
+/**
+ * The structured colour slots — CustomTheme also carries six legacy
+ * plain-string fallbacks (nodeBg, headerText, …) that the editor never touches,
+ * so keying on them would force a cast at every `.color`.
+ */
+export type PaletteKey = Exclude<
+  keyof CustomTheme,
+  "nodeBg" | "nodeBorder" | "headerBg" | "headerText" | "icon" | "accent"
+>;
+
+/**
+ * Which surface each slot's contrast is judged against, and the WCAG target for
+ * that kind: 4.5:1 for text, 3:1 for non-text UI (icons, borders, handles,
+ * rings — WCAG 1.4.11). Contrast is symmetric and each pair appears once, so
+ * the background/text pairs are only listed from the text side.
+ *
+ * Slots with no entry (background, itemHover, the gradient styling) have no
+ * single meaningful counterpart and show no chip.
+ */
+export const CONTRAST_PAIRS: Partial<
+  Record<PaletteKey, { against: PaletteKey; target: number }>
+> = {
+  defaultText: { against: "background", target: 4.5 },
+  subtleText: { against: "background", target: 4.5 },
+  folderText: { against: "folderBg", target: 4.5 },
+  folderSubtleText: { against: "folderBg", target: 4.5 },
+  fileText: { against: "fileBg", target: 4.5 },
+  fileSubtleText: { against: "fileBg", target: 4.5 },
+  folderIcon: { against: "folderBg", target: 3 },
+  fileIcon: { against: "fileBg", target: 3 },
+  folderBorder: { against: "folderBg", target: 3 },
+  fileBorder: { against: "fileBg", target: 3 },
+  edge: { against: "background", target: 3 },
+  handle: { against: "background", target: 3 },
+  selectRing: { against: "background", target: 3 },
+};
+
+/** Live contrast of one slot against its counterpart — null for slots that
+ *  have no pairing, or when either colour fails to parse. */
+export function slotContrast(
+  theme: CustomTheme,
+  key: PaletteKey,
+): { ratio: number; against: PaletteKey; target: number } | null {
+  const pair = CONTRAST_PAIRS[key];
+  if (!pair) return null;
+  const ratio = contrastRatio(theme[key].color, theme[pair.against].color);
+  if (ratio === null) return null;
+  return { ratio, against: pair.against, target: pair.target };
+}
+
 export const THEME_EDITOR_SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
   { title: "Canvas & Text", keys: THEME_COLOR_META.filter((m) => ["background", "defaultText", "subtleText", "itemHover", "handle", "edge", "selectRing"].includes(m.key)) },
   { title: "Folders", keys: THEME_COLOR_META.filter((m) => m.key.startsWith("folder")) },

@@ -1,5 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
+  ensureContrast,
+  contrastRatio,
   hexToRgb,
   clampOpacity,
   toCssColor,
@@ -291,4 +293,29 @@ describe("deriveShadcnVars", () => {
     expect(varOf(vars, "--muted")).toBe("#0f0f0f");
     expect(varOf(vars, "--border")).toBe("rgba(0, 0, 0, 0.2)");
   });
+});
+
+// ─── WCAG 2.1 contrast (T-215 / #514) ──────────────────────────────────────
+
+test("contrastRatio implements the WCAG formula, symmetrically", () => {
+  expect(contrastRatio("#ffffff", "#000000")).toBeCloseTo(21, 5);
+  expect(contrastRatio("#777777", "#777777")).toBeCloseTo(1, 5);
+  expect(contrastRatio("#56b4e9", "#0b0b13")).toBeCloseTo(
+    contrastRatio("#0b0b13", "#56b4e9")!,
+    10,
+  );
+  // The classic AA-passing mid grey on white, and the rung just below it.
+  expect(contrastRatio("#767676", "#ffffff")!).toBeGreaterThanOrEqual(4.5);
+  expect(contrastRatio("#949494", "#ffffff")!).toBeLessThan(4.5);
+  expect(contrastRatio("nope", "#ffffff")).toBeNull();
+});
+
+test("ensureContrast takes the smallest edit that clears the target", () => {
+  const fixed = ensureContrast("#949494", "#ffffff", 4.5);
+  expect(fixed).not.toBe("#949494");
+  expect(contrastRatio(fixed, "#ffffff")!).toBeGreaterThanOrEqual(4.5);
+  // Already passing: Fix is a no-op.
+  expect(ensureContrast("#333333", "#ffffff", 4.5)).toBe("#333333");
+  // Unparseable input passes through instead of throwing.
+  expect(ensureContrast("oops", "#ffffff", 4.5)).toBe("oops");
 });

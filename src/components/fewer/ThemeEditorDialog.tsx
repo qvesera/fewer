@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2, Globe } from "lucide-react";
-import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
+import { toCssColor, toCssValue, suggestGradientEnd, ensureContrast } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
+import { cn } from "@/lib/utils";
 import type { ThemesBackend } from "@/lib/fewer/themesData";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
@@ -33,7 +34,56 @@ import {
   recordSectionChange,
   popSectionUndo,
   sectionUndoDepth,
+  slotContrast,
+  type PaletteKey,
 } from "@/lib/fewer/themeEditor";
+
+/**
+ * Live WCAG ratio for a slot that has a meaningful counterpart (T-215), plus a
+ * one-click **Fix** while it is below target — ensureContrast takes the
+ * smallest edit toward white or black that clears the pair's threshold, and the
+ * edit goes through handleChange, so it lands in the per-section undo stack.
+ */
+function ContrastControls({
+  theme,
+  slotKey,
+  onFix,
+}: {
+  theme: CustomTheme;
+  slotKey: PaletteKey;
+  onFix: (color: string) => void;
+}) {
+  const measured = slotContrast(theme, slotKey);
+  if (!measured) return null;
+  const pass = measured.ratio >= measured.target;
+  return (
+    <>
+      <span
+        title={`Contrast ${measured.ratio.toFixed(2)}:1 against ${measured.against} — WCAG target ${measured.target}:1`}
+        className={cn(
+          "shrink-0 rounded-sm border px-1 py-px text-2xs font-semibold tabular-nums",
+          pass
+            ? "border-border/60 bg-muted/40 text-muted-foreground"
+            : "border-amber-500/50 bg-amber-500/15 text-amber-700 dark:text-amber-400",
+        )}
+      >
+        {measured.ratio.toFixed(1)}:1
+      </span>
+      {!pass && (
+        <button
+          type="button"
+          onClick={() =>
+            onFix(ensureContrast(theme[slotKey].color, theme[measured.against].color, measured.target))
+          }
+          title={`Adjust this colour to ${measured.target}:1 against ${measured.against}`}
+          className="shrink-0 rounded-sm border border-amber-500/50 bg-amber-500/15 px-1.5 py-0.5 text-2xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 dark:text-amber-400"
+        >
+          Fix
+        </button>
+      )}
+    </>
+  );
+}
 
 export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend } = {}) {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
@@ -772,6 +822,13 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                       )}
                     </div>
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <ContrastControls
+                        theme={customTheme}
+                        slotKey={meta.key as PaletteKey}
+                        onFix={(color) =>
+                          handleChange(meta.key, { color, opacity: customTheme[meta.key].opacity })
+                        }
+                      />
                       <input
                         type="text"
                         value={customTheme[meta.key].color}

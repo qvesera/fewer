@@ -15,6 +15,7 @@ export type SettingsTabId =
   | "account"
   | "about"
   | "appearance"
+  | "accessibility"
   | "watched"
   | "cloud"
   | "advanced"
@@ -228,7 +229,7 @@ export function visibleTabs(opts: {
   isMobile: boolean;
   advancedMode: boolean;
 }): SettingsTabId[] {
-  const tabs: SettingsTabId[] = ["account", "about", "appearance"];
+  const tabs: SettingsTabId[] = ["account", "about", "appearance", "accessibility"];
   if (opts.tier !== "guest") tabs.push("watched", "cloud");
   if (opts.advancedMode || !opts.isMobile) tabs.push("advanced");
   tabs.push("help");
