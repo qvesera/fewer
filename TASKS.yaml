@@ -6042,7 +6042,7 @@ tasks:
   session_count: 1
 - id: "T-215"
   title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
-  status: "blocked"
+  status: "in-progress"
   type: "feat"
   area: "ux"
   tier: null
@@ -6060,9 +6060,15 @@ tasks:
   assignee: "qvesera"
   created_at: "2026-10-28T22:59:12Z"
   notes: []
-  sessions: []
+  sessions:
+  - start: "2026-10-29T08:01:17Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 0
-  session_count: 0
+  session_count: 1
 - id: "T-216"
   title: "Interface scale: viewport-aware default + Settings control"
   status: "done"

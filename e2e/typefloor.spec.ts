@@ -90,14 +90,14 @@ test("every Settings tab fits without scrolling the strip", async ({ page }) => 
   expect(fit!.scroll, "tab strip scrolls — dialog too narrow").toBeLessThanOrEqual(fit!.client);
 });
 
-// T-216: the Interface Scale control writes --ui-scale on <html> (root font-size
-// follows), and Auto removes it so the viewport media queries decide again. The
-// viewport below 2000px means Auto resolves to 16px.
+// T-216/T-215: the Interface Scale control lives in Accessibility and writes
+// --ui-scale on <html> (root font-size follows); Auto removes it so the
+// viewport media queries decide. Below 2000px wide that resolves to 16px.
 test("the Interface Scale control drives --ui-scale and Auto hands back to the media queries", async ({ page }) => {
   await page.goto("/app");
   await page.locator('[title="Settings"]').click();
   await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
-  await page.getByRole("tab", { name: "Appearance" }).click();
+  await page.getByRole("tab", { name: "Accessibility" }).click();
 
   const scaleVar = () => page.evaluate(() => document.documentElement.style.getPropertyValue("--ui-scale"));
   const rootFontSize = () =>

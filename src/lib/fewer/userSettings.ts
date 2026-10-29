@@ -11,6 +11,7 @@ import type {
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
 import type { ImportOptions } from "./importOptions";
 import { DEFAULT_IMPORT_OPTIONS } from "./importOptions";
+import type { A11ySettings } from "./a11ySettings";
 import { useGraphStore } from "@/store/graphStore";
 import type { PanelSide } from "./panelLayout";
 import { parseLayoutStorage, serializeLayoutStorage } from "./panelLayout";
@@ -59,6 +60,8 @@ export interface UserSettings {
   /** Interface scale multiplier; `null` = Auto (viewport media queries in
    *  globals.css pick). Optional so blobs written before T-216 still read. */
   uiScale?: number | null;
+  /** Accessibility preferences (T-215). Optional for the same reason. */
+  a11y?: A11ySettings;
   /** Sibling sort key (persisted like direction/edgeStyle). */
   sortKey: SortKey;
   /** Sibling sort direction. */
@@ -109,6 +112,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     nodeWidth: store.nodeWidth as number,
     nodeHeight: store.nodeHeight as number,
     uiScale: store.uiScale as number | null,
+    a11y: store.a11y as A11ySettings,
     sortKey: store.sortKey as SortKey,
     sortDir: store.sortDir as SortDir,
     autoRelayout: store.autoRelayout as boolean,
@@ -249,6 +253,7 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
   if (data.cornerRadius !== undefined) s.setCornerRadius(data.cornerRadius);
   // `!== undefined` (not `??`) so a stored Auto (null) is applied, not skipped.
   if (data.uiScale !== undefined) s.setUiScale(data.uiScale);
+  if (data.a11y !== undefined) s.setA11y(data.a11y);
 
   if (data.exportSettings) s.setExportSettings(data.exportSettings);
 

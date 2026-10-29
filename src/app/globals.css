@@ -656,6 +656,122 @@ html[data-shell] .react-flow__node > div {
   }
 }
 
+/* ── Accessibility preferences (T-215 / #514) ──────────────────────────────
+   One class per preference on <html> — written only by applyA11yToDom and the
+   pre-paint init script (a11ySettings.ts owns the names). The OS gets the same
+   treatment through prefers-contrast / prefers-reduced-transparency below, so a
+   user who set it in the OS never has to set it here. */
+
+/* High contrast — light: darken muted text, harden the hairlines, and take the
+   node sub-lines from "hint" back to readable. */
+@media (prefers-contrast: more) {
+  :root:not(.dark) {
+    --muted-foreground: oklch(0.42 0 0);
+    --border: oklch(0.78 0 0);
+    --input: oklch(0.68 0 0);
+    --ring: oklch(0.5 0 0);
+    --fewer-text-subtle: #334155;
+    --fewer-folder-subtle-text: #475569;
+    --fewer-group-subtle-text: #334155;
+    --fewer-file-subtle-text: #334155;
+  }
+  :root.dark {
+    --muted-foreground: oklch(0.82 0 0);
+    --border: oklch(1 0 0 / 30%);
+    --input: oklch(1 0 0 / 45%);
+    --ring: oklch(0.78 0 0);
+    --fewer-text-subtle: #e9ecef;
+    --fewer-folder-subtle-text: #ffe4c4;
+    --fewer-group-subtle-text: #e9ecef;
+    --fewer-file-subtle-text: #e9ecef;
+  }
+}
+.a11y-contrast:not(.dark) {
+  --muted-foreground: oklch(0.42 0 0);
+  --border: oklch(0.78 0 0);
+  --input: oklch(0.68 0 0);
+  --ring: oklch(0.5 0 0);
+  --fewer-text-subtle: #334155;
+  --fewer-folder-subtle-text: #475569;
+  --fewer-group-subtle-text: #334155;
+  --fewer-file-subtle-text: #334155;
+}
+.a11y-contrast.dark {
+  --muted-foreground: oklch(0.82 0 0);
+  --border: oklch(1 0 0 / 30%);
+  --input: oklch(1 0 0 / 45%);
+  --ring: oklch(0.78 0 0);
+  --fewer-text-subtle: #e9ecef;
+  --fewer-folder-subtle-text: #ffe4c4;
+  --fewer-group-subtle-text: #e9ecef;
+  --fewer-file-subtle-text: #e9ecef;
+}
+
+/* Solid surfaces: no blur under text, and the big translucent surfaces go solid. */
+@media (prefers-reduced-transparency: reduce) {
+  [class*="backdrop-blur"] {
+    backdrop-filter: none !important;
+    -webkit-backdrop-filter: none !important;
+  }
+}
+.a11y-solid [class*="backdrop-blur"] {
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+}
+.a11y-solid .gm-glass,
+.a11y-solid .gm-glass-cool,
+.a11y-solid .gm-glass-warm {
+  background: var(--card) !important;
+  border-color: var(--border) !important;
+}
+.a11y-solid [role="dialog"] {
+  background: var(--background) !important;
+}
+
+/* Reduce motion — the same treatment as the prefers-reduced-motion rule above,
+   keyed to the class so it can be forced on without touching the OS setting.
+   dashClock.ts reads this class too, so marching edges freeze with it. */
+.a11y-reduce-motion *,
+.a11y-reduce-motion *::before,
+.a11y-reduce-motion *::after {
+  animation-duration: 0.01ms !important;
+  animation-iteration-count: 1 !important;
+  transition-duration: 0.01ms !important;
+  scroll-behavior: auto !important;
+}
+.a11y-reduce-motion .gm-edge-flow,
+.a11y-reduce-motion .gm-node-fade-in,
+.a11y-reduce-motion .gm-progress-indeterminate,
+.a11y-reduce-motion .mk-edge-flow,
+.a11y-reduce-motion .mk-caret {
+  animation: none !important;
+}
+
+/* Larger hit targets: wider invisible padding on .min-hit and a taller floor
+   for buttons/tabs/links. Opt-in, so the compact default layout is untouched. */
+.a11y-targets .min-hit::before {
+  inset: -10px;
+}
+.a11y-targets button,
+.a11y-targets [role="tab"],
+.a11y-targets a {
+  min-height: 36px;
+}
+.a11y-targets [role="tab"] {
+  padding-block: 6px;
+}
+
+/* Stronger focus: heavier ring on keyboard focus, and one on :focus too so a
+   click-then-tab reader never lands on a control with no visible marker. */
+.a11y-focus :focus-visible {
+  outline: 3px solid var(--brand-cyan-400) !important;
+  outline-offset: 3px !important;
+}
+.a11y-focus :focus {
+  outline: 2px solid var(--brand-cyan-400);
+  outline-offset: 2px;
+}
+
 /* ── Sidebar reorder lift ─────────────────────────────────────────────────── */
 
 [data-section-id][data-reordering] > section {

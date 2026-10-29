@@ -235,6 +235,7 @@ describe("visibleTabs", () => {
       "account",
       "about",
       "appearance",
+      "accessibility",
       "advanced",
       "help",
     ]);
@@ -245,6 +246,7 @@ describe("visibleTabs", () => {
       "account",
       "about",
       "appearance",
+      "accessibility",
       "help",
     ]);
   });
@@ -254,11 +256,22 @@ describe("visibleTabs", () => {
       "account",
       "about",
       "appearance",
+      "accessibility",
       "watched",
       "cloud",
       "advanced",
       "help",
     ]);
+  });
+
+  it("the accessibility tab is never gated — no tier, mode or viewport takes it away", () => {
+    for (const opts of [
+      { tier: "guest", isMobile: true, advancedMode: false },
+      { tier: "free", isMobile: false, advancedMode: false },
+      { tier: "team", isMobile: true, advancedMode: true },
+    ]) {
+      expect(visibleTabs(opts)).toContain("accessibility");
+    }
   });
 
   it("watches and cloud are sign-in only", () => {
