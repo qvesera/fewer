@@ -6013,7 +6013,7 @@ tasks:
   session_count: 1
 - id: "T-214"
   title: "Readable type floor: px->rem codemod, 11px minimum"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "ux"
   tier: null
@@ -6065,7 +6065,7 @@ tasks:
   session_count: 0
 - id: "T-216"
   title: "Interface scale: viewport-aware default + Settings control"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: null
