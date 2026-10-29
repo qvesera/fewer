@@ -77,7 +77,7 @@ function ChecklistItem({
         </div>
         <div
           className={cn(
-            "text-[10px] mt-0.5",
+            "text-2xs mt-0.5",
             darkCard ? "text-zinc-100/60" : "text-zinc-900/60",
           )}
         >
@@ -328,7 +328,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
               style={{ width: `${((mobileStep + 1) / items.length) * 100}%` }}
             />
           </div>
-          <span className="text-[10px] tabular-nums opacity-60">
+          <span className="text-2xs tabular-nums opacity-60">
             {`${mobileStep + 1}/${items.length}`}
           </span>
         </div>
@@ -346,7 +346,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                 type="button"
                 variant="outline"
                 size="sm"
-                className="flex-1 text-[10px] !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
+                className="flex-1 text-2xs !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
                 disabled={mobileStep === 0}
                 onClick={() => setMobileStep((s) => Math.max(0, s - 1))}
               >
@@ -356,7 +356,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                 <Button
                   type="button"
                   size="sm"
-                  className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-primary-foreground"
+                  className="flex-1 text-2xs bg-gradient-to-r from-primary to-primary text-primary-foreground"
                   onClick={() => setMobileStep((s) => Math.min(items.length - 1, s + 1))}
                 >
                   Next →
@@ -366,7 +366,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                   <Button
                     type="button"
                     size="sm"
-                    className="flex-1 text-[10px] bg-gradient-to-r from-primary to-primary text-primary-foreground"
+                    className="flex-1 text-2xs bg-gradient-to-r from-primary to-primary text-primary-foreground"
                     onClick={handleDismiss}
                   >
                     <Check className="h-3 w-3 mr-1" />
@@ -376,7 +376,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                     type="button"
                     size="sm"
                     variant="outline"
-                    className="flex-1 text-[10px] !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
+                    className="flex-1 text-2xs !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
                     onClick={() => { handleDismiss(); window.location.href = "/docs"; }}
                   >
                     Docs →
@@ -387,7 +387,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
             <button
               type="button"
               onClick={handleDismiss}
-              className="w-full text-center text-[9px] text-current opacity-50 transition-opacity hover:opacity-100"
+              className="w-full text-center text-2xs text-current opacity-50 transition-opacity hover:opacity-100"
             >
               Skip tutorial
             </button>

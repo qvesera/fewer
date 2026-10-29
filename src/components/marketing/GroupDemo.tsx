@@ -33,9 +33,9 @@ export function GroupDemo() {
           className="flex w-full cursor-pointer items-center gap-2 text-left"
         >
           <Shapes className="h-3.5 w-3.5 shrink-0" style={{ color: "var(--fewer-group-icon)" }} aria-hidden="true" />
-          <span className="truncate font-mono text-[11px] font-medium">docs</span>
+          <span className="truncate font-mono text-xs font-medium">docs</span>
           <span
-            className="ml-auto shrink-0 text-[10px]"
+            className="ml-auto shrink-0 text-2xs"
             style={{ color: "var(--fewer-group-subtle-text)" }}
           >
             {collapsed ? "3 cards" : "group"}
@@ -76,7 +76,7 @@ export function GroupDemo() {
                 aria-hidden="true"
               />
               <span
-                className="truncate font-mono text-[10px]"
+                className="truncate font-mono text-2xs"
                 style={{ color: "var(--fewer-file-text)" }}
               >
                 {name}

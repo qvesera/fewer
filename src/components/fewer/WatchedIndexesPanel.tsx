@@ -54,7 +54,7 @@ export function WatchedIndexesPanel() {
       <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
         <div className="flex items-center gap-2 mb-2">
           <Globe className="h-3.5 w-3.5 text-primary" />
-          <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+          <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
             Watched indexes
           </p>
         </div>
@@ -69,7 +69,7 @@ export function WatchedIndexesPanel() {
           <Loader2 className="h-4 w-4 animate-spin" />
         </div>
       ) : watched.length === 0 ? (
-        <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+        <p className="px-1 py-2 text-xs text-muted-foreground/70">
           No watched indexes. Import a public file index URL and toggle "Watch for changes" to add one.
         </p>
       ) : (
@@ -80,7 +80,7 @@ export function WatchedIndexesPanel() {
               className="group flex items-center gap-1.5 rounded-lg border border-border/30 bg-muted/10 p-1.5 w-full min-w-0"
             >
               <Globe className="h-3.5 w-3.5 shrink-0 text-primary/80" />
-              <span className="truncate text-[11px] text-foreground/90 flex-1 min-w-0 font-mono" title={w.url}>
+              <span className="truncate text-xs text-foreground/90 flex-1 min-w-0 font-mono" title={w.url}>
                 {w.url}
               </span>
               <button

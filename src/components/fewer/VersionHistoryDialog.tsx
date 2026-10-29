@@ -136,8 +136,8 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
         <div className="max-h-80 overflow-y-auto space-y-1.5">
           {proLocked ? (
             <div className="px-1 py-2 space-y-1">
-              <p className="text-[11px] text-foreground/90 font-medium">Version history is not enabled on this plan.</p>
-              <p className="text-[11px] text-muted-foreground/70">
+              <p className="text-xs text-foreground/90 font-medium">Version history is not enabled on this plan.</p>
+              <p className="text-xs text-muted-foreground/70">
                 Free keeps an automatic snapshot of every save for 30 days; Pro and Team keep a full year.
               </p>
               {BILLING_UI ? (
@@ -151,19 +151,19 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
                   Upgrade to Pro
                 </Button>
               ) : (
-                <p className="text-[11px] text-muted-foreground/70">
+                <p className="text-xs text-muted-foreground/70">
                   Version history is not available on this plan.
                 </p>
               )}
             </div>
           ) : error ? (
-            <p className="px-1 py-2 text-[11px] text-muted-foreground/70">{error}</p>
+            <p className="px-1 py-2 text-xs text-muted-foreground/70">{error}</p>
           ) : versions === null ? (
             <div className="flex items-center justify-center py-4 text-muted-foreground">
               <Loader2 className="h-4 w-4 animate-spin" />
             </div>
           ) : versions.length === 0 ? (
-            <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+            <p className="px-1 py-2 text-xs text-muted-foreground/70">
               No versions yet. Each time you save this graph, an automatic snapshot is kept.
             </p>
           ) : (
@@ -173,8 +173,8 @@ const BILLING_UI = process.env.NEXT_PUBLIC_BILLING_ENABLED === "true";
                 className="flex items-center gap-2 rounded-lg border border-border/30 bg-muted/10 p-2"
               >
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-[11px] text-foreground/90">{prettyDate(v.created_at)}</p>
-                  <p className="text-[10px] text-muted-foreground/60">{v.node_count} cards</p>
+                  <p className="truncate text-xs text-foreground/90">{prettyDate(v.created_at)}</p>
+                  <p className="text-2xs text-muted-foreground/60">{v.node_count} cards</p>
                 </div>
                 <Button
                   variant="outline"

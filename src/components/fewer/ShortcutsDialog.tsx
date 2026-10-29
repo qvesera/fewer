@@ -104,7 +104,7 @@ function Key({ kbd }: { kbd: string }) {
   const parts = kbd.split("");
   const usesIcons = parts.some((c) => ARROW_ICONS[c]);
   return (
-    <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-[10px] sm:text-[11px] font-semibold text-muted-foreground shadow-sm">
+    <kbd className="inline-flex h-5 min-w-[20px] items-center justify-center rounded border border-border bg-muted px-1.5 font-mono text-2xs sm:text-xs font-semibold text-muted-foreground shadow-sm">
       {usesIcons ? (
         <span className="flex items-center gap-0.5">
           {parts.map((c, i) => {
@@ -161,11 +161,11 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
             <Key kbd={mod} />
             {extraKeys.map((k, i) => (
               <div key={i} className="flex items-center gap-1">
-                <span className="text-[10px] font-medium text-muted-foreground/40">+</span>
+                <span className="text-2xs font-medium text-muted-foreground/40">+</span>
                 <Key kbd={k} />
               </div>
             ))}
-            <span className="text-[10px] font-medium text-muted-foreground/40">+</span>
+            <span className="text-2xs font-medium text-muted-foreground/40">+</span>
             <Key kbd={keys[keys.length - 1]} />
           </>
         ) : (
@@ -173,7 +173,7 @@ function ShortcutRow({ shortcut }: { shortcut: Shortcut }) {
             <div key={i} className="flex items-center gap-1">
               <Key kbd={k} />
               {i < keys.length - 1 && (
-                <span className="text-[10px] font-medium text-muted-foreground/40">+</span>
+                <span className="text-2xs font-medium text-muted-foreground/40">+</span>
               )}
             </div>
           ))
@@ -206,7 +206,7 @@ export function ShortcutsDialog() {
         <div className="overflow-y-auto pr-1 grid grid-cols-1 md:grid-cols-2 gap-x-10 gap-y-6">
           {SHORTCUT_GROUPS.map((group) => (
             <div key={group.title} className="flex flex-col gap-2">
-              <h3 className="text-[11px] font-bold uppercase tracking-widest text-primary/80 border-b border-border/40 pb-1 mb-1">
+              <h3 className="text-xs font-bold uppercase tracking-widest text-primary/80 border-b border-border/40 pb-1 mb-1">
                 {group.title}
               </h3>
               <div className="flex flex-col gap-1">

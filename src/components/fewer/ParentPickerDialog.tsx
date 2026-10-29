@@ -113,7 +113,7 @@ export function ParentPickerDialog() {
               >
                 <Folder className="h-4 w-4 shrink-0 text-fewer-folder-icon" />
                 <span className="truncate">{f.data.label}</span>
-                <span className="ml-auto shrink-0 truncate text-[10px] text-muted-foreground">{f.data.path}</span>
+                <span className="ml-auto shrink-0 truncate text-2xs text-muted-foreground">{f.data.path}</span>
               </button>
             ))
           )}

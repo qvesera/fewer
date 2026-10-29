@@ -52,6 +52,7 @@ import {
   SlidersHorizontal,
   KeyRound,
   Download,
+  Type,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
@@ -108,6 +109,9 @@ import {
   runProfileSave,
   strokeStyleOptions,
   themeModeOptions,
+  UI_SCALE_OPTIONS,
+  uiScaleFromValue,
+  uiScaleValue,
   usageMeter,
   validateProfileFields,
   visibleTabs,
@@ -434,7 +438,7 @@ function AccountTab() {
                 {plan !== "free" ? "Manage subscription" : "Upgrade to Pro"}
               </Button>
             ) : (
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-xs text-muted-foreground/70">
                 {plan === "team"
                   ? "Team is managed by your organization."
                   : plan === "pro"
@@ -447,7 +451,7 @@ function AccountTab() {
           {/* Row 2: usage meters + account-level status */}
           <div className="border-t border-border/40 pt-3 space-y-2.5">
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/80">Saved graphs</span>
                 <span className="font-medium text-foreground/80">
                   {usage === null ? "…" : formatUsage(usage.savedGraphs, limits.savedGraphs)}
@@ -467,7 +471,7 @@ function AccountTab() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/80">Watched indexes</span>
                 <span className="font-medium text-foreground/80">
                   {usage === null ? "…" : formatUsage(usage.watchedIndexes, limits.watchedIndexes)}
@@ -486,14 +490,14 @@ function AccountTab() {
               )}
             </div>
 
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground/80">Version history</span>
               <span className="font-medium text-foreground/80">
                 {limits.historyDays > 0 ? `${limits.historyDays}-day history` : "Not available"}
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground/80">Email</span>
               <span className="font-medium text-foreground/80 flex items-center gap-1">
                 {user.email ?? "-"}
@@ -506,7 +510,7 @@ function AccountTab() {
             </div>
 
             {user.created_at && (
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/80">Member since</span>
                 <span className="font-medium text-foreground/80">
                   {new Date(user.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
@@ -527,7 +531,7 @@ function AccountTab() {
             <span className="text-xs font-medium text-foreground">
               {loading ? "Loading…" : user ? user.email : "Signed out"}
             </span>
-            <span className="text-[11px] text-muted-foreground/70">
+            <span className="text-xs text-muted-foreground/70">
               {loading ? "Checking session" : user ? "Account" : "Sign in to save and share graphs"}
             </span>
           </div>
@@ -568,7 +572,7 @@ function AccountTab() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">Change Email</span>
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-xs text-muted-foreground/70">
                 Current: {user.email ?? "-"}
               </span>
             </div>
@@ -673,7 +677,7 @@ function AboutTab() {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-semibold tracking-tight text-foreground">fewer</h3>
-              <span className="rounded-full bg-accent/60 px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground border border-border/40">
+              <span className="rounded-full bg-accent/60 px-2 py-0.5 text-2xs font-medium text-muted-foreground border border-border/40">
                 v{APP_VERSION}
               </span>
             </div>
@@ -721,7 +725,7 @@ function AboutTab() {
         </Button>
       </div>
 
-      <p className="text-[11px] text-center text-muted-foreground/50 pt-2">
+      <p className="text-xs text-center text-muted-foreground/50 pt-2">
         Built with Next.js, React Flow & shadcn/ui • Released under AGPLv3 License
       </p>
     </div>
@@ -749,6 +753,9 @@ function AppearanceTab() {
   const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
   const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
+
+  const uiScale = useGraphStore((s) => s.uiScale);
+  const setUiScale = useGraphStore((s) => s.setUiScale);
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
 
@@ -769,7 +776,7 @@ function AppearanceTab() {
   return (
     <div className="flex flex-col gap-5 py-1">
       <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Theme Preferences
         </Label>
         <div className="grid grid-cols-3 gap-2.5">
@@ -810,8 +817,35 @@ function AppearanceTab() {
 
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
+          <Type className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Interface Scale
+          </Label>
+          <span className="ml-auto flex items-center">
+            <Hint id="hint-interface-scale" label="Interface Scale">
+              One multiplier for the whole interface: text, spacing, icons and corner radii scale together, so nothing
+              clips when the type grows. Auto follows your window width. The choice is saved to your account.
+            </Hint>
+          </span>
+        </div>
+        <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <SlidingToggle
+            options={UI_SCALE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+            value={uiScaleValue(uiScale)}
+            onValueChange={(v) => setUiScale(uiScaleFromValue(v))}
+          />
+          <p className="text-xs text-muted-foreground/70 pt-3">
+            {uiScale === null
+              ? "Auto: 100% under 2000px wide, 112% from 2000px, 125% from 3000px."
+              : `${Math.round(uiScale * 100)}% — applied everywhere, on every screen size.`}
+          </p>
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
           <Spline className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Connection Styling
           </Label>
         </div>
@@ -885,7 +919,7 @@ function AppearanceTab() {
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Sibling Sort
           </Label>
           <span className="ml-auto flex items-center">
@@ -931,7 +965,7 @@ function AppearanceTab() {
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
               Connection Motion
             </Label>
             <span className="ml-auto flex items-center">
@@ -978,7 +1012,7 @@ function AppearanceTab() {
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
           <MinimapIcon className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Minimap
           </Label>
         </div>
@@ -1031,7 +1065,7 @@ function MinimapControls() {
         <>
           <div className="space-y-2">
             <div className="flex items-center gap-1">
-              <Label className="text-[11px] text-muted-foreground font-medium">Position</Label>
+              <Label className="text-xs text-muted-foreground font-medium">Position</Label>
               <Hint id="hint-minimap-position" label="Position">
                 Custom position is pinned in place and only moves when you adjust the
                 X / Y sliders above.
@@ -1060,7 +1094,7 @@ function MinimapControls() {
 
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between">
-              <Label className="text-[11px] text-muted-foreground font-medium">Size</Label>
+              <Label className="text-xs text-muted-foreground font-medium">Size</Label>
               <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapSize} onCommit={(v) => setMiniMapSize(v)} unit="px" /></span>
             </div>
             <Slider
@@ -1076,7 +1110,7 @@ function MinimapControls() {
             <>
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] text-muted-foreground font-medium">X Position</Label>
+                  <Label className="text-xs text-muted-foreground font-medium">X Position</Label>
                   <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapX} onCommit={(v) => setMiniMapX(v)} unit="px" /></span>
                 </div>
                 <Slider
@@ -1089,7 +1123,7 @@ function MinimapControls() {
               </div>
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] text-muted-foreground font-medium">Y Position</Label>
+                  <Label className="text-xs text-muted-foreground font-medium">Y Position</Label>
                   <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapY} onCommit={(v) => setMiniMapY(v)} unit="px" /></span>
                 </div>
                 <Slider
@@ -1143,7 +1177,7 @@ function AdvancedTab() {
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
               Layout Policy
             </Label>
             <span className="ml-auto flex items-center">
@@ -1242,7 +1276,7 @@ function AdvancedTab() {
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Mouse className="h-3.5 w-3.5 text-primary" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
               Canvas Navigation
             </Label>
             <span className="ml-auto flex items-center">
@@ -1269,7 +1303,7 @@ function AdvancedTab() {
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Maximize2 className="h-3.5 w-3.5 text-primary" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
               Card Metrics
             </Label>
           </div>
@@ -1426,13 +1460,13 @@ function HelpTab() {
   return (
     <div className="flex flex-col gap-5 py-1">
       <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Learn
         </Label>
         {renderActions(learnActions)}
       </div>
       <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Support
         </Label>
         {renderActions(supportActions)}
@@ -1480,7 +1514,12 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[520px] max-w-[calc(100%-2rem)] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
+      {/* 600px, not 520: the tab strip is a single non-wrapping row, and the
+          type floor raised every tab label to 12px — five tabs measure ~484px
+          of content, which scrolls (and clips) inside a 512px dialog. The
+          sm:max-w override is required: DialogContent's base sm:max-w-lg (512px)
+          would otherwise cap this width back down. */}
+      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[600px] max-w-[calc(100%-2rem)] sm:max-w-[600px] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">

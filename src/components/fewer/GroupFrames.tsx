@@ -775,11 +775,11 @@ export function GroupFrame({
             "Members", not "cards": a re-flow can park non-member cards inside
             the box, and only members belong to the group (T-141). */}
         {collapsed ? (
-          <span className="shrink-0 text-[10px] uppercase tracking-wider text-fewer-group-subtle-text">
+          <span className="shrink-0 text-2xs text-fewer-group-subtle-text">
             {plural(group.memberIds.length, "member")}
           </span>
         ) : (
-          <span className="shrink-0 text-[10px] text-muted-foreground">
+          <span className="shrink-0 text-2xs text-muted-foreground">
             {hiddenCount > 0 ? `${visibleCount} of ${plural(group.memberIds.length, "member")}` : plural(group.memberIds.length, "member")}
           </span>
         )}
@@ -796,7 +796,7 @@ export function GroupFrame({
             </button>
           </PopoverTrigger>
           <PopoverContent className="w-72 p-2" align="end">
-            <div className="mb-1 text-[10px] uppercase tracking-wider text-muted-foreground">Note</div>
+            <div className="mb-1 text-2xs text-muted-foreground">Note</div>
             <Textarea
               defaultValue={group.note}
               placeholder="What should you remember about this group?"
@@ -933,7 +933,7 @@ export function GroupFrame({
           onPointerDownOutside={(e) => e.preventDefault()}
           onFocusOutside={(e) => e.preventDefault()}
         >
-          <div className="text-[10px] uppercase tracking-wider text-muted-foreground">Group color</div>
+          <div className="text-2xs text-muted-foreground">Group color</div>
           <div className="overflow-hidden rounded-md">
             <HexColorPicker
               color={pickerColor}
@@ -965,14 +965,14 @@ export function GroupFrame({
                 setDraft("");
                 act().setGroupColor(group.id, undefined);
               }}
-              className="rounded-md border border-border/60 px-2 py-1 text-[11px] text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
+              className="rounded-md border border-border/60 px-2 py-1 text-xs text-muted-foreground transition-colors hover:bg-muted/60 hover:text-foreground"
             >
               Reset to default
             </button>
             <button
               type="button"
               onClick={() => setColorOpen(false)}
-              className="rounded-md bg-primary px-2.5 py-1 text-[11px] font-medium text-primary-foreground transition-opacity hover:opacity-90"
+              className="rounded-md bg-primary px-2.5 py-1 text-xs font-medium text-primary-foreground transition-opacity hover:opacity-90"
             >
               Done
             </button>

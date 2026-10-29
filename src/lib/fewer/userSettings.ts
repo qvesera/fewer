@@ -56,6 +56,9 @@ export interface UserSettings {
   cornerRadius: number;
   nodeWidth: number;
   nodeHeight: number;
+  /** Interface scale multiplier; `null` = Auto (viewport media queries in
+   *  globals.css pick). Optional so blobs written before T-216 still read. */
+  uiScale?: number | null;
   /** Sibling sort key (persisted like direction/edgeStyle). */
   sortKey: SortKey;
   /** Sibling sort direction. */
@@ -105,6 +108,7 @@ function pick(store: Record<string, unknown>): UserSettings {
     cornerRadius: store.cornerRadius as number,
     nodeWidth: store.nodeWidth as number,
     nodeHeight: store.nodeHeight as number,
+    uiScale: store.uiScale as number | null,
     sortKey: store.sortKey as SortKey,
     sortDir: store.sortDir as SortDir,
     autoRelayout: store.autoRelayout as boolean,
@@ -243,6 +247,8 @@ export function applyUserSettings(data: Partial<UserSettings>): void {
   if (data.edgeStrokeStyle) s.setEdgeStrokeStyle(data.edgeStrokeStyle);
   if (data.edgeWidth !== undefined) s.setEdgeWidth(data.edgeWidth);
   if (data.cornerRadius !== undefined) s.setCornerRadius(data.cornerRadius);
+  // `!== undefined` (not `??`) so a stored Auto (null) is applied, not skipped.
+  if (data.uiScale !== undefined) s.setUiScale(data.uiScale);
 
   if (data.exportSettings) s.setExportSettings(data.exportSettings);
 

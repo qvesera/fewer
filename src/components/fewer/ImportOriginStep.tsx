@@ -253,14 +253,14 @@ export function ImportOriginStep({
               >
                 {ORIGIN_META[o].label}
               </span>
-              <span className="text-[10px] leading-snug text-muted-foreground">
+              <span className="text-2xs leading-snug text-muted-foreground">
                 {ORIGIN_META[o].blurb}
               </span>
             </button>
           );
         })}
       </div>
-      <p className="text-[10px] text-muted-foreground/60">
+      <p className="text-2xs text-muted-foreground/60">
         Tip: use <kbd>↑</kbd><kbd>↓</kbd><kbd>←</kbd><kbd>→</kbd> to switch source,{" "}
         <kbd>Tab</kbd> to continue.
       </p>
@@ -515,13 +515,13 @@ function FileSource({
           <p className="min-w-0 flex-1 truncate text-xs font-medium text-primary">
             {source.name}
           </p>
-          <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground">
+          <span className="shrink-0 text-2xs tabular-nums text-muted-foreground">
             {formatBytes(source.file?.size ?? 0)}
           </span>
           <button
             type="button"
             onClick={clearArchive}
-            className="shrink-0 cursor-pointer text-[10px] font-medium text-muted-foreground hover:text-foreground"
+            className="shrink-0 cursor-pointer text-2xs font-medium text-muted-foreground hover:text-foreground"
           >
             Clear
           </button>
@@ -562,7 +562,7 @@ function FileSource({
             type="button"
             onClick={() => setShowOverride((v) => !v)}
             aria-expanded={showOverride}
-            className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-[11px] font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            className="shrink-0 cursor-pointer rounded-md px-2 py-1 text-xs font-medium text-muted-foreground transition-colors hover:bg-muted/40 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
           >
             {showOverride ? "Done" : "Change"}
           </button>
@@ -681,7 +681,7 @@ function CsvColumnMapper({
           Columns
         </Label>
       </div>
-      <p className="text-[11px] leading-relaxed text-muted-foreground">
+      <p className="text-xs leading-relaxed text-muted-foreground">
         This CSV isn't a Fewer export: tell us which column holds which. Pick the
         Name column to continue; the rest refine folders and links.
       </p>
@@ -692,7 +692,7 @@ function CsvColumnMapper({
             <Label
               htmlFor={`csv-map-${field}`}
               className={cn(
-                "text-[11px] font-medium",
+                "text-xs font-medium",
                 field === "name" && "text-primary",
               )}
             >
@@ -721,7 +721,7 @@ function CsvColumnMapper({
 
       {sample.length > 0 && (
         <div className="overflow-x-auto rounded-lg border border-border/40 gm-scroll">
-          <table className="w-full text-[11px] font-mono">
+          <table className="w-full text-xs font-mono">
             <thead>
               <tr className="border-b border-border/40 bg-muted/30">
                 {headers.map((h, i) => (
@@ -800,13 +800,13 @@ function UrlSource({
           placeholder="https://github.com/owner/repo or https://example.com/data/"
           className="bg-muted/20 font-mono text-xs"
         />
-        <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+        <p className="text-2xs leading-relaxed text-muted-foreground/70">
           Supports:{" "}
-          <code className="rounded bg-muted/50 px-1 font-mono text-[10px]">
+          <code className="rounded bg-muted/50 px-1 font-mono text-2xs">
             https://github.com/owner/repo
           </code>{" "}
           or{" "}
-          <code className="rounded bg-muted/50 px-1 font-mono text-[10px]">
+          <code className="rounded bg-muted/50 px-1 font-mono text-2xs">
             https://github.com/owner/repo/tree/branch/path
           </code>{" "}
           or any public file index URL
@@ -821,7 +821,7 @@ function UrlSource({
               <p className="text-xs font-medium text-foreground">
                 Watch for changes
               </p>
-              <p className="text-[10px] text-muted-foreground/70">
+              <p className="text-2xs text-muted-foreground/70">
                 {cloudImport
                   ? "Daily digest (23:59) when this index changes."
                   : "Sign in to get daily change digests."}
@@ -837,7 +837,7 @@ function UrlSource({
             <Button
               variant="outline"
               size="sm"
-              className="h-7 cursor-pointer gap-1 text-[11px]"
+              className="h-7 cursor-pointer gap-1 text-xs"
               onClick={onRequireAuth}
             >
               <Lock className="h-3 w-3" />
@@ -1074,7 +1074,7 @@ function CloudSource({
                   <p className="truncate text-xs font-medium text-foreground">
                     {conn.account_name}
                   </p>
-                  <p className="text-[10px] text-muted-foreground">
+                  <p className="text-2xs text-muted-foreground">
                     {PROVIDER_LABELS[conn.provider]}
                   </p>
                 </div>
@@ -1094,7 +1094,7 @@ function CloudSource({
         <Button
           variant="ghost"
           size="sm"
-          className="h-7 gap-1 text-[11px]"
+          className="h-7 gap-1 text-xs"
           onClick={() => {
             setConnection(null);
             setEntries([]);
@@ -1103,7 +1103,7 @@ function CloudSource({
         >
           <ArrowLeft className="h-3.5 w-3.5" /> Accounts
         </Button>
-        <div className="gm-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-[11px]">
+        <div className="gm-scroll flex min-w-0 flex-1 items-center gap-1 overflow-x-auto text-xs">
           {crumbs.map((c, i) => (
             <button
               key={i}
@@ -1152,7 +1152,7 @@ function CloudSource({
           <button
             type="button"
             onClick={clearSelection}
-            className="shrink-0 cursor-pointer text-[10px] font-medium text-muted-foreground hover:text-foreground"
+            className="shrink-0 cursor-pointer text-2xs font-medium text-muted-foreground hover:text-foreground"
           >
             Clear
           </button>
@@ -1199,7 +1199,7 @@ function CloudSource({
                     {entry.name}
                   </span>
                   {entry.size ? (
-                    <span className="ml-auto shrink-0 text-[10px] tabular-nums text-muted-foreground">
+                    <span className="ml-auto shrink-0 text-2xs tabular-nums text-muted-foreground">
                       {formatBytes(entry.size)}
                     </span>
                   ) : null}

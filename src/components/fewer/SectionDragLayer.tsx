@@ -218,7 +218,7 @@ export function SectionDragLayer() {
           className="absolute top-0 bottom-0 bg-primary/15 border-x-2 border-primary/40 transition-all duration-150 flex items-center justify-center"
           style={{ left: dockBand.left, width: dockBand.width }}
         >
-          <span className="text-[10px] font-semibold uppercase tracking-wider text-primary select-none">
+          <span className="text-2xs font-semibold text-primary select-none">
             Dock {side === "left" ? "Left" : "Right"}
           </span>
         </div>

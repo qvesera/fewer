@@ -90,7 +90,7 @@ export function TagDots({
         />
       ))}
       {overflow > 0 && (
-        <span className="text-[9px] font-semibold text-muted-foreground/70">
+        <span className="text-2xs font-semibold text-muted-foreground/70">
           +{overflow}
         </span>
       )}

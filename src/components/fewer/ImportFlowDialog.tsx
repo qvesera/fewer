@@ -270,7 +270,7 @@ function isEditableTarget(el: HTMLElement): boolean {
               <div key={s} className="flex flex-1 items-center gap-1.5">
                 <div
                   className={cn(
-                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-[10px] font-bold transition-colors",
+                    "flex h-5 w-5 shrink-0 items-center justify-center rounded-full text-2xs font-bold transition-colors",
                     s === step
                       ? "bg-primary text-primary-foreground"
                       : s < step
@@ -282,7 +282,7 @@ function isEditableTarget(el: HTMLElement): boolean {
                 </div>
                 <span
                   className={cn(
-                    "text-[10px] font-medium uppercase tracking-wider",
+                    "text-2xs font-medium",
                     s === step
                       ? "text-foreground"
                       : "text-muted-foreground/70",
@@ -362,7 +362,7 @@ function isEditableTarget(el: HTMLElement): boolean {
                 </div>
                 <div className="flex justify-between gap-3 border-b border-border/10 pb-1.5">
                   <span>Source</span>
-                  <span className="max-w-[240px] truncate text-right font-mono text-[11px] font-medium text-foreground/85">
+                  <span className="max-w-[240px] truncate text-right font-mono text-xs font-medium text-foreground/85">
                     {sourceLabel(source)}
                   </span>
                 </div>
@@ -390,7 +390,7 @@ function isEditableTarget(el: HTMLElement): boolean {
                 </div>
                 <div className="flex justify-between gap-3">
                   <span>Extensions</span>
-                  <span className="rounded bg-secondary px-2 py-0.5 font-mono text-[10px] font-medium text-secondary-foreground">
+                  <span className="rounded bg-secondary px-2 py-0.5 font-mono text-2xs font-medium text-secondary-foreground">
                     {options.extensions.length > 0
                       ? `${options.extensions.length} ext`
                       : "All (*)"}
@@ -410,7 +410,7 @@ function isEditableTarget(el: HTMLElement): boolean {
 
               {importing && (
                 <div className="space-y-1.5">
-                  <div className="flex items-center justify-between gap-2 text-[10px] text-muted-foreground">
+                  <div className="flex items-center justify-between gap-2 text-2xs text-muted-foreground">
                     <span aria-live="polite">
                       {progress?.phase ?? "Starting import…"}
                     </span>
@@ -434,7 +434,7 @@ function isEditableTarget(el: HTMLElement): boolean {
                 </div>
               )}
 
-              <p className="text-[10px] leading-relaxed text-muted-foreground/70">
+              <p className="text-2xs leading-relaxed text-muted-foreground/70">
                 {isGraphDocument
                   ? "Pressing Import restores the graph document exactly as saved."
                   : <>Pressing Import {origin === "folder"
@@ -445,7 +445,7 @@ function isEditableTarget(el: HTMLElement): boolean {
         </div>
 
         {(step === 2 || step === 3) && (
-          <p className="pb-1 text-right text-[10px] text-muted-foreground/60">
+          <p className="pb-1 text-right text-2xs text-muted-foreground/60">
             Press <kbd>Enter</kbd> to {step === 2 ? "continue" : "import"}
           </p>
         )}

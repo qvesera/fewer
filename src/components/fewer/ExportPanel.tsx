@@ -524,7 +524,7 @@ export function ExportPanel() {
           <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
             <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1.5 w-full justify-start h-auto p-0 font-bold text-foreground/90 tracking-wider text-[10px] uppercase hover:bg-transparent">
+                <Button variant="ghost" className="flex items-center gap-1.5 w-full justify-start h-auto p-0 font-bold text-foreground/90 text-2xs hover:bg-transparent">
                   <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
                   Summary
                 </Button>
@@ -554,7 +554,7 @@ export function ExportPanel() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Format</span>
-                  <span className="uppercase font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-[10px]">{settings.format}</span>
+                  <span className="font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-2xs">{settings.format}</span>
                 </div>
               </CollapsibleContent>
             </div>

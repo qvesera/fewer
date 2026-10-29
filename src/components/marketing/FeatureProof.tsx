@@ -63,7 +63,7 @@ const BATCH_ACTIONS = [
 function Chip({ children, accent }: { children: React.ReactNode; accent?: boolean }) {
   return (
     <li
-      className="rounded-md border px-2 py-1 font-mono text-[11px]"
+      className="rounded-md border px-2 py-1 font-mono text-xs"
       style={{
         borderColor: accent ? "var(--fewer-folder-border)" : "var(--border)",
         color: accent ? "var(--fewer-folder-icon)" : "var(--muted-foreground)",
@@ -96,11 +96,11 @@ function ChipRow({
 const PROOFS: Record<ProofKind, (proof: ProofProps) => React.ReactNode> = {
   shell: () => (
     <figure
-      className="m-0 w-full max-w-[260px] rounded-lg border p-3 font-mono text-[11px]"
+      className="m-0 w-full max-w-[260px] rounded-lg border p-3 font-mono text-xs"
       style={{ borderColor: "var(--border)", background: "var(--card)" }}
     >
       <figcaption
-        className="mb-2 flex items-center gap-1.5 text-[10px] uppercase tracking-wider"
+        className="mb-2 flex items-center gap-1.5 text-2xs"
         style={{ color: "var(--muted-foreground)" }}
       >
         scaffold.sh
@@ -121,7 +121,7 @@ mkdir -p docs`}
       className="flex w-full max-w-[280px] flex-col gap-2 rounded-lg border p-3"
       style={{ borderColor: "var(--border)", background: "var(--card)" }}
     >
-      <div className="flex items-center gap-2 font-mono text-[11px]">
+      <div className="flex items-center gap-2 font-mono text-xs">
         <Search
           className="h-3.5 w-3.5 shrink-0"
           style={{ color: "var(--fewer-folder-icon)" }}
@@ -136,7 +136,7 @@ mkdir -p docs`}
         {["brand/logo.svg", "photos.zip › logo.svg"].map((path) => (
           <li
             key={path}
-            className="truncate rounded-md border px-2 py-0.5 font-mono text-[10px]"
+            className="truncate rounded-md border px-2 py-0.5 font-mono text-2xs"
             style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
           >
             {path}
@@ -157,12 +157,12 @@ mkdir -p docs`}
       ].map(([key, verb]) => (
         <li key={key} className="flex items-center gap-1.5">
           <kbd
-            className="rounded-md border px-2 py-1 font-mono text-[11px]"
+            className="rounded-md border px-2 py-1 font-mono text-xs"
             style={{ borderColor: "var(--border)", color: "var(--foreground)" }}
           >
             {key}
           </kbd>
-          <span className="text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+          <span className="text-xs" style={{ color: "var(--muted-foreground)" }}>
             {verb}
           </span>
         </li>
@@ -171,7 +171,7 @@ mkdir -p docs`}
   ),
   layout: (proof) => (
     <div className="flex w-full max-w-[260px] flex-col gap-2.5">
-      <div className="flex items-center justify-between font-mono text-[11px]">
+      <div className="flex items-center justify-between font-mono text-xs">
         <span style={{ color: "var(--muted-foreground)" }}>Crown Shyness</span>
         <span
           data-mk-shyness-readout
@@ -194,7 +194,7 @@ mkdir -p docs`}
         data-mk-shyness
         className="cursor-pointer"
       />
-      <p className="m-0 text-[11px]" style={{ color: "var(--muted-foreground)" }}>
+      <p className="m-0 text-xs" style={{ color: "var(--muted-foreground)" }}>
         Drag it: the tree on the canvas re-flows. Alt+R does this in the app.
       </p>
     </div>
@@ -207,17 +207,17 @@ mkdir -p docs`}
     >
       <div className="flex items-center gap-2">
         <BellRing className="h-4 w-4 shrink-0" style={{ color: "var(--fewer-folder-icon)" }} aria-hidden="true" />
-        <span className="truncate font-mono text-[11px]" style={{ color: "var(--foreground)" }}>
+        <span className="truncate font-mono text-xs" style={{ color: "var(--foreground)" }}>
           docs.fewer.directory/
         </span>
       </div>
-      <div className="flex items-center gap-2 font-mono text-[11px]">
+      <div className="flex items-center gap-2 font-mono text-xs">
         <span style={{ color: "var(--muted-foreground)" }}>2 files changed</span>
         <span style={{ color: "var(--border)" }}>·</span>
         <span style={{ color: "var(--muted-foreground)" }}>1 new</span>
       </div>
       <span
-        className="w-fit rounded-md border px-2 py-1 font-mono text-[10px]"
+        className="w-fit rounded-md border px-2 py-1 font-mono text-2xs"
         style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
       >
         daily email digest
@@ -240,7 +240,7 @@ mkdir -p docs`}
             style={vars}
           >
             <Shapes className="h-4 w-4" style={{ color: "var(--fewer-folder-icon)" }} aria-hidden="true" />
-            <span className="font-mono text-[11px]" style={{ color: "var(--fewer-file-text)" }}>
+            <span className="font-mono text-xs" style={{ color: "var(--fewer-file-text)" }}>
               theme-{i + 1}
             </span>
           </div>
@@ -261,14 +261,14 @@ mkdir -p docs`}
   share: () => (
     <ul className="flex w-full max-w-[260px] flex-col gap-2">
       <li
-        className="flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[11px]"
+        className="flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-xs"
         style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
       >
         <Link2 className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />
         fewer.directory/g/8f3k
       </li>
       <li
-        className="flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-[11px]"
+        className="flex items-center gap-2 rounded-md border px-3 py-2 font-mono text-xs"
         style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
       >
         <History className="h-3.5 w-3.5 shrink-0" aria-hidden="true" />

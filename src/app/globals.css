@@ -42,6 +42,13 @@
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
 
+  /* Type floor. 2xs is the smallest size the UI is allowed to use (11px):
+     8-10px text was unreadable on a 32" 2K screen, and every arbitrary
+     `text-[Npx]` size was moved onto this token so the type is rem-based and
+     rides the --ui-scale root font-size set in :root below. */
+  --text-2xs: 0.6875rem;
+  --text-2xs--line-height: 1.45;
+
   /* brand */
   --color-brand-fuchsia: var(--brand-fuchsia-500);
   --color-brand-purple: var(--brand-purple-500);
@@ -80,6 +87,11 @@
 
 :root {
   --radius: 0.625rem;
+  /* Interface scale lever: every rem-based size (type, spacing, icons, radii)
+     multiplies through this. 1 = default. Written from a setting in the
+     accessibility work; never set directly elsewhere. */
+  --ui-scale: 1;
+  font-size: calc(16px * var(--ui-scale));
   --space-xs: 4px;
   --space-sm: 8px;
   --space-md: 16px;
@@ -160,6 +172,23 @@
   --fewer-file-subtle-text: #64748b;
   --fewer-file-border: rgba(168, 85, 247, 0.35);
   --fewer-file-icon: #9333ea;
+}
+
+/* Viewport-aware default (T-216): a wide window is a big panel viewed from
+   across a desk, so the UI starts a step up instead of making the user find a
+   setting before they can read it. Same `:root` specificity but later in the
+   file, so it beats the `--ui-scale: 1` above — and loses to an inline value:
+   the Interface Scale control writes --ui-scale on <html>, while Auto removes
+   it so these queries apply again. */
+@media (min-width: 2000px) {
+  :root {
+    --ui-scale: 1.125;
+  }
+}
+@media (min-width: 3000px) {
+  :root {
+    --ui-scale: 1.25;
+  }
 }
 
 .dark {

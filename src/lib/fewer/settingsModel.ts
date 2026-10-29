@@ -252,6 +252,52 @@ export function themeModeOptions(advancedMode: boolean): ThemeMode[] {
   return advancedMode ? ["light", "dark", "custom"] : ["light", "dark"];
 }
 
+/* -------------------------------------------------------------------------- */
+/*  Interface scale (T-216 / #516)                                            */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * A multiplier on `--ui-scale`, which the root font-size multiplies through —
+ * so type, spacing, icons and radii all move together. `null` means Auto:
+ * nothing is written to `<html>` and the viewport media queries in globals.css
+ * pick 100 / 112.5 / 125 % by window width. Steps are discrete (not a slider)
+ * because layouts are laid out and eyeballed at them, and because the px-fixed
+ * parts of the UI — node card sizes, panel widths, minimap — follow only as far
+ * as the text does.
+ */
+export type UiScale = number | null;
+
+export const UI_SCALE_STEPS: number[] = [1, 1.25, 1.5];
+
+export const UI_SCALE_OPTIONS: { value: string; label: string; scale: UiScale }[] = [
+  { value: "auto", label: "Auto", scale: null },
+  ...UI_SCALE_STEPS.map((scale) => ({
+    value: `${Math.round(scale * 100)}`,
+    label: `${Math.round(scale * 100)}%`,
+    scale,
+  })),
+];
+
+/** The SlidingToggle value for a stored scale. */
+export function uiScaleValue(scale: UiScale): string {
+  return scale === null ? "auto" : `${Math.round(scale * 100)}`;
+}
+
+/** The stored scale for a SlidingToggle value (unknown values read as Auto). */
+export function uiScaleFromValue(value: string): UiScale {
+  return UI_SCALE_OPTIONS.find((o) => o.value === value)?.scale ?? null;
+}
+
+/** Sanitise a persisted or cloud-delivered scale: snap to the nearest step,
+ *  and fall back to Auto for anything that isn't a usable number. */
+export function normalizeUiScale(value: unknown): UiScale {
+  if (value === null || value === undefined) return null;
+  if (typeof value !== "number" || !Number.isFinite(value)) return null;
+  return UI_SCALE_STEPS.reduce((best, step) =>
+    Math.abs(step - value) < Math.abs(best - value) ? step : best,
+  );
+}
+
 export type ProfileSaveResult =
   | { kind: "saved"; toast: { title: string }; body: ProfileFields }
   | { kind: "no_changes"; toast: { title: string; description: string }; savedProfile: ProfileFields }

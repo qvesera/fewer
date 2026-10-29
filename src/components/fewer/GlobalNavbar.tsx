@@ -186,7 +186,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
           >
             <Bell className="h-4 w-4" />
             {unreadCount > 0 && (
-              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-[8px] font-bold text-primary-foreground">
+              <span className="absolute -right-0.5 -top-0.5 flex h-3.5 min-w-3.5 items-center justify-center rounded-full bg-primary px-1 text-2xs font-bold text-primary-foreground">
                 {unreadCount > 9 ? "9+" : unreadCount}
               </span>
             )}
@@ -218,7 +218,7 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
               >
                 <Avatar className="h-6 w-6">
                   {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-                  <AvatarFallback className="text-[10px]">{initials}</AvatarFallback>
+                  <AvatarFallback className="text-2xs">{initials}</AvatarFallback>
                 </Avatar>
                 <span className="hidden sm:inline max-w-[9rem] truncate text-xs font-medium">
                   {displayName || user.email}
@@ -234,16 +234,16 @@ export function GlobalNavbar({ onToggleNotifications, onOpenAuth }: GlobalNavbar
               >
                 <Avatar className="h-8 w-8">
                   {avatarUrl && <AvatarImage src={avatarUrl} alt="" />}
-                  <AvatarFallback className="text-[11px]">{initials}</AvatarFallback>
+                  <AvatarFallback className="text-xs">{initials}</AvatarFallback>
                 </Avatar>
                 <span className="flex min-w-0 flex-1 flex-col">
                   <span className="flex items-center gap-1.5">
                     <span className="truncate text-xs font-medium text-foreground">{displayName || user.email}</span>
                     {profile.plan === "pro" && (
-                      <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-[9px] font-semibold text-primary">Pro</span>
+                      <span className="shrink-0 rounded-full bg-primary/10 px-1.5 py-0.5 text-2xs font-semibold text-primary">Pro</span>
                     )}
                   </span>
-                  <span className="truncate text-[11px] text-muted-foreground/70">{user.email}</span>
+                  <span className="truncate text-xs text-muted-foreground/70">{user.email}</span>
                 </span>
                 <ChevronRight className="ml-auto h-3.5 w-3.5 shrink-0 text-muted-foreground/50" />
               </DropdownMenuItem>
