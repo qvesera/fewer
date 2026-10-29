@@ -6063,3 +6063,32 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-216"
+  title: "Interface scale: viewport-aware default + Settings control"
+  status: "in-progress"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 516
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-29T06:20:57Z"
+  notes: ["2026-10-29T06:22:09Z · Extracted from T-215: viewport-aware --ui-scale default (media query) plus the Settings control that writes it. T-215 keeps contrast, colour vision, motion, focus/targets and canvas screen reader."]
+  sessions:
+  - start: "2026-10-29T06:26:03Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

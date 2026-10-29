@@ -9,6 +9,10 @@ import {
   profileNeedsSave,
   strokeStyleOptions,
   themeModeOptions,
+  UI_SCALE_OPTIONS,
+  uiScaleFromValue,
+  uiScaleValue,
+  normalizeUiScale,
   usageMeter,
   validateProfileFields,
   visibleTabs,
@@ -294,8 +298,39 @@ describe("themeModeOptions", () => {
 
 describe("minimapBounds", () => {
   it("keeps the minimap on-canvas with a floor for unmeasured canvases", () => {
+
     expect(minimapBounds({ width: 1000, height: 800 }, 160)).toEqual({ maxX: 840, maxY: 640 });
     // Canvas smaller than the minimap (not yet measured): the floor wins.
     expect(minimapBounds({ width: 0, height: 0 }, 160)).toEqual({ maxX: 160, maxY: 160 });
+  });
+});
+
+// ─── interface scale (T-216 / #516) ────────────────────────────────────────
+
+describe("interface scale", () => {
+  it("offers Auto plus the three steps as toggle values", () => {
+    expect(UI_SCALE_OPTIONS.map((o) => o.value)).toEqual(["auto", "100", "125", "150"]);
+    expect(UI_SCALE_OPTIONS.map((o) => o.scale)).toEqual([null, 1, 1.25, 1.5]);
+  });
+
+  it("round-trips stored scale ⇄ toggle value", () => {
+    for (const opt of UI_SCALE_OPTIONS) {
+      expect(uiScaleValue(opt.scale)).toBe(opt.value);
+      expect(uiScaleFromValue(opt.value)).toBe(opt.scale);
+    }
+    // An unknown control value reads as Auto — never a silent 100%.
+    expect(uiScaleFromValue("200")).toBeNull();
+  });
+
+  it("snaps a persisted scale to the nearest step and rejects unusable values", () => {
+    expect(normalizeUiScale(1)).toBe(1);
+    expect(normalizeUiScale(1.31)).toBe(1.25);
+    expect(normalizeUiScale(1.7)).toBe(1.5);
+    expect(normalizeUiScale(0.2)).toBe(1); // below every step → the floor
+    expect(normalizeUiScale(null)).toBeNull();
+    expect(normalizeUiScale(undefined)).toBeNull();
+    expect(normalizeUiScale("1.25")).toBeNull();
+    expect(normalizeUiScale(Infinity)).toBeNull();
+    expect(normalizeUiScale(NaN)).toBeNull();
   });
 });

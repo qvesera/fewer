@@ -89,3 +89,28 @@ test("every Settings tab fits without scrolling the strip", async ({ page }) => 
   expect(fit, "tab strip missing").not.toBeNull();
   expect(fit!.scroll, "tab strip scrolls — dialog too narrow").toBeLessThanOrEqual(fit!.client);
 });
+
+// T-216: the Interface Scale control writes --ui-scale on <html> (root font-size
+// follows), and Auto removes it so the viewport media queries decide again. The
+// viewport below 2000px means Auto resolves to 16px.
+test("the Interface Scale control drives --ui-scale and Auto hands back to the media queries", async ({ page }) => {
+  await page.goto("/app");
+  await page.locator('[title="Settings"]').click();
+  await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
+  await page.getByRole("tab", { name: "Appearance" }).click();
+
+  const scaleVar = () => page.evaluate(() => document.documentElement.style.getPropertyValue("--ui-scale"));
+  const rootFontSize = () =>
+    page.evaluate(() => parseFloat(getComputedStyle(document.documentElement).fontSize));
+
+  expect(await scaleVar(), "Auto must not pin the variable").toBe("");
+  expect(await rootFontSize()).toBe(16);
+
+  await page.getByRole("button", { name: "150%" }).click();
+  await expect.poll(scaleVar).toBe("1.5");
+  expect(await rootFontSize()).toBe(24); // 16px × 1.5
+
+  await page.getByRole("button", { name: "Auto" }).click();
+  await expect.poll(scaleVar).toBe("");
+  expect(await rootFontSize()).toBe(16);
+});

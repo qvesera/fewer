@@ -52,6 +52,7 @@ import {
   SlidersHorizontal,
   KeyRound,
   Download,
+  Type,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
@@ -108,6 +109,9 @@ import {
   runProfileSave,
   strokeStyleOptions,
   themeModeOptions,
+  UI_SCALE_OPTIONS,
+  uiScaleFromValue,
+  uiScaleValue,
   usageMeter,
   validateProfileFields,
   visibleTabs,
@@ -749,6 +753,9 @@ function AppearanceTab() {
   const setEdgeWidth = useGraphStore((s) => s.setEdgeWidth);
   const edgeAnimatedSelectedOnly = useGraphStore((s) => s.edgeAnimatedSelectedOnly);
   const setEdgeAnimatedSelectedOnly = useGraphStore((s) => s.setEdgeAnimatedSelectedOnly);
+
+  const uiScale = useGraphStore((s) => s.uiScale);
+  const setUiScale = useGraphStore((s) => s.setUiScale);
   const edgeAnimatedStrokeStyle = useGraphStore((s) => s.edgeAnimatedStrokeStyle);
   const setEdgeAnimatedStrokeStyle = useGraphStore((s) => s.setEdgeAnimatedStrokeStyle);
 
@@ -805,6 +812,33 @@ function AppearanceTab() {
               </button>
             );
           })}
+        </div>
+      </div>
+
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Type className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Interface Scale
+          </Label>
+          <span className="ml-auto flex items-center">
+            <Hint id="hint-interface-scale" label="Interface Scale">
+              One multiplier for the whole interface: text, spacing, icons and corner radii scale together, so nothing
+              clips when the type grows. Auto follows your window width. The choice is saved to your account.
+            </Hint>
+          </span>
+        </div>
+        <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <SlidingToggle
+            options={UI_SCALE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+            value={uiScaleValue(uiScale)}
+            onValueChange={(v) => setUiScale(uiScaleFromValue(v))}
+          />
+          <p className="text-xs text-muted-foreground/70 pt-3">
+            {uiScale === null
+              ? "Auto: 100% under 2000px wide, 112% from 2000px, 125% from 3000px."
+              : `${Math.round(uiScale * 100)}% — applied everywhere, on every screen size.`}
+          </p>
         </div>
       </div>
 
