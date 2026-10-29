@@ -6,6 +6,18 @@ Thank you for your interest in contributing to fewer! This document provides gui
 
 This project adheres to a [Code of Conduct](CODE_OF_CONDUCT.md). By participating, you are expected to uphold this code.
 
+## Licensing of contributions
+
+By contributing to this project you agree to the [Contributor License Agreement](CLA.md): your contribution remains licensed under AGPL-3.0 in this repository, and you additionally grant the maintainer the right to include it in commercially licensed products under other terms. This is what keeps the web app free while related products can be sold.
+
+Every commit must carry a DCO sign-off (`git commit -s`), which certifies agreement to the CLA:
+
+```
+Signed-off-by: Your Name <your.email@example.com>
+```
+
+Corporate contributors should have an authorized representative open the pull request with the sign-off line, or contact the maintainer about a corporate CLA.
+
 ## Getting Started
 
 ### Prerequisites
