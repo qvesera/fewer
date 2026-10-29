@@ -1,6 +1,0 @@
-usage: tasks.py reconcile [-h] [--apply] [--dry-run]
-
-options:
-  -h, --help  show this help message and exit
-  --apply
-  --dry-run
