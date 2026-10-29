@@ -6065,7 +6065,7 @@ tasks:
   session_count: 0
 - id: "T-216"
   title: "Interface scale: viewport-aware default + Settings control"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "ux"
   tier: null
@@ -6078,17 +6078,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-10-29T06:20:57Z"
   notes: ["2026-10-29T06:22:09Z · Extracted from T-215: viewport-aware --ui-scale default (media query) plus the Settings control that writes it. T-215 keeps contrast, colour vision, motion, focus/targets and canvas screen reader."]
   sessions:
   - start: "2026-10-29T06:26:03Z"
-    end: null
+    end: "2026-10-29T07:00:00Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Viewport-aware --ui-scale default (112% @2000px, 125% @3000px) + Settings → Appearance Auto/100/125/150 control; UserSettings pick+apply (no VERSION bump), pre-paint apply via theme-init script, settingsModel decisions, content/docs/settings.md + migration 0053 reseed, e2e scale test. Gates: tsc 0, lint 0 errors, unit+component 2108 pass, build OK, e2e typefloor 4/4 on standalone :3100, migrations verify OK, changelog validate OK."
+    proof: ["15f2705"]
+    effort: {commits: 1, files: 12, insertions: 3120, deletions: 3}
+  spent_min: 34
   session_count: 1
