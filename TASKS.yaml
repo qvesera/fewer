@@ -6164,7 +6164,7 @@ tasks:
   session_count: 1
 - id: "T-219"
   title: "PNG/SVG export silently broken: exported SVG uses xlink:href without declaring xmlns:xlink (T-206 regression)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "export"
   tier: 0
