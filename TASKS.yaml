@@ -6191,3 +6191,72 @@ tasks:
     effort: {commits: 1, files: 6, insertions: 131, deletions: 24}
   spent_min: 21
   session_count: 1
+- id: "T-220"
+  title: "PNG export: clamp canvas dimensions for huge graphs at high quality (toBlob can return null → silent no-download)"
+  status: "triaged"
+  type: "fix"
+  area: "export"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 526
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T17:04:34Z"
+  notes: ["2026-11-01T17:18:03Z · Plan: exportPNG must clamp the raster to browser canvas limits before drawImage — safeScale = min(quality/50, MAX_DIM/max(w,h), sqrt(MAX_AREA/(w*h))). Conservative caps (start MAX_DIM 16384, MAX_AREA 16.7M px for WebKit/iOS), verify per-engine before pinning constants. When clamped, toast that the export was downscaled; toBlob(null) already resolves false and surfaces an error toast (T-219). Extract the clamp as a pure fn and unit-test it; keep the T-219 e2e download green."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-221"
+  title: "PNG export text uses fallback fonts (SVG-in-img cannot fetch webfonts) — embed a subset or document the limitation"
+  status: "triaged"
+  type: "research"
+  area: "export"
+  tier: 0
+  estimate_min: 360
+  estimate_basis: "cli"
+  issue: 527
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T17:04:40Z"
+  notes: ["2026-11-01T17:18:03Z · Plan: spike first, then pick. Finding: the app font is Geist (next/font/google, self-hosted woff2), so SVG-in-img cannot load it and PNG text silently falls back to system sans — a real canvas/PNG mismatch, not hypothetical. Options: (a) at export, fetch the same-origin woff2 and embed it as a base64 @font-face data URI inside the exported SVG (~15-30KB, works in Chrome/FF, must fail soft offline); (b) subset to the glyphs actually used — needs a new dep, avoid unless (a) is too big; (c) document the limitation in content/docs/import-export.md. Measure (a)'s size and Safari behaviour, default to (a) with (c) as the shipped fallback."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-222"
+  title: "Export 'Quality' slider is really pixel scale (quality/50 → 1x–2x) and its % is passed to toBlob where PNG ignores it — rename/decouple"
+  status: "triaged"
+  type: "refactor"
+  area: "export"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 528
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T17:05:19Z"
+  notes: ["2026-11-01T17:18:03Z · Plan: keep the persisted quality field (no settings migration, userSettings stays compatible) but stop mislabeling it — the slider is pixel scale (quality/50 = 1x-2x at 10-100), and the quality/100 passed to toBlob is dead because PNG ignores it. Relabel UI to Resolution with an explicit xN readout (or keep % but tooltip the mapping), drop the dead toBlob arg, document in content/docs/import-export.md, changelog Changed entry. Unit-test the scale mapping in exportPanelModel."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
