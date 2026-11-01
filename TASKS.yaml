@@ -6162,3 +6162,32 @@ tasks:
     effort: {commits: 3, files: 3, insertions: 136, deletions: 3}
   spent_min: 11
   session_count: 1
+- id: "T-219"
+  title: "PNG/SVG export silently broken: exported SVG uses xlink:href without declaring xmlns:xlink (T-206 regression)"
+  status: "triaged"
+  type: "fix"
+  area: "export"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 524
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T16:03:15Z"
+  notes: []
+  sessions:
+  - start: "2026-11-01T16:19:59Z"
+    end: "2026-11-01T16:41:08Z"
+    measured: true
+    note: "Root cause: T-206 copied public/logo.svg's mark (gradient xlink:href) into the export scene, but buildGraphSVG's root <svg> never declared xmlns:xlink, so the emitted document was not well-formed XML — exportPNG's <img> refused it and img.onerror swallowed the failure, leaving guests (branding forced on) with a success toast and no file. Verified with expat: unbound prefix before, PARSE OK after. Fix: declare xmlns:xlink on the root; exportPNG now resolves false on decode/encode failure and ExportPanel toasts an error instead of 'Exported'. Guards: renderer suite asserts every namespace prefix used is declared; new Playwright test waits for the real PNG download (fails on the pre-fix code, passes after) since happy-dom never decodes images. Gates: tsc 0, lint 0 errors, 258 tests green, build OK."
+    proof: ["3553e3e"]
+    effort: {commits: 1, files: 6, insertions: 131, deletions: 24}
+  spent_min: 21
+  session_count: 1
