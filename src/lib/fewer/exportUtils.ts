@@ -116,40 +116,68 @@ export function exportSVG(
 /*                                  PNG                                       */
 /* -------------------------------------------------------------------------- */
 
-export function exportPNG(
+/**
+ * Rasterize the export scene and download it. Resolves `false` when the scene
+ * could not be decoded or encoded — never silently: the panel turns that into
+ * an error toast instead of claiming "Exported" (T-219).
+ *
+ * Note: the decode step only exists in a real browser — happy-dom's `Image`
+ * fires neither `load` nor `error`, so this path is covered by the
+ * well-formedness guard on the emitted SVG (graphRenderer.test.ts), not here.
+ */
+export async function exportPNG(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
   opts: ExportExtraOptions = {},
-) {
-  if (nodes.length === 0) return;
+): Promise<boolean> {
+  if (nodes.length === 0) return true;
   const scene = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
-  if (scene.width === 0 || scene.height === 0) return;
+  if (scene.width === 0 || scene.height === 0) return true;
 
   const scale = Math.max(1, settings.quality / 50);
   const blobUrl = URL.createObjectURL(new Blob([scene.svg], { type: "image/svg+xml" }));
-  const img = new Image();
-  img.onload = () => {
+  try {
+    const img = new Image();
+    const decoded = await new Promise<boolean>((resolve) => {
+      img.onload = () => resolve(true);
+      img.onerror = () => resolve(false);
+      img.src = blobUrl;
+    });
+    if (!decoded) {
+      console.error(
+        "fewer: export scene is not a decodable image — PNG export aborted.",
+        scene.svg.slice(0, 400),
+      );
+      return false;
+    }
     const canvas = document.createElement("canvas");
     canvas.width = Math.round(scene.width * scale);
     canvas.height = Math.round(scene.height * scale);
     const ctx = canvas.getContext("2d");
-    URL.revokeObjectURL(blobUrl);
-    if (!ctx) return;
+    if (!ctx) {
+      console.error("fewer: no 2D canvas context — PNG export aborted.");
+      return false;
+    }
     ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    canvas.toBlob(
-      (blob) => {
-        if (!blob) return;
-        const url = URL.createObjectURL(blob);
-        triggerDownload(url, `fewer-${timestamp()}.png`);
-        setTimeout(() => URL.revokeObjectURL(url), 1000);
-      },
-      "image/png",
-      settings.quality / 100,
+    // PNG ignores the quality argument; the slider's % is the pixel scale above.
+    const blob = await new Promise<Blob | null>((resolve) =>
+      canvas.toBlob(resolve, "image/png"),
     );
-  };
-  img.onerror = () => URL.revokeObjectURL(blobUrl);
-  img.src = blobUrl;
+    if (!blob) {
+      console.error(
+        `fewer: canvas ${canvas.width}x${canvas.height} could not be encoded — PNG export aborted.`,
+      );
+      return false;
+    }
+    const url = URL.createObjectURL(blob);
+    triggerDownload(url, `fewer-${timestamp()}.png`);
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+    return true;
+  } finally {
+    // Revoked only after the draw: the rasterizer may still read the source.
+    URL.revokeObjectURL(blobUrl);
+  }
 }
 
 /* -------------------------------------------------------------------------- */
@@ -396,13 +424,18 @@ export function exportDOT(
 /*                                Dispatcher                                   */
 /* -------------------------------------------------------------------------- */
 
+/**
+ * Dispatch one format. Returns `Promise<boolean>` for PNG — `false` means the
+ * file was NOT downloaded — and `undefined` for the formats that finish
+ * synchronously (T-219).
+ */
 export function exportGraph(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
   stats?: DirectoryStats,
   opts: ExportExtraOptions = {},
-) {
+): Promise<boolean | void> | void {
   switch (settings.format) {
     case "svg":
       return exportSVG(nodes, edges, settings, opts);

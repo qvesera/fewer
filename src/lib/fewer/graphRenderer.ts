@@ -903,7 +903,12 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   const font = o.fontFamily || "sans-serif";
   const brandingSvg = o.includeBranding ? renderBrandingMark(width, height) : "";
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
+  // `xmlns:xlink` is not optional: LOGO_MARK_PATHS is copied from
+  // `public/logo.svg` and carries `xlink:href` on its second gradient. Without
+  // the declaration the emitted document is not well-formed XML, so the PNG
+  // exporter's `<img>` refuses to decode it and downloads nothing at all
+  // (T-219).
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
   ${filterDefs(o)}
   ${o.transparentBackground ? "" : `<rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXml(o.palette.background)}"/>`}
   <g transform="translate(${-minX}, ${-minY})">

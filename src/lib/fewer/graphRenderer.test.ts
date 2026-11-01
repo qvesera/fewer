@@ -365,3 +365,39 @@ test("colour-vision preferences ride into the export (T-215)", () => {
   expect(plain.svg).toContain('r="5"');
   expect(plain.svg).not.toContain(">O</text>");
 });
+
+/* -------------------------------------------------------------------------- */
+/*  Well-formedness: the scene must decode in an <img>                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * T-219: `exportPNG` hands this exact string to `<img>` as a blob URL. An
+ * undeclared namespace prefix makes the XML parser refuse the whole document —
+ * the image errors, and until T-219 that failure was swallowed, so the user got
+ * a success toast and no file. Every prefix the scene uses in an attribute name
+ * must therefore be declared somewhere in it.
+ *
+ * Substring assertions (the rest of this suite) cannot see this class of bug,
+ * and happy-dom never decodes images — this check is what covers the seam.
+ */
+test("the scene declares every namespace prefix it uses (T-219)", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { type: "file", x: 300 })];
+  const edges = [makeEdge("e0", "r", "c")];
+  // Branding on: the watermark mark is the only part that uses a prefix
+  // (`xlink:href` on its gradient, copied from public/logo.svg).
+  const scene = buildGraphSVG(nodes, edges, opts({ includeBranding: true }));
+  expect(scene.svg).toContain("xlink:href"); // the watermark really is in the scene
+  const declared = new Set(
+    [...scene.svg.matchAll(/xmlns:([\w-]+)=/g)].map((m) => m[1]),
+  );
+  // Attribute (and element) names only — the `=` keeps values like
+  // `style="stop-color:#f9771d"` out of the count, and `xmlns:*` itself is a
+  // declaration, not a use of the prefix it binds.
+  const used = new Set(
+    [...scene.svg.matchAll(/(?:<|[\s])([\w-]+:[\w-]+)=/g)]
+      .map((m) => m[1].split(":")[0])
+      .filter((p) => p !== "xmlns"),
+  );
+  expect([...used].filter((p) => !declared.has(p))).toEqual([]);
+  expect(used.size).toBeGreaterThan(0);
+});

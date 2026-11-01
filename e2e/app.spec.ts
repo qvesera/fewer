@@ -389,6 +389,25 @@ test("opens the export panel", async ({ page }) => {
   await expect(page.getByText("Generate Share Link")).toBeVisible();
 });
 
+// The PNG rasterizer decodes the exported SVG in an <img>; if that document is
+// not well-formed the browser refuses it and nothing downloads (T-219: the
+// watermark mark carried xlink:href without xmlns:xlink, which broke every
+// signed-out export — branding is forced on for guests). No unit test can see
+// this: happy-dom never decodes images.
+test("downloads a PNG (T-219)", async ({ page }) => {
+  await openCanvas(page);
+
+  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: "PNG" }).click();
+
+  const download = page.waitForEvent("download", { timeout: 30000 });
+  await page.getByRole("button", { name: "Download" }).click();
+  const file = await download;
+
+  expect(file.suggestedFilename()).toMatch(/^fewer-\d{8}-\d{4}\.png$/);
+  await expect(page.getByText("Export failed")).toHaveCount(0);
+});
+
 test("copy and paste duplicates a selected node", async ({ page }) => {
   await openCanvas(page);
 

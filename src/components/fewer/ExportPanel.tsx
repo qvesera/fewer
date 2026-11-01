@@ -283,7 +283,7 @@ export function ExportPanel() {
     tags, edgeStyle, edgeStrokeStyle, edgeWidth, groups,
   ]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const nodesToExport = exportNodes;
     const edgesToExport = exportEdges;
 
@@ -294,7 +294,7 @@ export function ExportPanel() {
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
       // Images export the active view's graph; data formats export the raw graph.
-      exportGraph(
+      const outcome = await exportGraph(
         isImageFormat ? imageGraph.nodes : nodesToExport,
         isImageFormat ? imageGraph.edges : edgesToExport,
         { ...settings, includeBranding },
@@ -317,6 +317,16 @@ export function ExportPanel() {
           direction: resolved?.direction ?? direction,
         },
       );
+      // T-219: PNG `false` means the rasterizer refused the scene and nothing
+      // was downloaded — say so instead of celebrating.
+      if (outcome === false) {
+        toast({
+          title: "Export failed",
+          description: `${settings.format.toUpperCase()} could not be rendered, so no file was downloaded.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setOpen(false);
     toast({
