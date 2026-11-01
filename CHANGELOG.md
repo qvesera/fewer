@@ -25,6 +25,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Fixed
 
 - PNG/SVG image export no longer silently fails: the exported scene declared the "xlink" namespace it uses (it was copied from public/logo.svg without it), so rasterizing works again for anyone whose export carries the watermark — signed-out users included, where branding is forced on. A raster that still cannot be decoded now raises an error toast instead of a success toast with no file.
+- PNG export no longer vanishes on very large graphs: the raster now retries at a canvas size the browser actually accepts instead of handing back nothing, and when it has to step down below the requested Quality the export note says so.
 
 ## [0.8.0] - 2026-10-28
 

@@ -45,7 +45,7 @@ import {
   filterVisibleEdges,
   filterVisibleNodes,
 } from "@/hooks/use-canvas-visible-graph";
-import { exportGraph } from "@/lib/fewer/exportUtils";
+import { exportGraph, type PngRasterResult } from "@/lib/fewer/exportUtils";
 import {
   exportDirectoryScript,
   exportDirectoryTree,
@@ -286,6 +286,7 @@ export function ExportPanel() {
   const handleExport = async () => {
     const nodesToExport = exportNodes;
     const edgesToExport = exportEdges;
+    let outcome: PngRasterResult | undefined;
 
     if (settings.format === "script") {
       exportDirectoryScript(nodesToExport, edgesToExport, includeBranding);
@@ -294,7 +295,7 @@ export function ExportPanel() {
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
       // Images export the active view's graph; data formats export the raw graph.
-      const outcome = await exportGraph(
+      outcome = await exportGraph(
         isImageFormat ? imageGraph.nodes : nodesToExport,
         isImageFormat ? imageGraph.edges : edgesToExport,
         { ...settings, includeBranding },
@@ -317,21 +318,28 @@ export function ExportPanel() {
           direction: resolved?.direction ?? direction,
         },
       );
-      // T-219: PNG `false` means the rasterizer refused the scene and nothing
-      // was downloaded — say so instead of celebrating.
-      if (outcome === false) {
+      // T-219/T-220: `ok: false` means the rasterizer refused the scene and
+      // nothing was downloaded — say why instead of celebrating.
+      if (outcome && !outcome.ok) {
         toast({
           title: "Export failed",
-          description: `${settings.format.toUpperCase()} could not be rendered, so no file was downloaded.`,
+          description:
+            outcome.reason ??
+            `${settings.format.toUpperCase()} could not be rendered, so no file was downloaded.`,
           variant: "destructive",
         });
         return;
       }
     }
     setOpen(false);
+    // T-220: the file is real, but smaller than asked for — never silently.
+    const note =
+      outcome && outcome.scale < outcome.requestedScale
+        ? ` Downscaled to ${outcome.scale.toFixed(2)}× (browser canvas limit; asked for ${outcome.requestedScale.toFixed(2)}×).`
+        : "";
     toast({
       title: "Exported",
-      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} connection${edgesToExport.length === 1 ? "" : "s"}`,
+      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} connection${edgesToExport.length === 1 ? "" : "s"}.${note}`,
     });
   };
 
