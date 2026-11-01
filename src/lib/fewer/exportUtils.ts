@@ -117,9 +117,45 @@ export function exportSVG(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Rasterize the export scene and download it. Resolves `false` when the scene
- * could not be decoded or encoded — never silently: the panel turns that into
- * an error toast instead of claiming "Exported" (T-219).
+ * Browser canvas ceilings. Blink/Gecko take roughly 16384² px and a 32767px
+ * side; WebKit (notably iOS) refuses anything above ~16.7M px of area, and a
+ * refused canvas makes `toBlob` hand back `null`. `ponytail:` conservative
+ * constants used only as the *fallback* size — the exporter first tries the
+ * requested scale on whatever engine it is actually running on, so a desktop
+ * keeps full resolution and only a genuinely refused size steps down (T-220).
+ * Upgrade path: probe a throwaway canvas once and cache the real limits.
+ */
+export const MAX_CANVAS_DIM = 8192;
+export const MAX_CANVAS_AREA = 16_777_216;
+
+/**
+ * Largest raster scale that still fits those ceilings — never above
+ * `requested`. Pure, so the rule that decides whether an export happens at all
+ * is testable without a browser.
+ */
+export function safeScale(width: number, height: number, requested: number): number {
+  if (!(width > 0) || !(height > 0)) return requested;
+  const byDim = MAX_CANVAS_DIM / Math.max(width, height);
+  const byArea = Math.sqrt(MAX_CANVAS_AREA / (width * height));
+  return Math.min(requested, byDim, byArea);
+}
+
+/** What a PNG attempt came back with — `ok: false` carries the toast's reason. */
+export interface PngRasterResult {
+  ok: boolean;
+  /** Scale that produced the file (below `requestedScale` when capped). */
+  scale: number;
+  requestedScale: number;
+  /** Failure cause, surfaced verbatim in the error toast. */
+  reason?: string;
+}
+
+/**
+ * Rasterize the export scene and download it. Never resolves silently: a
+ * refused decode or encode comes back as `ok: false` with a `reason`, which the
+ * panel turns into an error toast instead of a success one (T-219), and a
+ * canvas that would not take the requested size retries at `safeScale` before
+ * giving up, saying so when it had to step down (T-220).
  *
  * Note: the decode step only exists in a real browser — happy-dom's `Image`
  * fires neither `load` nor `error`, so this path is covered by the
@@ -130,12 +166,21 @@ export async function exportPNG(
   edges: FewerEdge[],
   settings: ExportSettings,
   opts: ExportExtraOptions = {},
-): Promise<boolean> {
-  if (nodes.length === 0) return true;
+): Promise<PngRasterResult> {
+  // PNG ignores the quality argument to toBlob; the slider's % is the pixel
+  // scale below (10–100 → 1×–2×).
+  const requestedScale = Math.max(1, settings.quality / 50);
+  const base = { requestedScale, scale: requestedScale };
+  if (nodes.length === 0) return { ...base, ok: true };
   const scene = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));
-  if (scene.width === 0 || scene.height === 0) return true;
+  if (scene.width === 0 || scene.height === 0) return { ...base, ok: true };
 
-  const scale = Math.max(1, settings.quality / 50);
+  const fallbackScale = safeScale(scene.width, scene.height, requestedScale);
+  // Try the requested size first: the caps above are conservative, and a real
+  // engine that accepts more gets the resolution it was asked for.
+  const candidates =
+    fallbackScale === requestedScale ? [requestedScale] : [requestedScale, fallbackScale];
+
   const blobUrl = URL.createObjectURL(new Blob([scene.svg], { type: "image/svg+xml" }));
   try {
     const img = new Image();
@@ -149,31 +194,47 @@ export async function exportPNG(
         "fewer: export scene is not a decodable image — PNG export aborted.",
         scene.svg.slice(0, 400),
       );
-      return false;
+      return {
+        ...base,
+        ok: false,
+        reason: "The generated image could not be decoded, so no file was downloaded.",
+      };
     }
+
     const canvas = document.createElement("canvas");
-    canvas.width = Math.round(scene.width * scale);
-    canvas.height = Math.round(scene.height * scale);
-    const ctx = canvas.getContext("2d");
-    if (!ctx) {
-      console.error("fewer: no 2D canvas context — PNG export aborted.");
-      return false;
+    let blob: Blob | null = null;
+    let scale = requestedScale;
+    for (const candidate of candidates) {
+      const w = Math.floor(scene.width * candidate);
+      const h = Math.floor(scene.height * candidate);
+      canvas.width = w;
+      canvas.height = h;
+      scale = candidate;
+      // A browser that refuses the size reports the old bitmap back instead of
+      // throwing — treat that as a failed attempt, not a blank export.
+      if (canvas.width !== w || canvas.height !== h) continue;
+      const ctx = canvas.getContext("2d");
+      if (!ctx) continue;
+      ctx.drawImage(img, 0, 0, w, h);
+      blob = await new Promise<Blob | null>((resolve) => canvas.toBlob(resolve, "image/png"));
+      if (blob) break;
     }
-    ctx.drawImage(img, 0, 0, canvas.width, canvas.height);
-    // PNG ignores the quality argument; the slider's % is the pixel scale above.
-    const blob = await new Promise<Blob | null>((resolve) =>
-      canvas.toBlob(resolve, "image/png"),
-    );
+
     if (!blob) {
-      console.error(
-        `fewer: canvas ${canvas.width}x${canvas.height} could not be encoded — PNG export aborted.`,
-      );
-      return false;
+      const w = Math.floor(scene.width * scale);
+      const h = Math.floor(scene.height * scale);
+      console.error(`fewer: ${w}x${h} canvas could not be encoded — PNG export aborted.`);
+      return {
+        ...base,
+        scale,
+        ok: false,
+        reason: `This browser refused a ${w}×${h} canvas, so no file was downloaded — try a lower Quality.`,
+      };
     }
     const url = URL.createObjectURL(blob);
     triggerDownload(url, `fewer-${timestamp()}.png`);
     setTimeout(() => URL.revokeObjectURL(url), 1000);
-    return true;
+    return { ...base, scale, ok: true };
   } finally {
     // Revoked only after the draw: the rasterizer may still read the source.
     URL.revokeObjectURL(blobUrl);
@@ -425,9 +486,9 @@ export function exportDOT(
 /* -------------------------------------------------------------------------- */
 
 /**
- * Dispatch one format. Returns `Promise<boolean>` for PNG — `false` means the
- * file was NOT downloaded — and `undefined` for the formats that finish
- * synchronously (T-219).
+ * Dispatch one format. Returns the PNG raster outcome (`ok:false` means the
+ * file was NOT downloaded, and carries the reason for the toast) and
+ * `undefined` for the formats that finish synchronously (T-219/T-220).
  */
 export function exportGraph(
   nodes: FewerNode[],
@@ -435,26 +496,31 @@ export function exportGraph(
   settings: ExportSettings,
   stats?: DirectoryStats,
   opts: ExportExtraOptions = {},
-): Promise<boolean | void> | void {
+): Promise<PngRasterResult> | undefined {
   switch (settings.format) {
     case "svg":
-      return exportSVG(nodes, edges, settings, opts);
+      exportSVG(nodes, edges, settings, opts);
+      return undefined;
     case "png":
       return exportPNG(nodes, edges, settings, opts);
     case "json":
-      return exportJSON(nodes, edges, stats, settings.includeBranding);
+      exportJSON(nodes, edges, stats, settings.includeBranding);
+      return undefined;
     case "fwr":
       // A document, not an export payload: full snapshot (T-145).
-      return exportFWR(
+      exportFWR(
         buildExportSnapshot(nodes, edges, {
           tags: opts.tags,
           groups: opts.groups,
           localRootPath: opts.localRootPath,
         }),
       );
+      return undefined;
     case "csv":
-      return exportCSV(nodes, edges, settings.includeBranding);
+      exportCSV(nodes, edges, settings.includeBranding);
+      return undefined;
     case "dot":
-      return exportDOT(nodes, edges, settings.includeBranding);
+      exportDOT(nodes, edges, settings.includeBranding);
+      return undefined;
   }
 }

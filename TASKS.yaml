@@ -6193,27 +6193,33 @@ tasks:
   session_count: 1
 - id: "T-220"
   title: "PNG export: clamp canvas dimensions for huge graphs at high quality (toBlob can return null → silent no-download)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "export"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: 526
-  pr: null
+  pr: 530
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-01T17:04:34Z"
   notes: ["2026-11-01T17:18:03Z · Plan: exportPNG must clamp the raster to browser canvas limits before drawImage — safeScale = min(quality/50, MAX_DIM/max(w,h), sqrt(MAX_AREA/(w*h))). Conservative caps (start MAX_DIM 16384, MAX_AREA 16.7M px for WebKit/iOS), verify per-engine before pinning constants. When clamped, toast that the export was downscaled; toBlob(null) already resolves false and surfaces an error toast (T-219). Extract the clamp as a pure fn and unit-test it; keep the T-219 e2e download green."]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-01T17:50:26Z"
+    end: "2026-11-01T18:13:31Z"
+    measured: true
+    note: "Big graphs at high Quality asked for a canvas no engine encodes (WebKit ~16.7M px area, Blink/Gecko dim ceilings) so toBlob returned null and PNG export produced nothing. Added pure safeScale(w,h,requested)=min(requested, dim cap, area cap) with conservative constants (MAX_CANVAS_DIM 8192, MAX_CANVAS_AREA 16.7M) marked ponytail: with a probe-canvas upgrade path; raster tries the requested scale first and only steps down when the canvas refuses the size (old bitmap reported back) or toBlob returns null. exportPNG now returns PngRasterResult{ok,scale,requestedScale,reason}: ok:false feeds the error toast's reason, and a success that had to downscale appends the note to the success toast. exportGraph returns Promise<PngRasterResult>|undefined. 5 new safeScale tests; docs PNG Options + changelog. Gates: tsc 0, lint 0 errors, 1875+258 tests 0 fail, build OK, playwright 'PNG|export panel' 2 passed, changelog validate OK."
+    proof: ["eb77691", "#530"]
+    effort: {commits: 1, files: 5, insertions: 157, deletions: 41}
+  spent_min: 23
+  session_count: 1
 - id: "T-221"
   title: "PNG export text uses fallback fonts (SVG-in-img cannot fetch webfonts) — embed a subset or document the limitation"
   status: "triaged"
