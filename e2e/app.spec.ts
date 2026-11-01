@@ -398,6 +398,8 @@ test("downloads a PNG (T-219)", async ({ page }) => {
   await openCanvas(page);
 
   await page.getByRole("button", { name: "Export" }).click();
+  // T-222: the raster control says what it actually does (pixel scale), not "Quality".
+  await expect(page.getByText("Resolution")).toBeVisible();
   await page.getByRole("button", { name: "PNG" }).click();
 
   const download = page.waitForEvent("download", { timeout: 30000 });

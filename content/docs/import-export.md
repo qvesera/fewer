@@ -285,7 +285,7 @@ Click the graph view you want before exporting. Data formats (JSON, CSV, DOT, sc
 
 ### PNG Options
 
-- Adjustable quality (1-100) — it is the pixel scale of the raster (1×–2×); the export note says if the browser's canvas limit forced a smaller one
+- **Resolution** — canvas pixels per output pixel, 1×–2× (type an exact value or drag the slider). Exports that would not fit this browser's canvas limit are downscaled and the export note says so
 - Transparent background toggle
 - Theme-aware background color
 
