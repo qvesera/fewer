@@ -19,6 +19,7 @@ import {
   buildDbShareUrl,
   SHARE_HASH_THRESHOLD,
 } from "@/lib/fewer/share";
+import { stripShareLocalPaths } from "@/lib/fewer/shareModel";
 import { Link, Copy, Check, Loader2 } from "lucide-react";
 import { plural } from "@/lib/fewer/plural";
 
@@ -44,11 +45,13 @@ export function ShareDialog() {
     if (nodes.length === 0) return;
     setBuilding(true);
     setShareUrl("");
-    const data = {
+    // Hash and DB shares both drop local-filesystem absolutes (audit F-3):
+    // the link must not publish the author's directory layout.
+    const data = stripShareLocalPaths({
       nodes,
       edges,
       localRootPath,
-    };
+    });
     const encoded = encodeShareData(data);
     if (encoded.length <= SHARE_HASH_THRESHOLD) {
       setShareUrl(buildShareUrl(encoded));

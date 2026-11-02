@@ -9,6 +9,7 @@ import {
   normalizeInvitedEmails,
   shareResponseBody,
   shouldSendInvites,
+  stripShareLocalPaths,
 } from "./shareModel";
 
 // The /api/share route's pure decisions: payload normalisation, static
@@ -149,5 +150,71 @@ describe("invite email bodies", () => {
     expect(html).toContain("Interactive File &amp; System Graph Visualizer");
     expect(html).toContain("Open the graph");
     expect(html).toContain("font-weight:600");
+  });
+});
+
+describe("stripShareLocalPaths (audit F-3)", () => {
+  const node = (data: Record<string, unknown>) => ({ id: "n", type: "folder", position: { x: 0, y: 0 }, data });
+
+  it("nulls the absolute localRootPath", () => {
+    const out = stripShareLocalPaths({ nodes: [], edges: [], localRootPath: "/home/ada/proj" });
+    expect(out.localRootPath).toBeNull();
+  });
+
+  it("leaves label-derived relative paths untouched", () => {
+    const out = stripShareLocalPaths({
+      nodes: [node({ label: "src", path: "proj/src", type: "folder" })],
+      edges: [],
+      localRootPath: "/home/ada/proj",
+    });
+    expect(out.nodes[0].data.path).toBe("proj/src");
+  });
+
+  it("relativizes an absolute node path against the stored root", () => {
+    const out = stripShareLocalPaths({
+      nodes: [node({ label: "lib", path: "/home/ada/proj/src/lib", type: "folder" })],
+      edges: [],
+      localRootPath: "/home/ada/proj",
+    });
+    expect(out.nodes[0].data.path).toBe("src/lib");
+  });
+
+  it("leaves an absolute path without a matching root alone", () => {
+    const out = stripShareLocalPaths({
+      nodes: [node({ label: "x", path: "/etc/hosts", type: "file" })],
+      edges: [],
+      localRootPath: null,
+    });
+    expect(out.nodes[0].data.path).toBe("/etc/hosts");
+  });
+
+  it("drops an absolute symlink.resolvedPath, keeps relative ones", () => {
+    const out = stripShareLocalPaths({
+      nodes: [
+        node({ label: "a", path: "proj/a", type: "file", symlink: { target: "b", resolvedPath: "/home/ada/proj/b" } }),
+        node({ label: "c", path: "proj/c", type: "file", symlink: { target: "d", resolvedPath: "proj/d" } }),
+      ],
+      edges: [],
+      localRootPath: "/home/ada/proj",
+    });
+    const sym = (n: { data: Record<string, unknown> }) => n.data.symlink as Record<string, unknown>;
+    expect(sym(out.nodes[0]).resolvedPath).toBeUndefined();
+    expect(sym(out.nodes[1]).resolvedPath).toBe("proj/d");
+  });
+
+  it("relativizes Windows-style roots and paths", () => {
+    const out = stripShareLocalPaths({
+      nodes: [node({ label: "lib", path: "C:\\proj\\src\\lib", type: "folder" })],
+      edges: [],
+      localRootPath: "C:\\proj",
+    });
+    expect(out.nodes[0].data.path).toBe("src/lib");
+  });
+
+  it("passes non-object payloads through unchanged", () => {
+    expect(stripShareLocalPaths(null)).toBeNull();
+    expect(stripShareLocalPaths("x")).toBe("x");
+    const arr = [1, 2];
+    expect(stripShareLocalPaths(arr)).toBe(arr);
   });
 });

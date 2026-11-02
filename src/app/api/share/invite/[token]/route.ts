@@ -1,6 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { serverError } from "@/lib/fewer/apiHelpers";
+import { stripShareLocalPaths } from "@/lib/fewer/shareModel";
 
 /**
  * GET /api/share/invite/<token>
@@ -24,7 +25,8 @@ export async function GET(
     if (error) return serverError(error);
     if (!data) return NextResponse.json({ error: "Invalid or expired invite link" }, { status: 404 });
 
-    return NextResponse.json({ data });
+    // Strip local-filesystem absolutes (audit F-3), as the read path does.
+    return NextResponse.json({ data: stripShareLocalPaths(data) });
   } catch (err) {
     return serverError(err);
   }

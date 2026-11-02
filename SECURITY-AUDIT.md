@@ -95,6 +95,14 @@ they share graphs imported from local disk. Defense: lengthen share ids
 (`randomBytes(12)`) and consider stripping `localRootPath`/local paths from the share
 payload or warning the user.
 
+**Status: fixed** (task T-229) — `stripShareLocalPaths` (shareModel) nulls
+`localRootPath`, relativizes absolute node paths against that root and drops absolute
+`symlink.resolvedPath`; applied on share create/update, on both read paths (so legacy
+rows stop publishing them too) and in ShareDialog before the hash is encoded. Share ids
+are now `randomBytes(12)` (~96 bits). Remaining: existing already-distributed links
+still resolve, and hand-imported absolute paths without a known root pass through by
+design.
+
 ### F-4 (informational) — Errors echo raw internals to clients
 
 **Evidence.** `src/lib/fewer/apiHelpers.ts:6-11` `serverError` returns `err.message`

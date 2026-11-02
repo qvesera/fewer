@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Local path APIs (/api/open-file, /api/open-folder, /api/list-directory, /api/resolve-path) are disabled in production builds with a 403; opt back in for local standalone use with ENABLE_LOCAL_PATH_API=true.
 - API 500 responses return a generic "Internal server error" in production and log the detail server-side instead of echoing database/provider error text; non-production keeps the detail for debugging.
 - Baseline security headers on every route: X-Frame-Options: SAMEORIGIN, X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin.
+- Share links no longer publish local filesystem paths: the stored local root and any absolute node/symlink paths are stripped from share payloads (hash and DB shares, plus existing rows on read), and share IDs are lengthened from 8 to 16 URL-safe characters (~96 bits).
 
 ### Changed
 

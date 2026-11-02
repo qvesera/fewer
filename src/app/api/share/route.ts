@@ -12,6 +12,7 @@ import {
   normalizeInvitedEmails,
   shareResponseBody,
   shouldSendInvites,
+  stripShareLocalPaths,
   type ShareAccess,
   type ShareGalleryProps,
 } from "@/lib/fewer/shareModel";
@@ -113,10 +114,14 @@ async function sendInvites(supabase: Authed["supabase"], shareId: string, emails
 export async function POST(request: Request) {
   try {
     const body = await request.json();
-    const data = body?.data;
-    if (!data || typeof data !== "object") {
+    const raw = body?.data;
+    if (!raw || typeof raw !== "object") {
       return NextResponse.json({ error: "Missing graph data" }, { status: 400 });
     }
+    // Never publish the author's directory layout (audit F-3): drop the
+    // absolute root and relativize absolute paths before anything reads,
+    // sizes or stores the payload.
+    const data = stripShareLocalPaths(raw);
 
     const authed = await getAuthed();
     const user = authed?.user ?? null;
@@ -218,7 +223,9 @@ async function upsertShare(
     }
   }
 
-  const id = randomBytes(6).toString("base64url"); // ~8 chars, URL-safe
+  // 12 bytes → 16 URL-safe chars (~96 bits): unguessable, unlike the old
+  // randomBytes(6) (~48 bits, audit F-3). Existing ids keep working as-is.
+  const id = randomBytes(12).toString("base64url");
   const { error } = await supabase.from("shared_graphs").insert({
     id,
     data: params.data,
