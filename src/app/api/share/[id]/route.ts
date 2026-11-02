@@ -29,7 +29,7 @@ export async function GET(
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return serverError(error);
     }
     if (!data) {
       return NextResponse.json({ error: "Share link not found or expired" }, { status: 404 });

@@ -21,7 +21,7 @@ export async function GET(
     const supabase = getSupabase();
     const { data, error } = await supabase.rpc("get_shared_graph_by_token", { p_token: token });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     if (!data) return NextResponse.json({ error: "Invalid or expired invite link" }, { status: 404 });
 
     return NextResponse.json({ data });

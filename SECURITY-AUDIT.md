@@ -49,6 +49,14 @@ redirects (or disable redirect following / pin to the same host); rate-limit per
 authenticated user; do not reflect raw fetched bodies to callers (return only the parsed
 tree).
 
+**Status: fixed** (commit `eea2706`, task T-226) — outbound guard rejects
+private/reserved IPv4+IPv6 and unresolvable hostnames (every DNS answer screened),
+redirects followed manually with an 8-hop cap so each target is guarded, discovered
+links screened before entering the tree, per-client rate limit (10/min → 429). Host
+allowlisting and authentication were deliberately not added (guest imports stay
+working); DNS-rebinding between check and connect remains a residual, documented in
+`crawlGuard.ts`.
+
 ### F-2 (low) — Local-dev path APIs gated by hostname only
 
 **Evidence.** `POST /api/open-file`, `/api/open-folder`, `/api/list-directory`,
@@ -66,6 +74,11 @@ meant for production exposure (Netlify standalone would never see `Host: localho
 **Fix.** Gate the routes behind a dev-only flag (e.g. only enabled outside production),
 keep `requireLocalhost`, and prefer resolving under configured roots even for absolute
 paths. Document that they must never be exposed on a public host.
+
+**Status: fixed** (task T-227) — `requireLocalhost` now returns 403 for every host when
+`NODE_ENV === "production"` unless `ENABLE_LOCAL_PATH_API=true`; hostname check unchanged
+otherwise. Resolving arbitrary absolute paths (when explicitly enabled) is unchanged —
+acceptable for an opt-in local tool, documented in `.env.example`.
 
 ### F-3 (low/informational) — Public share rows are fully readable; payloads carry local paths
 
@@ -91,6 +104,12 @@ project details, or provider error text.
 
 **Fix.** Return generic messages for 500s in production; log details server-side.
 
+**Status: addressed** (task T-227) — `serverError`/`apiErrorMessage` return
+`Internal server error` in production (logging the detail) and every API route's 500
+path now routes through them, including the Supabase `error.message` sites. Left as-is
+by design: the `/api/cloud/connect|callback` error redirects (authenticated UX, messages
+are static or provider OAuth error codes) and server-side `console.warn` logging.
+
 ### F-5 (informational) — No CSP / X-Frame-Options configured
 
 **Evidence.** `next.config.ts` sets no response headers; `netlify.toml` has no
@@ -99,6 +118,11 @@ user actions (unshare, delete) with no clickjacking mitigation at the app level.
 
 **Fix.** Add `X-Frame-Options: SAMEORIGIN` (or DENY for embedded contexts) and a
 baseline CSP via `next.config.headers` or Netlify `[[headers]]`.
+
+**Status: partially addressed** (task T-227) — `X-Frame-Options: SAMEORIGIN`,
+`X-Content-Type-Options: nosniff` and `Referrer-Policy: strict-origin-when-cross-origin`
+added in `next.config.ts`. CSP deferred: Next's inline scripts make a correct policy a
+separate change.
 
 ## Notes (no finding)
 

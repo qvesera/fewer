@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import type { TreeEntry } from "@/lib/fewer/types";
 import { getSupabase } from "@/lib/supabase";
 import { crawlTree, MAX_DEPTH, MAX_PAGES } from "@/lib/fewer/crawl";
@@ -110,8 +111,7 @@ export async function POST(request: Request) {
 
     return NextResponse.json({ tree, source: rawUrl, truncated, cached: false });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 

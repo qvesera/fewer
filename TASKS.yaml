@@ -6388,3 +6388,32 @@ tasks:
     effort: {commits: 1, files: 8, insertions: 481, deletions: 19}
   spent_min: 25
   session_count: 1
+- id: "T-227"
+  title: "Batch hardening: dev-only local path APIs, generic 500s in production, security headers"
+  status: "in-progress"
+  type: "fix"
+  area: "security"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:01:57Z"
+  notes: ["2026-11-02T12:01:57Z · Audit F-2/F-4/F-5: env-gate /api/open-file|open-folder|list-directory|resolve-path; serverError returns generic 500 in production; next.config headers XFO/nosniff/Referrer-Policy."]
+  sessions:
+  - start: "2026-11-02T12:03:08Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1

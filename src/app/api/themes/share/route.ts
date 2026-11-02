@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getSupabaseCookieClient } from "@/lib/fewer/supabaseServer";
 import { isDangerousText } from "@/lib/fewer/textValidation";
 
@@ -91,7 +92,7 @@ export async function POST(request: Request) {
     .select("id, saved_theme_id, name, theme, gallery_title, gallery_description, author_name, author_username, created_at, updated_at")
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ share });
 }
 
@@ -111,7 +112,7 @@ export async function DELETE(request: Request) {
     .delete()
     .eq("saved_theme_id", savedThemeId)
     .select("id");
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   if (!data || data.length === 0) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ ok: true });
 }
@@ -126,6 +127,6 @@ export async function GET() {
     .from("shared_themes")
     .select("id, saved_theme_id, name, gallery_title, gallery_description")
     .order("updated_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ shares: data ?? [] });
 }

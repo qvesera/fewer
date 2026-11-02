@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { runWatchDigest } from "@/lib/fewer/watchDigest";
 
 /**
@@ -19,7 +20,6 @@ export async function POST(request: Request) {
     const { users, emails } = await runWatchDigest();
     return NextResponse.json({ ok: true, users, emails });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

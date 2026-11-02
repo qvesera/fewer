@@ -257,7 +257,7 @@ export async function GET(request: Request) {
       .eq("saved_graph_id", savedGraphId)
       .maybeSingle();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     if (!data) return NextResponse.json({ error: "No share link" }, { status: 404 });
     return NextResponse.json({ share: data });
   } catch (err) {
@@ -286,7 +286,7 @@ export async function DELETE(request: Request) {
       .delete()
       .eq("owner_id", user.id)
       .eq("saved_graph_id", savedGraphId);
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json({ ok: true });
   } catch (err) {
     return serverError(err);

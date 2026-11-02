@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { isDangerousText } from "@/lib/fewer/textValidation";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
@@ -18,7 +19,7 @@ export async function GET() {
     .select("id, name, theme, created_at, updated_at")
     .order("updated_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ themes: data ?? [] });
 }
 
@@ -61,7 +62,7 @@ export async function POST(request: Request) {
       .eq("id", body.id)
       .select("id, name, theme, created_at, updated_at")
       .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     return NextResponse.json({ theme: data });
   }
@@ -71,6 +72,6 @@ export async function POST(request: Request) {
     .insert({ name, theme: body.theme, user_id: user.id })
     .select("id, name, theme, created_at, updated_at")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ theme: data });
 }
