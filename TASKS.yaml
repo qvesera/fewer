@@ -6193,7 +6193,7 @@ tasks:
   session_count: 1
 - id: "T-220"
   title: "PNG export: clamp canvas dimensions for huge graphs at high quality (toBlob can return null → silent no-download)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "export"
   tier: 0
