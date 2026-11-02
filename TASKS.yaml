@@ -6390,7 +6390,7 @@ tasks:
   session_count: 1
 - id: "T-227"
   title: "Batch hardening: dev-only local path APIs, generic 500s in production, security headers"
-  status: "in-progress"
+  status: "triaged"
   type: "fix"
   area: "security"
   tier: 1
@@ -6403,17 +6403,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-02T12:01:57Z"
   notes: ["2026-11-02T12:01:57Z · Audit F-2/F-4/F-5: env-gate /api/open-file|open-folder|list-directory|resolve-path; serverError returns generic 500 in production; next.config headers XFO/nosniff/Referrer-Policy."]
   sessions:
   - start: "2026-11-02T12:03:08Z"
-    end: null
+    end: "2026-11-02T12:22:02Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Batch hardening landed in aba8342: F-2 production gate on requireLocalhost (ENABLE_LOCAL_PATH_API opt-in), F-4 serverError/apiErrorMessage sweep across all API 500 paths, F-5 XFO/nosniff/Referrer-Policy headers. 37 files +271/-69. Gates: tsc 0, lint 0 err, build OK, 1917+260 tests pass (2 pre-existing timing failures on HEAD), changelog+env:check OK."
+    proof: ["aba8342"]
+    effort: {commits: 1, files: 37, insertions: 271, deletions: 69}
+  spent_min: 19
   session_count: 1
