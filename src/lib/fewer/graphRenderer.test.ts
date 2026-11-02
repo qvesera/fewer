@@ -401,3 +401,25 @@ test("the scene declares every namespace prefix it uses (T-219)", () => {
   expect([...used].filter((p) => !declared.has(p))).toEqual([]);
   expect(used.size).toBeGreaterThan(0);
 });
+
+/* -------------------------------------------------------------------------- */
+/*  T-221: the scene carries the app's font with it                          */
+/* -------------------------------------------------------------------------- */
+
+test("an inlined @font-face block rides inside the scene, not after it", () => {
+  const nodes = [makeNode("r", "root")];
+  const fontCss =
+    '<style type="text/css"><![CDATA[\n@font-face{font-family:Geist;src:url(data:font/woff2;base64,aGk=) format("woff2");}\n]]></style>';
+  const scene = buildGraphSVG(nodes, [], opts({ fontFaceCss: fontCss }));
+
+  expect(scene.svg).toContain("<![CDATA[");
+  expect(scene.svg).toContain("font-family:Geist");
+  const open = scene.svg.indexOf("<style");
+  expect(open).toBeGreaterThan(0);
+  expect(open).toBeLessThan(scene.svg.indexOf("</svg>"));
+});
+
+test("the scene is unchanged when no font is supplied", () => {
+  const nodes = [makeNode("r", "root")];
+  expect(buildGraphSVG(nodes, [], opts()).svg).not.toContain("<style");
+});

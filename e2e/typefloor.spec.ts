@@ -75,8 +75,9 @@ test("the Settings dialog renders no text below 11px", async ({ page }) => {
 });
 
 // The tab strip is one non-wrapping row: at the 12px floor five tabs measure
-// ~485px, which only fits because the dialog is 600px wide (DialogContent's
-// base sm:max-w-lg caps it at 512 otherwise — the reason this is pinned).
+// ~485px in the system face and ~630px once Geist is applied (T-221), which is
+// why the dialog is 47rem wide (DialogContent's base sm:max-w-lg caps it at 512
+// otherwise — the reason this is pinned).
 test("every Settings tab fits without scrolling the strip", async ({ page }) => {
   await page.goto("/app");
   await page.locator('[title="Settings"]').click();

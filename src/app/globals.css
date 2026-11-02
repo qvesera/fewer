@@ -263,6 +263,13 @@
   }
   body {
     @apply bg-background text-foreground;
+    /* next/font hangs `--font-geist-sans` off <body>, but Tailwind v4's
+       preflight only ever reads `--default-font-family` — on <html>, and
+       nothing set it — so every page rendered in the system stack while
+       Geist was preloaded and never drawn (T-221). The exporter reads this
+       same computed value, and inlines the matching @font-face into the
+       scene, so canvas, PNG and .svg all set their text in one face. */
+    font-family: var(--font-geist-sans, ui-sans-serif, system-ui, sans-serif);
   }
   h1, h2, h3, h4, h5, h6 {
     text-wrap: balance;
