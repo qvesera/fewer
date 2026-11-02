@@ -10,6 +10,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
+- Crawl endpoint hardening: POST /api/crawl now rejects private, loopback, link-local and metadata addresses (root URL, redirect hops and discovered links) and rate-limits requests per client, closing the SSRF gap in the server-side crawler.
+- Local path APIs (/api/open-file, /api/open-folder, /api/list-directory, /api/resolve-path) are disabled in production builds with a 403; opt back in for local standalone use with ENABLE_LOCAL_PATH_API=true.
+- API 500 responses return a generic "Internal server error" in production and log the detail server-side instead of echoing database/provider error text; non-production keeps the detail for debugging.
+- Baseline security headers on every route: X-Frame-Options: SAMEORIGIN, X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin.
+- Share links no longer publish local filesystem paths: the stored local root and any absolute node/symlink paths are stripped from share payloads (hash and DB shares, plus existing rows on read), and share IDs are lengthened from 8 to 16 URL-safe characters (~96 bits).
 
 ### Changed
 

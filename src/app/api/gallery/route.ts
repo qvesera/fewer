@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { apiErrorMessage } from "@/lib/fewer/apiHelpers";
 import { createClient } from "@supabase/supabase-js";
 
 const GALLERY_PAGE_SIZE = 24;
@@ -44,7 +45,7 @@ export async function GET(request: Request) {
     .range(offset, offset + limit - 1);
 
   if (error) {
-    return NextResponse.json({ items: [], total: 0, error: error.message }, { status: 500 });
+    return NextResponse.json({ items: [], total: 0, error: apiErrorMessage(error) }, { status: 500 });
   }
 
   const items = (data ?? []).map((g) => ({

@@ -75,6 +75,67 @@ export function galleryProps(
     : { in_gallery: false, gallery_title: null, gallery_description: null, author_name: null, author_username: null, gallery_category: null, gallery_categories: null, gallery_preview: null };
 }
 
+/** Absolute POSIX (`/x`), Windows drive (`C:\x`) or UNC (`\\server`) path. */
+function isAbsolutePath(p: string): boolean {
+  return p.startsWith("/") || /^[A-Za-z]:[\\/]/.test(p) || p.startsWith("\\\\");
+}
+
+/**
+ * Drop local-filesystem absolutes from a share payload (audit F-3) so a share
+ * link never publishes the author's directory layout:
+ *   - `localRootPath` is nulled (the one absolute field in every snapshot);
+ *   - a node `data.path` that is absolute is relativized against that root
+ *     when it matches — label-derived relative paths (the normal case) and
+ *     hand-imported absolute paths without a known root are untouched;
+ *   - an absolute `symlink.resolvedPath` is dropped (viewers cannot use it).
+ * Non-object payloads pass through unchanged. Pure — safe for client dialogs
+ * (hash shares) and the server route (DB shares) alike.
+ */
+export function stripShareLocalPaths<T>(data: T): T {
+  if (!data || typeof data !== "object" || Array.isArray(data)) return data;
+  const out = { ...(data as Record<string, unknown>) };
+  const root =
+    typeof out.localRootPath === "string"
+      ? out.localRootPath.replace(/[\\/]+$/, "").replace(/\\/g, "/")
+      : null;
+  if ("localRootPath" in out) out.localRootPath = null;
+
+  const relativize = (value: string): string => {
+    const norm = value.replace(/\\/g, "/");
+    if (!root) return value;
+    if (norm === root) return ".";
+    if (norm.startsWith(`${root}/`)) return norm.slice(root.length + 1);
+    return value;
+  };
+
+  if (Array.isArray(out.nodes)) {
+    out.nodes = (out.nodes as unknown[]).map((n) => {
+      if (!n || typeof n !== "object" || Array.isArray(n)) return n;
+      const node = { ...(n as Record<string, unknown>) };
+      const d = node.data;
+      if (!d || typeof d !== "object" || Array.isArray(d)) return node;
+      const nd = { ...(d as Record<string, unknown>) };
+      let touched = false;
+      if (typeof nd.path === "string" && isAbsolutePath(nd.path)) {
+        nd.path = relativize(nd.path);
+        touched = true;
+      }
+      const sym = nd.symlink;
+      if (sym && typeof sym === "object" && !Array.isArray(sym)) {
+        const s = { ...(sym as Record<string, unknown>) };
+        if (typeof s.resolvedPath === "string" && isAbsolutePath(s.resolvedPath)) {
+          delete s.resolvedPath;
+          nd.symlink = s;
+          touched = true;
+        }
+      }
+      if (touched) node.data = nd;
+      return node;
+    });
+  }
+  return out as T;
+}
+
 /** Graph name and inviter fallbacks for the invite email subject/body.
  *  The name is capped, never trimmed — it goes straight into the email. */
 export function inviteContext(

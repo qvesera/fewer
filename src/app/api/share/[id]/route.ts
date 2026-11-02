@@ -2,6 +2,7 @@ import { NextResponse } from "next/server";
 import { getSupabase } from "@/lib/supabase";
 import { getSupabaseCookieClient } from "@/lib/fewer/supabaseServer";
 import { isShareExpired, serverError } from "@/lib/fewer/apiHelpers";
+import { stripShareLocalPaths } from "@/lib/fewer/shareModel";
 
 /** Resolve the current user's email from the session cookie, if any. */
 async function getCurrentUserEmail(): Promise<string | null> {
@@ -29,7 +30,7 @@ export async function GET(
       .maybeSingle();
 
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return serverError(error);
     }
     if (!data) {
       return NextResponse.json({ error: "Share link not found or expired" }, { status: 404 });
@@ -53,7 +54,9 @@ export async function GET(
       }
     }
 
-    return NextResponse.json({ data: data.data });
+    // Strip local-filesystem absolutes so legacy rows (stored before F-3)
+    // stop publishing them to viewers too.
+    return NextResponse.json({ data: stripShareLocalPaths(data.data) });
   } catch (err) {
     return serverError(err);
   }

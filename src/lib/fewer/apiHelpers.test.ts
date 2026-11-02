@@ -1,5 +1,19 @@
 import { describe, expect, test } from "bun:test";
-import { serverError, isShareExpired, profileFieldsRejected } from "./apiHelpers";
+import { serverError, apiErrorMessage, isShareExpired, profileFieldsRejected } from "./apiHelpers";
+
+/** Set NODE_ENV for one assertion, restoring exactly (delete when unset). */
+function withNodeEnv<T>(value: string | undefined, fn: () => T): T {
+  // NODE_ENV is typed readonly; route around it for one assertion.
+  const env = process.env as Record<string, string | undefined>;
+  const prev = env.NODE_ENV;
+  env.NODE_ENV = value;
+  try {
+    return fn();
+  } finally {
+    if (prev === undefined) delete env.NODE_ENV;
+    else env.NODE_ENV = prev;
+  }
+}
 
 describe("serverError", () => {
   test("Error → 500 with message", () => {
@@ -11,6 +25,33 @@ describe("serverError", () => {
     const res = serverError("oops");
     expect(res.status).toBe(500);
     return res.json().then((j) => expect(j.error).toBe("Unknown error"));
+  });
+  test("Supabase-style error objects keep their message outside production", () => {
+    const res = serverError({ message: "permission denied for table profiles" });
+    expect(res.status).toBe(500);
+    return res.json().then((j) =>
+      expect(j.error).toBe("permission denied for table profiles"),
+    );
+  });
+  test("production echoes a generic message, never the detail (audit F-4)", () => {
+    return withNodeEnv("production", () => {
+      const res = serverError(new Error("schema internals leaked"));
+      expect(res.status).toBe(500);
+      return res.json().then((j) => expect(j.error).toBe("Internal server error"));
+    });
+  });
+});
+
+describe("apiErrorMessage", () => {
+  test("non-production returns the extracted detail", () => {
+    expect(apiErrorMessage(new Error("boom"))).toBe("boom");
+    expect(apiErrorMessage({ message: "pg error" })).toBe("pg error");
+    expect(apiErrorMessage("oops")).toBe("Unknown error");
+  });
+  test("production returns the generic message", () => {
+    withNodeEnv("production", () => {
+      expect(apiErrorMessage(new Error("boom"))).toBe("Internal server error");
+    });
   });
 });
 

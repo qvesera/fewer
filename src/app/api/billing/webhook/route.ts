@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import type Stripe from "stripe";
 import { getStripe, getServiceSupabase, billingDisabled, billingEnabled } from "@/lib/fewer/billing";
 import { applyCheckoutCompleted, applySubscriptionChange } from "@/lib/fewer/billingWebhook";
@@ -44,8 +45,7 @@ export async function POST(request: Request) {
         break;
     }
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Webhook handler failed";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 
   return NextResponse.json({ received: true });

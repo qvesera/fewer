@@ -6307,3 +6307,177 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 56, deletions: 6}
   spent_min: 11
   session_count: 1
+- id: "T-224"
+  title: "Source-first security audit of the fewer web app"
+  status: "parked"
+  type: "research"
+  area: "security"
+  tier: 2
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T09:32:09Z"
+  notes: ["2026-11-02T09:32:30Z · Source-first static security audit of API routes, auth/RLS, share links, local dev helpers, export renderer, and billing webhook. Read-only analysis; report emitted as SECURITY-AUDIT.md.", "2026-11-02T09:40:44Z · marked internal post-creation: row was created without --internal (duplicate of T-225); no GitHub issue exists for this internal analysis audit"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-225"
+  title: "Source-first security audit of the fewer web app"
+  status: "review"
+  type: "research"
+  area: "security"
+  tier: 2
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: 536
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T09:35:05Z"
+  notes: ["2026-11-02T09:35:05Z · Read-only static audit: API routes, auth/RLS, share links, local dev path helpers, export renderer, billing webhook. Report emitted as SECURITY-AUDIT.md; no source changes."]
+  sessions:
+  - start: "2026-11-02T09:35:14Z"
+    end: "2026-11-02T09:39:08Z"
+    measured: true
+    note: "Wrote SECURITY-AUDIT.md (commit bec3a9a): 1 medium SSRF via /api/crawl, 2 low/informational findings, controls verified. Dynamic validation deferred (no sandbox)."
+    proof: ["bec3a9a"]
+    effort: {commits: 1, files: 2, insertions: 202, deletions: 0}
+  spent_min: 4
+  session_count: 1
+- id: "T-226"
+  title: "Fix SSRF in /api/crawl: private-IP guard + manual redirects + rate limit"
+  status: "triaged"
+  type: "fix"
+  area: "security"
+  tier: 2
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: null
+  pr: 536
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T11:33:38Z"
+  notes: ["2026-11-02T11:33:38Z · Implements crawlGuard (private/loopback/link-local/metadata IP rejection + DNS resolution of hostnames), manual redirect following with hop cap, per-IP rate limit on POST /api/crawl. Route test + crawlGuard unit tests + crawl.ts redirect tests."]
+  sessions:
+  - start: "2026-11-02T11:33:49Z"
+    end: "2026-11-02T11:58:52Z"
+    measured: true
+    note: "SSRF fix landed in eea2706: crawlGuard (private/loopback/link-local/metadata IP rejection + DNS screening), manual redirects with 8-hop cap, discovery-time URL screening, per-IP rate limit (10/min). Tests: crawlGuard (5), route guard (6), crawl redirects/screening (4) all pass; tsc 0, lint 0 err, build OK. 2 pre-existing wall-clock timing tests fail under local load (verified identical on HEAD). Changelog security entry added."
+    proof: ["eea2706"]
+    effort: {commits: 1, files: 8, insertions: 481, deletions: 19}
+  - start: "2026-11-02T13:28:56Z"
+    end: "2026-11-02T13:33:13Z"
+    measured: true
+    note: "Follow-up: removed worker-level await guard that serialized the crawl pool (CI test job failure). Full suite green: 1926+260, 0 fail."
+    proof: ["a3bf5e4"]
+    effort: {commits: 1, files: 1, insertions: 7, deletions: 2}
+  spent_min: 29
+  session_count: 2
+- id: "T-227"
+  title: "Batch hardening: dev-only local path APIs, generic 500s in production, security headers"
+  status: "review"
+  type: "fix"
+  area: "security"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: null
+  pr: 536
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:01:57Z"
+  notes: ["2026-11-02T12:01:57Z · Audit F-2/F-4/F-5: env-gate /api/open-file|open-folder|list-directory|resolve-path; serverError returns generic 500 in production; next.config headers XFO/nosniff/Referrer-Policy."]
+  sessions:
+  - start: "2026-11-02T12:03:08Z"
+    end: "2026-11-02T12:22:02Z"
+    measured: true
+    note: "Batch hardening landed in aba8342: F-2 production gate on requireLocalhost (ENABLE_LOCAL_PATH_API opt-in), F-4 serverError/apiErrorMessage sweep across all API 500 paths, F-5 XFO/nosniff/Referrer-Policy headers. 37 files +271/-69. Gates: tsc 0, lint 0 err, build OK, 1917+260 tests pass (2 pre-existing timing failures on HEAD), changelog+env:check OK."
+    proof: ["aba8342"]
+    effort: {commits: 1, files: 37, insertions: 271, deletions: 69}
+  spent_min: 19
+  session_count: 1
+- id: "T-228"
+  title: "Bump minimatch override to ^11.0.2 (GHSA-g3hv-75wg-m249)"
+  status: "review"
+  type: "fix"
+  area: "security"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 536
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:25:10Z"
+  notes: ["2026-11-02T12:25:10Z · Dev-only lint toolchain advisory (moderate). Override forced to >=11.0.1; bun audit now clean, lint passes."]
+  sessions:
+  - start: "2026-11-02T12:25:10Z"
+    end: "2026-11-02T12:25:34Z"
+    measured: true
+    note: "minimatch override ^10.2.6 -> ^11.0.2; bun audit clean, lint 0 err."
+    proof: ["72058e4"]
+    effort: {commits: 1, files: 3, insertions: 91, deletions: 60}
+  spent_min: 0
+  session_count: 1
+- id: "T-229"
+  title: "F-3: strip local paths from share payloads + lengthen share IDs"
+  status: "review"
+  type: "fix"
+  area: "security"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: 536
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:45:19Z"
+  notes: ["2026-11-02T12:45:19Z · stripShareLocalPaths (localRootPath nulled, absolute paths relativized, absolute symlink.resolvedPath dropped) applied on share write + both read paths + ShareDialog hash; share ids randomBytes(6)->(12)."]
+  sessions:
+  - start: "2026-11-02T12:45:19Z"
+    end: "2026-11-02T12:50:45Z"
+    measured: true
+    note: "F-3 shipped: stripShareLocalPaths on write+read+hash paths, share ids 12 bytes. Gates all green."
+    proof: ["7c286e6"]
+    effort: {commits: 1, files: 9, insertions: 188, deletions: 7}
+  spent_min: 5
+  session_count: 1

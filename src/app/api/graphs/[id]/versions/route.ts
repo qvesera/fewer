@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import {serverError, apiErrorMessage } from "@/lib/fewer/apiHelpers";
 import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { recordVersion, retentionCutoffIso } from "@/lib/fewer/versions";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
@@ -32,7 +33,7 @@ export async function GET(
     .eq("saved_graph_id", id)
     .gte("created_at", cutoffIso)
     .order("created_at", { ascending: false });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   return NextResponse.json({ versions: data ?? [] });
 }
@@ -68,6 +69,6 @@ export async function POST(
     );
   }
   const result = await recordVersion(supabase, user.id, id, body.data, limits.historyDays);
-  if (result.error) return NextResponse.json({ error: result.error }, { status: 500 });
+  if (result.error) return NextResponse.json({ error: apiErrorMessage({ message: result.error }) }, { status: 500 });
   return NextResponse.json({ recorded: result.recorded });
 }

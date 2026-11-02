@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import fs from "fs";
 import { openInOs, resolveLocalPath, requireLocalhost } from "@/lib/fewer/openInOs";
 
@@ -28,7 +29,6 @@ export async function POST(request: Request) {
     await openInOs(resolved);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

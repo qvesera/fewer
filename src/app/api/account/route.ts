@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { createClient } from "@supabase/supabase-js";
 import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { scheduledDeletionIso } from "@/lib/fewer/accountDeletion";
@@ -51,12 +52,11 @@ export async function DELETE() {
       app_metadata: { scheduled_deletion: scheduledDeletionIso() },
     });
     if (error) {
-      return NextResponse.json({ error: error.message }, { status: 500 });
+      return serverError(error);
     }
 
     return new NextResponse(null, { status: 204 });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Could not delete account";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

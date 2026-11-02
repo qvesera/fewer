@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getAuthedClient } from "@/lib/fewer/apiAuth";
 import { safeText } from "@/lib/fewer/textValidation";
-import { profileFieldsRejected } from "@/lib/fewer/apiHelpers";
+import {profileFieldsRejected, serverError } from "@/lib/fewer/apiHelpers";
 import { countOwned } from "@/lib/fewer/plans";
 
 export async function GET() {
@@ -16,7 +16,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   // Usage counters for the Account-status card (head-count, fails -1 on error).
   const [savedGraphs, watchedIndexes] = await Promise.all([
@@ -57,7 +57,7 @@ export async function PUT(request: Request) {
     if (error.code === "23505") {
       return NextResponse.json({ error: "That username is already taken" }, { status: 409 });
     }
-    return NextResponse.json({ error: error.message }, { status: 500 });
+    return serverError(error);
   }
   return NextResponse.json({ ok: true });
 }
