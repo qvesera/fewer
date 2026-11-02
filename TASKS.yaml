@@ -6332,7 +6332,7 @@ tasks:
   session_count: 0
 - id: "T-225"
   title: "Source-first security audit of the fewer web app"
-  status: "in-progress"
+  status: "triaged"
   type: "research"
   area: "security"
   tier: 2
@@ -6345,17 +6345,17 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-02T09:35:05Z"
   notes: ["2026-11-02T09:35:05Z · Read-only static audit: API routes, auth/RLS, share links, local dev path helpers, export renderer, billing webhook. Report emitted as SECURITY-AUDIT.md; no source changes."]
   sessions:
   - start: "2026-11-02T09:35:14Z"
-    end: null
+    end: "2026-11-02T09:39:08Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Wrote SECURITY-AUDIT.md (commit bec3a9a): 1 medium SSRF via /api/crawl, 2 low/informational findings, controls verified. Dynamic validation deferred (no sandbox)."
+    proof: ["bec3a9a"]
+    effort: {commits: 1, files: 2, insertions: 202, deletions: 0}
+  spent_min: 4
   session_count: 1
