@@ -181,8 +181,13 @@ export async function crawlTree(
         continue;
       }
       if (state.visited.has(next.url)) continue;
-      // Screen discovered URLs before spending the page budget on them.
-      if (!(await state.isAllowed(next.url))) continue;
+      // The claim below must stay synchronous: the budget check and
+      // `pages++`/`inFlight++` land together, or a peer worker that runs in
+      // between sees an empty queue with inFlight === 0 and exits for good —
+      // the pool then runs on one worker and the timing tests fail (this
+      // happened when an `await` guard sat here). URL screening happens
+      // earlier: attachEntries before a child is enqueued, fetchEntries
+      // before any fetch, and /api/crawl guards the root before crawlTree.
       state.visited.add(next.url);
       state.pages++;
       inFlight++;
