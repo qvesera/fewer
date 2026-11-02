@@ -218,7 +218,7 @@ Access via sidebar. Shows all hidden cards grouped by their visible parent folde
 Fuzzy search across filenames, paths, and extensions.
 
 - **Click result** → zoom to card
-- **Hidden matches** appear with badge; clicking reveals the match **and all its hidden ancestors** up to root, then zooms
+- **Hidden matches** appear with badge; clicking reveals the match **and all its hidden ancestors** up to root — releasing whatever hide layer holds them, including the active view's **Hide Files** — then zooms
 - **Highlight/dim** matched/unmatched cards
 - **Recent searches**: committed terms are kept per browser session (sessionStorage) and shown when reopening search; clear them from the panel
 
