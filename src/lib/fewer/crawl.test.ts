@@ -168,3 +168,96 @@ test("concurrency stays bounded and parallel", async () => {
   expect(maxInFlight).toBeGreaterThan(1);
   expect(maxInFlight).toBeLessThanOrEqual(4);
 });
+
+// ─── URL guard + redirects ────────────────────────────────────────────
+//
+
+test("redirects are followed and the final page is crawled", async () => {
+  calls.length = 0;
+  let hitFinal = false;
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = String(input);
+    calls.push(url);
+    if (url === "https://x/root/") {
+      return Promise.resolve(
+        new Response("", { status: 302, headers: { location: "https://y/final/" } })
+      );
+    }
+    hitFinal = true;
+    return Promise.resolve(new Response(indexHtml([], [{ name: "f.txt", kb: 1 }]), { status: 200 }));
+  }) as typeof fetch;
+
+  const { tree } = await crawlTree("https://x/root/", 0, 100);
+
+  expect(calls).toEqual(["https://x/root/", "https://y/final/"]);
+  expect(hitFinal).toBe(true);
+  expect(tree.children!.find((c) => c.name === "f.txt")).toBeDefined();
+});
+
+test("a redirect to a private address is not followed", async () => {
+  calls.length = 0;
+  let fetchedPrivate = false;
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = String(input);
+    calls.push(url);
+    if (url === "https://x/root/") {
+      return Promise.resolve(
+        new Response("", { status: 302, headers: { location: "http://127.0.0.1/" } })
+      );
+    }
+    fetchedPrivate = true;
+    return Promise.resolve(new Response("should not be fetched", { status: 200 }));
+  }) as typeof fetch;
+
+  const isPrivate = (url: string) => !url.includes("127.0.0.1");
+  const { tree } = await crawlTree("https://x/root/", 0, 100, { isAllowed: isPrivate });
+
+  expect(calls).toEqual(["https://x/root/"]);
+  expect(fetchedPrivate).toBe(false);
+  expect(tree.children).toEqual([]);
+});
+
+test("redirect chains are capped at MAX_REDIRECT_HOPS", async () => {
+  calls.length = 0;
+  let hops = 0;
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = String(input);
+    calls.push(url);
+    hops++;
+    if (hops <= 9) {
+      return Promise.resolve(
+        new Response("", { status: 302, headers: { location: `https://x/hop${hops}/` } })
+      );
+    }
+    return Promise.resolve(new Response(indexHtml([]), { status: 200 }));
+  }) as typeof fetch;
+
+  const { tree } = await crawlTree("https://x/hop0/", 0, 100);
+
+  expect(hops).toBe(9); // root + MAX_REDIRECT_HOPS hops, then abort
+  expect(calls.length).toBe(9);
+  expect(tree.children).toEqual([]);
+});
+
+test("discovered child URLs are screened before a page is fetched", async () => {
+  const blocked = "http://127.0.0.1/";
+  calls.length = 0;
+  // Anchor href/inner text is an absolute private URL → child resolves to it.
+  const evilHtml = `<html><body><pre><a href="${blocked}">${blocked}</a>  2026-01-01     -</pre></body></html>`;
+  globalThis.fetch = ((input: RequestInfo | URL) => {
+    const url = String(input);
+    calls.push(url);
+    if (url === "https://x/root/") {
+      return Promise.resolve(
+        new Response(indexHtml(["safe", blocked], [{ name: "note.txt", kb: 1 }]))
+      );
+    }
+    return Promise.resolve(new Response(evilHtml));
+  }) as typeof fetch;
+
+  const isPublic = (url: string) => !url.includes("127.0.0.1");
+  const { tree } = await crawlTree("https://x/root/", 0, 100, { isAllowed: isPublic });
+
+  expect(calls).toEqual(["https://x/root/", "https://x/root/safe/"]);
+  expect(tree.children!.map((c) => c.name)).toEqual(["safe", "note.txt"]);
+});

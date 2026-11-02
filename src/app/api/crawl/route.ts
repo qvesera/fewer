@@ -3,8 +3,36 @@ import type { TreeEntry } from "@/lib/fewer/types";
 import { getSupabase } from "@/lib/supabase";
 import { crawlTree, MAX_DEPTH, MAX_PAGES } from "@/lib/fewer/crawl";
 import { fetchArchiveTree, parseArchiveUrl, archiveDetailsUrl } from "@/lib/fewer/archive";
+import { isAllowedCrawlUrl } from "@/lib/fewer/crawlGuard";
 
 const CACHE_TTL_MS = 24 * 60 * 60 * 1000; // 24h
+
+// Per-IP rate limit, best effort in memory (the reverse proxy should enforce
+// the real limit). A default crawl can fetch up to MAX_PAGES pages, so the
+// allowance is deliberately small.
+const RATE_WINDOW_MS = 60 * 1000;
+const RATE_MAX = 10;
+const rateState = new Map<string, { count: number; reset: number }>();
+
+function rateLimited(key: string): boolean {
+  const now = Date.now();
+  const entry = rateState.get(key);
+  if (!entry || now >= entry.reset) {
+    if (rateState.size > 1000) rateState.clear();
+    rateState.set(key, { count: 1, reset: now + RATE_WINDOW_MS });
+    return false;
+  }
+  entry.count++;
+  return entry.count > RATE_MAX;
+}
+
+function clientIp(request: Request): string {
+  return (
+    request.headers.get("x-forwarded-for")?.split(",")[0]?.trim() ??
+    request.headers.get("x-real-ip") ??
+    "unknown"
+  );
+}
 
 interface CrawlRequest {
   url?: string;
@@ -30,6 +58,17 @@ export async function POST(request: Request) {
         { error: "Invalid URL. Provide a public file index URL (http/https)." },
         { status: 400 }
       );
+    }
+
+    if (rateLimited(clientIp(request))) {
+      return NextResponse.json({ error: "Too many crawl requests" }, { status: 429 });
+    }
+
+    // SSRF guard: reject private/loopback/link-local/metadata addresses and
+    // any hostname that resolves to one, before the server connects.
+    const guard = await isAllowedCrawlUrl(rawUrl);
+    if (!guard.ok) {
+      return NextResponse.json({ error: `Crawl not allowed: ${guard.reason}` }, { status: 400 });
     }
 
     const maxDepth = Math.min(Math.max(body.maxDepth ?? MAX_DEPTH, 0), MAX_DEPTH);
@@ -61,7 +100,9 @@ export async function POST(request: Request) {
       }
     }
 
-    const { tree, truncated } = await crawlTree(rawUrl, maxDepth, maxPages);
+    const { tree, truncated } = await crawlTree(rawUrl, maxDepth, maxPages, {
+      isAllowed: async (url) => (await isAllowedCrawlUrl(url)).ok,
+    });
 
     if (cacheable) {
       await writeCache(rawUrl, tree, truncated);
