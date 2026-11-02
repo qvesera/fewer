@@ -6278,3 +6278,32 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 106, deletions: 8}
   spent_min: 15
   session_count: 1
+- id: "T-223"
+  title: "Search results don't reveal or zoom to hidden files when Hide Files is on"
+  status: "triaged"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 534
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#534"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-11-02T08:56:13Z"
+  notes: ["2026-11-02T09:00:56Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-11-02T09:00:57Z"
+    end: "2026-11-02T09:12:25Z"
+    measured: true
+    note: "SearchPanel now derives the active view's effective hidden set (useActiveLeaf) and reveals a clicked/Enter-opened result through revealInView for the target + its ancestor chain, releasing per-view layers (bulk Hide Files exemption, individual, subtrees) and opening collapsed groups; badge reads the effective set too. Tests: 2 new SearchPanel cases (bulk-layer reveal+zoom, global reveal+zoom). Gates: lint 0 err, tsc 0, bun test 260+ src pass, build OK."
+    proof: ["ebe368a"]
+    effort: {commits: 1, files: 4, insertions: 56, deletions: 6}
+  spent_min: 11
+  session_count: 1
