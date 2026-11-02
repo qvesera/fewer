@@ -6332,14 +6332,14 @@ tasks:
   session_count: 0
 - id: "T-225"
   title: "Source-first security audit of the fewer web app"
-  status: "triaged"
+  status: "review"
   type: "research"
   area: "security"
   tier: 2
   estimate_min: 480
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 536
   internal: true
   milestone: null
   blocked_by: []
@@ -6361,14 +6361,14 @@ tasks:
   session_count: 1
 - id: "T-226"
   title: "Fix SSRF in /api/crawl: private-IP guard + manual redirects + rate limit"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "security"
   tier: 2
   estimate_min: 960
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 536
   internal: true
   milestone: null
   blocked_by: []
@@ -6390,14 +6390,14 @@ tasks:
   session_count: 1
 - id: "T-227"
   title: "Batch hardening: dev-only local path APIs, generic 500s in production, security headers"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "security"
   tier: 1
   estimate_min: 240
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 536
   internal: true
   milestone: null
   blocked_by: []
@@ -6419,14 +6419,14 @@ tasks:
   session_count: 1
 - id: "T-228"
   title: "Bump minimatch override to ^11.0.2 (GHSA-g3hv-75wg-m249)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "security"
   tier: 0
   estimate_min: 30
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 536
   internal: true
   milestone: null
   blocked_by: []
