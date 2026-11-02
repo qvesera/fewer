@@ -6448,30 +6448,30 @@ tasks:
   session_count: 1
 - id: "T-229"
   title: "F-3: strip local paths from share payloads + lengthen share IDs"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "security"
   tier: 1
   estimate_min: 120
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 536
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-02T12:45:19Z"
   notes: ["2026-11-02T12:45:19Z · stripShareLocalPaths (localRootPath nulled, absolute paths relativized, absolute symlink.resolvedPath dropped) applied on share write + both read paths + ShareDialog hash; share ids randomBytes(6)->(12)."]
   sessions:
   - start: "2026-11-02T12:45:19Z"
-    end: null
+    end: "2026-11-02T12:50:45Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "F-3 shipped: stripShareLocalPaths on write+read+hash paths, share ids 12 bytes. Gates all green."
+    proof: ["7c286e6"]
+    effort: {commits: 1, files: 9, insertions: 188, deletions: 7}
+  spent_min: 5
   session_count: 1
