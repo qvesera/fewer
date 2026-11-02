@@ -6222,27 +6222,33 @@ tasks:
   session_count: 1
 - id: "T-221"
   title: "PNG export text uses fallback fonts (SVG-in-img cannot fetch webfonts) — embed a subset or document the limitation"
-  status: "triaged"
+  status: "review"
   type: "research"
   area: "export"
   tier: 0
   estimate_min: 360
   estimate_basis: "cli"
   issue: 527
-  pr: null
+  pr: 533
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-01T17:04:40Z"
   notes: ["2026-11-01T17:18:03Z · Plan: spike first, then pick. Finding: the app font is Geist (next/font/google, self-hosted woff2), so SVG-in-img cannot load it and PNG text silently falls back to system sans — a real canvas/PNG mismatch, not hypothetical. Options: (a) at export, fetch the same-origin woff2 and embed it as a base64 @font-face data URI inside the exported SVG (~15-30KB, works in Chrome/FF, must fail soft offline); (b) subset to the glyphs actually used — needs a new dep, avoid unless (a) is too big; (c) document the limitation in content/docs/import-export.md. Measure (a)'s size and Safari behaviour, default to (a) with (c) as the shipped fallback."]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-01T19:26:09Z"
+    end: "2026-11-02T07:38:21Z"
+    measured: true
+    note: "Spike first, as planned: measurement DISPROVED the filed premise. Probe against the built app showed body/descendant font-family = system stack, geistAvailable false, 13 Geist faces all unloaded, built CSS references var(--font-sans) 0 times — next/font hangs --font-geist-sans off <body> while Tailwind v4 preflight only reads --default-font-family on <html>, and nothing set it. So canvas and PNG already matched (both system), and Geist was imported+preloaded+never drawn. Shipped both halves per user's Option 1: (a) exportFont.ts walks document.styleSheets for @font-face rules matching the scene's font stack, fetches same-origin, inlines base64 data URIs in a CDATA <style> inside the root svg — ASCII-subset-first, MAX_FONT_BYTES 512KB, every failure returns '' so exports never regress; exported pure helpers firstFamily/fontFamilies/fontFileUrl/inlineFontSrc/coversAscii/toBase64 all unit-tested (16 tests). exportGraph resolves it for svg/png via ExportExtraOptions.fontFaceCss; renderer emits it inside the document. (b) globals.css body{font-family:var(--font-geist-sans,...)} applies Geist where the variable lives; Settings dialog 44rem→47rem because six tabs measure ~630px in Geist (tab-fit e2e caught it, stale 600px comment corrected). Verified in a browser: new e2e downloads the .svg and reads back @font-face+CDATA+format(woff2)+base64 (it failed pre-wiring, proving nothing was embedded), font probe reports geistAvailable true / Geist:loaded. Gates: tsc 0, lint 0 errors, 1892+258 tests 0 fail, build OK, full e2e 76 passed (1 fail = known marketing first-scroll flake, passed on rerun), changelog validate OK."
+    proof: ["891de6e", "#533"]
+    effort: {commits: 1, files: 11, insertions: 367, deletions: 11}
+  spent_min: 732
+  session_count: 1
 - id: "T-222"
   title: "Export 'Quality' slider is really pixel scale (quality/50 → 1x–2x) and its % is passed to toBlob where PNG ignores it — rename/decouple"
   status: "review"
