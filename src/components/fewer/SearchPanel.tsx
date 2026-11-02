@@ -3,6 +3,8 @@
 import { useEffect, useRef, useState, useMemo } from "react";
 import { Folder, FileIcon, EyeOff, Search, History, X, Tag as TagIcon } from "lucide-react";
 import { useGraphStore } from "@/store/graphStore";
+import { useActiveLeaf } from "@/hooks/use-active-leaf";
+import { ancestorChainOf, parentMapOf } from "@/lib/fewer/validation";
 import { cn } from "@/lib/utils";
 import { can } from "@/lib/fewer/tiers";
 import {
@@ -31,6 +33,13 @@ export function SearchPanel() {
   const toggleTagFilter = useGraphStore((s) => s.toggleTagFilter);
   const clearTagFilter = useGraphStore((s) => s.clearTagFilter);
   const tier = useGraphStore((s) => s.tier);
+  const activeLeaf = useActiveLeaf();
+  // The active view's EFFECTIVE hidden set: global hides plus this view's own
+  // layers (bulk Hide Files, individual, subtree) and collapsed groups. The
+  // global hiddenIds alone miss a file the per-view Hide Files toggle hid —
+  // which is exactly why clicking such a result never revealed or zoomed to it.
+  const effectiveHidden = activeLeaf?.resolved.hiddenIds ?? hiddenIds;
+  const hiddenSet = useMemo(() => new Set(effectiveHidden), [effectiveHidden]);
   const inputRef = useRef<HTMLInputElement>(null);
   const resultsContainerRef = useRef<HTMLDivElement>(null);
   const [activeIndex, setActiveIndex] = useState(-1);
@@ -41,10 +50,19 @@ export function SearchPanel() {
 
     if (query.trim()) commitSearch(query);
 
-    // Reveal the matched node AND every hidden ancestor up to root, so a
-    // search hit is never left dangling under a still-hidden parent.
-    if (hiddenIds.includes(nodeId)) {
-      useGraphStore.getState().showAncestors(nodeId);
+    // Selecting a search result outranks every hide mechanism: reveal the hit
+    // through the active view's reveal gesture (global hides, per-view layers,
+    // the bulk Hide Files exemption, collapsed groups), then release any
+    // ancestor the same hide sets still hold, so the card never lands
+    // orphaned under a still-hidden parent. `showAncestors` only knew the
+    // global set, so a bulk-layer-hidden file was left invisible — and the
+    // zoom below had no rendered node to land on.
+    if (hiddenSet.has(nodeId)) {
+      const store = useGraphStore.getState();
+      const chain = [nodeId, ...ancestorChainOf(nodeId, parentMapOf(store.edges))];
+      for (const id of chain) {
+        if (hiddenSet.has(id)) store.revealInView(activeLeaf?.leafId ?? null, id);
+      }
     }
 
     setSelectedNodeIds([nodeId]);
@@ -254,7 +272,7 @@ export function SearchPanel() {
             <ul className="p-1.5 space-y-0.5 min-w-0" role="listbox" aria-label="Search results">
               {visibleMatches(matches).map((n, idx) => {
                 const isActive = idx === activeIndex;
-                const isHidden = hiddenIds.includes(n.id);
+                const isHidden = hiddenSet.has(n.id);
                 const Icon = n.data.type === "folder" ? Folder : FileIcon;
                 
                 return (
