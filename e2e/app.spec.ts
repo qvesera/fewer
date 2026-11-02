@@ -1,4 +1,5 @@
 import { test, expect, type Page } from "@playwright/test";
+import { readFile } from "node:fs/promises";
 
 /**
  * E2E smoke flows. Kept lean on purpose — E2E is the slowest CI job, so this
@@ -408,6 +409,33 @@ test("downloads a PNG (T-219)", async ({ page }) => {
 
   expect(file.suggestedFilename()).toMatch(/^fewer-\d{8}-\d{4}\.png$/);
   await expect(page.getByText("Export failed")).toHaveCount(0);
+});
+
+// T-221: an SVG drawn in an <img> may only use fonts declared inside itself, so
+// the export inlines the app's @font-face. Reading the downloaded file is the
+// only layer that can prove the embedding really happened in a browser.
+test("SVG export carries the app's @font-face (T-221)", async ({ page }) => {
+  // SVG is an advanced format and `advancedImportFormats` needs the `free` tier —
+  // signed-out guests are below it. This suite's build allows `?tier=`, which is
+  // how groups.spec drives its own advanced-format round trip.
+  await page.goto("/app?tier=free");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  await page.getByRole("button", { name: "Export" }).click();
+  await page.getByRole("button", { name: /SVG/ }).click();
+
+  const download = page.waitForEvent("download", { timeout: 30000 });
+  await page.getByRole("button", { name: "Download" }).click();
+  const file = await download;
+
+  expect(file.suggestedFilename()).toMatch(/^fewer-\d{8}-\d{4}\.svg$/);
+  const path = await file.path();
+  const svg = await readFile(path!, "utf8");
+  expect(svg).toContain("@font-face");
+  expect(svg).toContain("<![CDATA[");
+  expect(svg).toContain("format(\"woff2\")");
+  expect(svg).toContain("base64,");
 });
 
 test("copy and paste duplicates a selected node", async ({ page }) => {

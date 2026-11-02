@@ -87,6 +87,13 @@ export interface GraphRenderOptions {
    * of correctly-placed cards. Falls back to the per-node stamp when omitted.
    */
   direction?: LayoutDirection;
+  /**
+   * T-221: `<style>` block with the app's `@font-face` inlined as data URIs,
+   * emitted straight inside the root `<svg>`. An SVG drawn in an `<img>` (how
+   * PNG rasterizes) cannot fetch external fonts, so without this the text falls
+   * back to a system sans while the canvas shows the real face.
+   */
+  fontFaceCss?: string;
 }
 
 export interface GraphScene {
@@ -909,6 +916,7 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   // exporter's `<img>` refuses to decode it and downloads nothing at all
   // (T-219).
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
+  ${o.fontFaceCss ?? ""}
   ${filterDefs(o)}
   ${o.transparentBackground ? "" : `<rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXml(o.palette.background)}"/>`}
   <g transform="translate(${-minX}, ${-minY})">

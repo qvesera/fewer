@@ -280,6 +280,7 @@ SVG and PNG render exactly what the active graph view shows, not the raw graph s
 - tag rings and tag dots use the same colors as the canvas
 - the current selection carries over: each selected card gets the themed selection ring outside its border, and every connection on a selected card's ancestor path is highlighted in the same folder/file colors and 3px width the canvas uses
 - the view's connection style, stroke pattern, and connection width win over the global ones, and connections anchor to the view's layout direction exactly as the canvas handles do
+- the app's typeface travels with the file: the export embeds the matching `@font-face` (as a data URI, so it works offline), which means the PNG is set in the same font you see on the canvas rather than a system fallback, and the downloaded `.svg` opens with it anywhere. The embedding fails soft — with no font to be found the export still happens, in a fallback face.
 
 Click the graph view you want before exporting. Data formats (JSON, CSV, DOT, script, tree) always export the full graph and ignore view settings. The active-view marker shown in a split layout is a UI affordance and is never drawn into an export.
 

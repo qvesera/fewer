@@ -17,6 +17,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Text is legible everywhere: the 236 hardcoded 8-11px sizes across 44 files became a rem-based 11px floor (new `text-2xs` token driven by a `--ui-scale` root font-size), uppercase headings below 12px dropped to sentence case, two micro-labels gained weight, the Settings dialog is 600px so all five tabs fit on one row without scrolling, and SVG/PNG export text matches the canvas sizes again
 - The header wordmark is plain theme text again (white in dark, near-black in light) instead of the orange gradient it had picked up; the now-unused .text-gradient-fewer rule is gone
 - PNG's export control tells the truth: the 'Quality' percentage was always the raster's pixel scale (1x-2x), so it is now labelled Resolution with an explicit 1.6x-style readout, and the slider no longer offers the dead positions below 1x that could not change the output. One shared mapping drives the panel and the exporter.
+- The app renders in the Geist it already imported and preloaded: next/font's variable sat on <body> while Tailwind's preflight only ever reads --default-font-family on <html>, so every page silently fell back to the system stack (the woff2 files were fetched and never drawn). The Settings dialog grows 44rem to 47rem to keep its six tabs on one non-wrapping row in the real face.
 
 ### Added
 
@@ -27,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - PNG/SVG image export no longer silently fails: the exported scene declared the "xlink" namespace it uses (it was copied from public/logo.svg without it), so rasterizing works again for anyone whose export carries the watermark — signed-out users included, where branding is forced on. A raster that still cannot be decoded now raises an error toast instead of a success toast with no file.
 - PNG export no longer vanishes on very large graphs: the raster now retries at a canvas size the browser actually accepts instead of handing back nothing, and when it has to step down below the requested Quality the export note says so.
+- PNG export text is set in the app's font again: an SVG rendered inside an <img> cannot fetch webfonts, so exported cards quietly fell back to a system sans while the canvas showed Geist. The export now embeds the matching @font-face as a data URI (same-origin fetch, fails soft when unavailable), which also makes the downloaded .svg carry its typeface and open correctly offline.
 
 ## [0.8.0] - 2026-10-28
 

@@ -1635,11 +1635,12 @@ export function SettingsDialog() {
           of content, which scrolls (and clips) inside a 512px dialog. The
           sm:max-w override is required: DialogContent's base sm:max-w-lg (512px)
           would otherwise cap this width back down. */}
-      {/* 44rem (704px at the default scale): six tabs with icons measure ~585px
-          of content, and every dimension here is rem so the whole dialog scales
-          with --ui-scale — a px width would shrink the strip's room as the type
-          grew (the tab-fit e2e pins scrollWidth <= clientWidth). */}
-      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[44rem] max-w-[calc(100%-2rem)] sm:max-w-[44rem] h-[36.875rem] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
+      {/* 47rem (752px at the default scale): six tabs with icons measure ~585px
+          of content in the system face and ~630px once Geist is actually
+          applied (T-221), and every dimension here is rem so the whole dialog
+          scales with --ui-scale — a px width would shrink the strip's room as
+          the type grew (the tab-fit e2e pins scrollWidth <= clientWidth). */}
+      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[47rem] max-w-[calc(100%-2rem)] sm:max-w-[47rem] h-[36.875rem] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">

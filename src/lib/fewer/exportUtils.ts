@@ -16,6 +16,7 @@ import type { Tag } from "./tags";
 import type { Group } from "./groups";
 import { normalizeGroups } from "./groups";
 import { qualityToScale } from "./exportPanelModel";
+import { resolveFontFaceCss } from "./exportFont";
 import { useGraphStore } from "@/store/graphStore";
 import { SNAPSHOT_VERSION, type SavedGraphData } from "./savedGraphs";
 import { pruneNodeForSave } from "./snapshot";
@@ -68,6 +69,12 @@ export interface ExportExtraOptions {
   groups?: Group[];
   /** Absolute path of the graph root, carried by the `.fwr` document. */
   localRootPath?: string | null;
+  /**
+   * T-221: inlined `@font-face` CSS for the scene. Resolved by `exportGraph`
+   * (a same-origin fetch, hence async) and handed to the renderer — neither
+   * `exportSVG` nor `exportPNG` may fetch on their own, tests drive them sync.
+   */
+  fontFaceCss?: string;
 }
 
 /** Fold the shared image options into the renderer's option bag. */
@@ -94,6 +101,7 @@ function imageRenderOptions(
     a11yColorBlindSafe: useGraphStore.getState().a11y?.colorBlindSafe ?? false,
     a11yInitials: useGraphStore.getState().a11y?.tagInitials ?? false,
     direction: opts.direction,
+    fontFaceCss: opts.fontFaceCss,
   };
 }
 
@@ -491,19 +499,27 @@ export function exportDOT(
  * file was NOT downloaded, and carries the reason for the toast) and
  * `undefined` for the formats that finish synchronously (T-219/T-220).
  */
-export function exportGraph(
+export async function exportGraph(
   nodes: FewerNode[],
   edges: FewerEdge[],
   settings: ExportSettings,
   stats?: DirectoryStats,
   opts: ExportExtraOptions = {},
-): Promise<PngRasterResult> | undefined {
+): Promise<PngRasterResult | undefined> {
+  // T-221: image formats carry the app's own `@font-face` inside the scene, so
+  // both the `<img>` raster and a downloaded `.svg` render in it (offline too).
+  // The lookup fails soft to `""` — the export continues in the fallback font.
+  const imageOpts =
+    settings.format === "svg" || settings.format === "png"
+      ? { ...opts, fontFaceCss: await resolveFontFaceCss(readBodyFont()) }
+      : opts;
+
   switch (settings.format) {
     case "svg":
-      exportSVG(nodes, edges, settings, opts);
+      exportSVG(nodes, edges, settings, imageOpts);
       return undefined;
     case "png":
-      return exportPNG(nodes, edges, settings, opts);
+      return exportPNG(nodes, edges, settings, imageOpts);
     case "json":
       exportJSON(nodes, edges, stats, settings.includeBranding);
       return undefined;
