@@ -15,6 +15,7 @@ import {
 import type { Tag } from "./tags";
 import type { Group } from "./groups";
 import { normalizeGroups } from "./groups";
+import { qualityToScale } from "./exportPanelModel";
 import { useGraphStore } from "@/store/graphStore";
 import { SNAPSHOT_VERSION, type SavedGraphData } from "./savedGraphs";
 import { pruneNodeForSave } from "./snapshot";
@@ -169,7 +170,7 @@ export async function exportPNG(
 ): Promise<PngRasterResult> {
   // PNG ignores the quality argument to toBlob; the slider's % is the pixel
   // scale below (10–100 → 1×–2×).
-  const requestedScale = Math.max(1, settings.quality / 50);
+  const requestedScale = qualityToScale(settings.quality);
   const base = { requestedScale, scale: requestedScale };
   if (nodes.length === 0) return { ...base, ok: true };
   const scene = buildGraphSVG(nodes, edges, imageRenderOptions(settings, opts));

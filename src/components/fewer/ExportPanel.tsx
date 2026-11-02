@@ -60,7 +60,15 @@ import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
-import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
+import {
+  isSingleFileSelected,
+  isAdvancedFormatOnly,
+  qualityToScale,
+  scaleToQuality,
+  formatScale,
+  QUALITY_MIN,
+  QUALITY_MAX,
+} from "@/lib/fewer/exportPanelModel";
 import { can } from "@/lib/fewer/tiers";
 
 const BASIC_FORMATS: {
@@ -494,14 +502,25 @@ export function ExportPanel() {
           {isRaster && (
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-muted-foreground">Quality</Label>
-                <span className="text-xs font-mono font-semibold text-foreground/80"><EditableNumber value={settings.quality} onCommit={(v) => setSettings({ quality: v })} unit="%" /></span>
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Resolution</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Canvas pixels per output pixel. Too large for this browser to encode, and the export says it stepped down.
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-semibold text-foreground/80">
+                  <EditableNumber
+                    value={qualityToScale(settings.quality)}
+                    onCommit={(v) => setSettings({ quality: scaleToQuality(v) })}
+                    labelFn={(v) => `${formatScale(v)}×`}
+                  />
+                </span>
               </div>
               <Slider
                 value={[settings.quality]}
                 onValueChange={([v]) => setSettings({ quality: v })}
-                min={10}
-                max={100}
+                min={QUALITY_MIN}
+                max={QUALITY_MAX}
                 step={5}
               />
             </div>

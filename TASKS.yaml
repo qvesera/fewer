@@ -6245,24 +6245,30 @@ tasks:
   session_count: 0
 - id: "T-222"
   title: "Export 'Quality' slider is really pixel scale (quality/50 → 1x–2x) and its % is passed to toBlob where PNG ignores it — rename/decouple"
-  status: "triaged"
+  status: "review"
   type: "refactor"
   area: "export"
   tier: 0
   estimate_min: 180
   estimate_basis: "cli"
   issue: 528
-  pr: null
+  pr: 532
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-01T17:05:19Z"
   notes: ["2026-11-01T17:18:03Z · Plan: keep the persisted quality field (no settings migration, userSettings stays compatible) but stop mislabeling it — the slider is pixel scale (quality/50 = 1x-2x at 10-100), and the quality/100 passed to toBlob is dead because PNG ignores it. Relabel UI to Resolution with an explicit xN readout (or keep % but tooltip the mapping), drop the dead toBlob arg, document in content/docs/import-export.md, changelog Changed entry. Unit-test the scale mapping in exportPanelModel."]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-01T18:33:43Z"
+    end: "2026-11-01T18:48:58Z"
+    measured: true
+    note: "The PNG control was labelled Quality and edited a percentage that was always the raster's pixel scale (quality/50, floored 1x; PNG ignores toBlob's quality arg, already dropped in T-220). Relabelled Resolution with an editable real readout (1.6x style), slider range 50-100 = 1x-2x so the dead sub-1x positions are gone (stored values below 50 still read 1x; no settings migration, field stays 'quality'). qualityToScale/scaleToQuality/formatScale now live in exportPanelModel and are shared by ExportPanel and exportUtils, so the mapping has one home. 5 new mapping tests; docs PNG Options rewritten; changelog Changed; e2e pins the Resolution label inside the PNG download test. Gates: tsc 0, lint 0 errors, 1880+258 tests 0 fail, build OK, playwright 'PNG|export panel' 2 passed + rerun with assertion passed."
+    proof: ["857f58c", "#532"]
+    effort: {commits: 1, files: 7, insertions: 106, deletions: 8}
+  spent_min: 15
+  session_count: 1
