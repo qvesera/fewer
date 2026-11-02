@@ -6280,14 +6280,14 @@ tasks:
   session_count: 1
 - id: "T-223"
   title: "Search results don't reveal or zoom to hidden files when Hide Files is on"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "other"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 534
-  pr: null
+  pr: 535
   internal: false
   milestone: null
   blocked_by: []
