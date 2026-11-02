@@ -6361,7 +6361,7 @@ tasks:
   session_count: 1
 - id: "T-226"
   title: "Fix SSRF in /api/crawl: private-IP guard + manual redirects + rate limit"
-  status: "review"
+  status: "triaged"
   type: "fix"
   area: "security"
   tier: 2
@@ -6386,8 +6386,14 @@ tasks:
     note: "SSRF fix landed in eea2706: crawlGuard (private/loopback/link-local/metadata IP rejection + DNS screening), manual redirects with 8-hop cap, discovery-time URL screening, per-IP rate limit (10/min). Tests: crawlGuard (5), route guard (6), crawl redirects/screening (4) all pass; tsc 0, lint 0 err, build OK. 2 pre-existing wall-clock timing tests fail under local load (verified identical on HEAD). Changelog security entry added."
     proof: ["eea2706"]
     effort: {commits: 1, files: 8, insertions: 481, deletions: 19}
-  spent_min: 25
-  session_count: 1
+  - start: "2026-11-02T13:28:56Z"
+    end: "2026-11-02T13:33:13Z"
+    measured: true
+    note: "Follow-up: removed worker-level await guard that serialized the crawl pool (CI test job failure). Full suite green: 1926+260, 0 fail."
+    proof: ["a3bf5e4"]
+    effort: {commits: 1, files: 1, insertions: 7, deletions: 2}
+  spent_min: 29
+  session_count: 2
 - id: "T-227"
   title: "Batch hardening: dev-only local path APIs, generic 500s in production, security headers"
   status: "review"
