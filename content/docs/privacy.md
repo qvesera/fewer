@@ -149,6 +149,28 @@ If we become aware of a security breach affecting the personal data we hold, we 
 
 ## 11. Changes to This Policy
 
+
+## 13. Security Hardening (audit 2026)
+
+Fewer undergoes regular source-first security audits. Recent hardening includes:
+
+- **SSRF guard**: The `/api/crawl` endpoint now rejects private, loopback, link-local, and metadata IP addresses, resolves hostnames and screens every DNS answer, follows redirects manually with an 8-hop cap, and rate-limits requests per client (10/min → 429). This closes the server-side request forgery gap where an unauthenticated caller could reach internal addresses.
+
+- **Dev-only path APIs**: `/api/open-file`, `/api/open-folder`, `/api/list-directory`, and `/api/resolve-path` return 403 in production builds unless `ENABLE_LOCAL_PATH_API=true`. These helpers are only intended for local development and should never be exposed on a public host.
+
+- **Generic 500 responses**: API 500 responses return a generic "Internal server error" in production (detailed error text is logged server-side instead of echoed to clients). Non-production keeps the detail for debugging.
+
+- **Security headers**: Every route includes `X-Frame-Options: SAMEORIGIN`, `X-Content-Type-Options: nosniff`, and `Referrer-Policy: strict-origin-when-cross-origin` baseline headers. A full Content Security Policy is deferred due to Next.js inline scripts.
+
+- **Share link privacy**: Share links no longer publish the author's directory layout. The stored `localRootPath` is nulled, absolute `data.path` values are relativized against that root, and absolute `symlink.resolvedPath` values are dropped. Share IDs have been lengthened from 8 to 16 URL-safe characters (~96 bits) to reduce enumeration risk.
+
+- **Dependency audit**: `minimatch` override bumped from `^10.2.6` to `^11.0.2` (GHSA-g3hv-75wg-m249, moderate, ReDoS via globparts amplification, transitive through the lint toolchain only).
+
+These features are detailed in the [SECURITY-AUDIT.md](SECURITY-AUDIT.md) report and the [changelog](CHANGELOG.md).
+
+
+
+
 If we change what data we collect or how we handle it, we will update this page and change the "Last updated" date. For material changes, we will post a prominent notice on the Service. Because the code is open source, you can always see exactly what the product does in a given version.
 
 ## 12. Contact Us
@@ -159,3 +181,7 @@ Questions, requests, or concerns are welcome: we would rather you tell us than w
 - **Email / security:** for privacy-specific requests, use a GitHub issue marked private/security, and do not paste sensitive personal data into a public thread; [SECURITY.md](https://github.com/qvesera/fewer/blob/main/SECURITY.md) has guidance.
 
 We will respond to privacy requests as promptly as the law requires and aim to do better. If you are unsatisfied with our response, and it applies to you, you may also contact your local data-protection authority.
+
+---
+
+*Generated with the assistance of AI coding tools. Some code, particularly auto-generated boilerplate, configuration, and test scaffolding, may have been produced with the help of artificial intelligence. All code has been reviewed, tested, and verified to function correctly, but users should exercise typical open-source caution.*

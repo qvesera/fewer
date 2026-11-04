@@ -12,20 +12,16 @@
 
 [Features](#features) • [Install](#install) • [Quick Start](#quick-start) • [How It Works](#how-it-works) • [Docs](/docs) • [Blog](/blog) • [FAQ](#faq)
 
----
-
 > [!IMPORTANT]
 > **Privacy & Trust**: fewer runs entirely in your browser. No telemetry, no data exfiltration, no config files modified outside the project, and your directory is never uploaded. Network calls happen only for features you opt into: a GitHub/URL/Internet Archive import, a linked cloud account, an optional account (saved graphs, share links, gallery), watch digests, or the on-demand archive engine for `.7z`/`.rar`/`.xz`/`.bz2`/`.zst`. Everything else stays local. To disable instantly: close the tab. To uninstall: delete the repo.
 
----
+*Generated with the assistance of AI coding tools. Some code, particularly auto-generated boilerplate, configuration, and test scaffolding, may have been produced with the help of artificial intelligence. All code has been reviewed, tested, and verified to function correctly, but users should exercise typical open-source caution.*
 
 ## The Problem
 
 You need to understand a directory structure: a new codebase, a project to document, a mess to reorganize. Standard tools don't help: `tree` is static, file managers show one folder at a time, `ls -R` is a wall of text. You scroll, search, switch contexts, and still miss the shape of it.
 
 If you've used a file tree in VS Code or `tree` in the terminal, you know the fix. What's new is turning that tree into an interactive graph: drag, search, edit, rename, group, export in 8 formats, all in the browser, with nothing to install beyond a dev server.
-
----
 
 ## See It Work
 
@@ -48,8 +44,6 @@ The public home page at [fewer.directory](https://fewer.directory) opens on the 
 the Pro surface (split views, docking, tags) without a Pro account. `?tier=free` and
 `?tier=guest` work too. This is a UI-only override; the server still enforces the real plan,
 and production builds ignore the parameter.
-
----
 
 ## Install
 
@@ -87,8 +81,6 @@ docker run -p 3000:3000 fewer
 
 </details>
 
----
-
 ## Quick Start
 
 | Step  | Action                                                                      |
@@ -121,8 +113,6 @@ docker run -p 3000:3000 fewer
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
 - **Group** cards: select two or more, right-click → **More Actions → Group N Items**, and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike. Collapsing shrinks the frame to a pill whose connections stay ordinary canvas edges (your connection style, dash and width apply, and the group's colour tints them), and you can drag the pill to move the collapsed group
-
----
 
 ## Features
 
@@ -260,8 +250,6 @@ docker run -p 3000:3000 fewer
 
 </details>
 
----
-
 ## Export
 
 | Format     | Description                                | Use Case                      |
@@ -278,8 +266,6 @@ docker run -p 3000:3000 fewer
 Toggle **Export Selected** to export only the selected subtree.
 
 Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, collapsed groups (pill and their wires), tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
-
----
 
 ## Docs & Blog
 
@@ -359,8 +345,6 @@ src/
 
 </details>
 
----
-
 ## Tech Stack
 
 | Layer     | Technology                                                      |
@@ -373,8 +357,6 @@ src/
 | Database  | Supabase (Postgres): auth, saved graphs, version history, share links, gallery, content pages. No local database; the app works offline for local-only use |
 | Icons     | Lucide React                                                    |
 | Fonts     | Geist Sans / Geist Mono                                         |
-
----
 
 ## Browser Support
 
@@ -392,8 +374,6 @@ src/
 > are unavailable in every browser until a build flips them: see
 > [Deployment → Local Filesystem Features](https://fewer.directory/docs/deployment).
 > Folder import works everywhere through the `webkitdirectory` fallback.
-
----
 
 ## FAQ
 
@@ -421,13 +401,9 @@ A: No. Fewer works fully without one. Signing in (optional) unlocks saving graph
 
 A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload, that keeps the app free of image storage without giving up identity in the toolbar.
 
----
-
 ## Roadmap
 
 See [ROADMAP.md](ROADMAP.md) for the full roadmap, covering short-term, medium-term, and long-term plans.
-
----
 
 ## Contributing
 
