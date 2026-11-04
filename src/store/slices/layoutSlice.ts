@@ -6,6 +6,8 @@ import type { LayoutDirection, EdgeStyle, EdgeStrokeStyle, FewerEdge } from "@/l
 import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
 import { DEFAULT_SORT_KEY, DEFAULT_SORT_DIR } from "@/lib/fewer/sorting";
+import { normalizeUiScale, type UiScale } from "@/lib/fewer/settingsModel";
+import { A11Y_DEFAULTS, applyA11yToDom, normalizeA11y, type A11ySettings } from "@/lib/fewer/a11ySettings";
 
 export type LayoutSliceCreator = StateCreator<
   GraphState,
@@ -32,6 +34,12 @@ export type LayoutSliceCreator = StateCreator<
     /** Crown-shyness intensity: 0 = flat gaps, 1 = default, max 3. Read by
      *  relayout, so a change applies the next time Organize runs. */
     shynessScale: number;
+    /** Interface scale multiplier — `null` = Auto, where the viewport media
+     *  queries in globals.css decide (see settingsModel.UiScale). */
+    uiScale: UiScale;
+    /** Accessibility preferences (T-215): flags for the html classes in
+     *  globals.css plus the two tag-painting flags. */
+    a11y: A11ySettings;
     /** Sibling sort key read by relayout. */
     sortKey: SortKey;
     /** Sibling sort direction read by relayout. */
@@ -56,6 +64,8 @@ export type LayoutSliceCreator = StateCreator<
     setCornerRadius: (r: number) => void;
     setNodeDimensions: (w: number, h: number) => void;
     setShynessScale: (scale: number) => void;
+    setUiScale: (s: UiScale) => void;
+    setA11y: (patch: Partial<A11ySettings>) => void;
     setSortKey: (key: SortKey) => void;
     setSortDir: (dir: SortDir) => void;
     setAutoRelayout: (v: boolean) => void;
@@ -76,6 +86,19 @@ export function defaultDirection(): LayoutDirection {
     if (width > 0 && height > 0 && (width < 2560 || height < 1440)) return "LR";
   }
   return "TB";
+}
+
+/**
+ * Write (or clear) the scale on `<html>`. Auto clears it so the viewport media
+ * queries in globals.css take over again — an inline value would beat them.
+ * Shared by the store setter and the settings-sync path (the store alone can't
+ * re-apply a value loaded from another tab or the cloud).
+ */
+export function applyUiScaleToDom(scale: UiScale): void {
+  if (typeof document === "undefined") return;
+  const root = document.documentElement;
+  if (scale === null) root.style.removeProperty("--ui-scale");
+  else root.style.setProperty("--ui-scale", String(scale));
 }
 
 /**
@@ -114,6 +137,8 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
   nodeWidth: 240,
   nodeHeight: 200,
   shynessScale: 1,
+  uiScale: null,
+  a11y: A11Y_DEFAULTS,
   sortKey: DEFAULT_SORT_KEY,
   sortDir: DEFAULT_SORT_DIR,
   autoRelayout: true,
@@ -220,6 +245,20 @@ export const createLayoutSlice: LayoutSliceCreator = (set, get) => ({
     // drops those stale positions (spaced for the old intensity) and re-derives.
     set({ shynessScale: clamped });
     get().organize(get().activeLeafId);
+  },
+
+  setUiScale: (scale) => {
+    const next = normalizeUiScale(scale);
+    if (next === get().uiScale) return;
+    set({ uiScale: next });
+    applyUiScaleToDom(next);
+  },
+
+  setA11y: (patch) => {
+    const next = normalizeA11y({ ...get().a11y, ...patch });
+    if (JSON.stringify(next) === JSON.stringify(get().a11y)) return;
+    set({ a11y: next });
+    applyA11yToDom(next);
   },
 
   setSortKey: (key) => {

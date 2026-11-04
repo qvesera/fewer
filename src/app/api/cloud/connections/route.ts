@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getAuthedClient } from "@/lib/fewer/cloud/server";
 import type { CloudConnection } from "@/lib/fewer/cloud/types";
 
@@ -12,7 +13,7 @@ export async function GET() {
     .from("cloud_connections")
     .select("id, provider, account_id, account_name, config, created_at, updated_at")
     .order("provider", { ascending: true });
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ connections: (data ?? []) as CloudConnection[] });
 }
 
@@ -32,6 +33,6 @@ export async function DELETE(request: Request) {
   if (!id) return NextResponse.json({ error: "Missing id" }, { status: 400 });
 
   const { error } = await supabase.from("cloud_connections").delete().eq("id", id).eq("user_id", user.id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

@@ -2,7 +2,20 @@ import { afterAll, beforeAll, describe, expect, test } from "bun:test";
 import { mkdir, mkdtemp, rm, writeFile } from "fs/promises";
 import { tmpdir } from "os";
 import path from "path";
-import { resolveLocalPath } from "./openInOs";
+import { requireLocalhost, resolveLocalPath } from "./openInOs";
+
+/** Set env for one assertion, restoring exactly (delete when unset). */
+function withEnv(key: string, value: string | undefined, fn: () => void): void {
+  const prev = process.env[key];
+  if (value === undefined) delete process.env[key];
+  else process.env[key] = value;
+  try {
+    fn();
+  } finally {
+    if (prev === undefined) delete process.env[key];
+    else process.env[key] = prev;
+  }
+}
 
 let root: string;
 
@@ -114,5 +127,35 @@ describe("resolveLocalPath", () => {
       searchBudget: 0,
     });
     expect(result).toBe(path.join(root, "MyProject"));
+  });
+});
+
+describe("requireLocalhost (audit F-2)", () => {
+  const localReq = new Request("http://localhost/api/open-file", { method: "POST" });
+  const remoteReq = new Request("http://example.com/api/open-file", { method: "POST" });
+
+  test("production without opt-in -> 403 for every host", () => {
+    withEnv("NODE_ENV", "production", () => {
+      withEnv("ENABLE_LOCAL_PATH_API", undefined, () => {
+        expect(requireLocalhost(localReq)?.status).toBe(403);
+        expect(requireLocalhost(remoteReq)?.status).toBe(403);
+      });
+    });
+  });
+
+  test("production with ENABLE_LOCAL_PATH_API=true -> hostname check applies", () => {
+    withEnv("NODE_ENV", "production", () => {
+      withEnv("ENABLE_LOCAL_PATH_API", "true", () => {
+        expect(requireLocalhost(localReq)).toBeNull(); // localhost allowed
+        expect(requireLocalhost(remoteReq)?.status).toBe(403); // remote still blocked
+      });
+    });
+  });
+
+  test("non-production -> hostname check only", () => {
+    withEnv("NODE_ENV", "development", () => {
+      expect(requireLocalhost(localReq)).toBeNull();
+      expect(requireLocalhost(remoteReq)?.status).toBe(403);
+    });
   });
 });

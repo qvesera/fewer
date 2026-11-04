@@ -164,7 +164,9 @@ test("file card text is aligned to the icon box and vertically centered", () => 
   // Icon sits flush (centered in 36px box) at x=9; text column starts after gap.
   expect(scene.svg).toContain('<g transform="translate(9, 8)">');
   const labelY = scene.svg.match(/<text x="49" y="(\d+)"/)?.[1];
-  const metaY = scene.svg.match(/<text x="49" y="(\d+)"[^>]*style="text-transform:uppercase/)?.[1];
+  // The meta line is no longer uppercased (the UI's type floor dropped
+  // uppercase below 12px), so it is pinned by its size instead of its style.
+  const metaY = scene.svg.match(/<text x="49" y="(\d+)"[^>]*font-size="11"/)?.[1];
   const lY = Number(labelY);
   const mY = Number(metaY);
   expect(Number.isInteger(lY) && Number.isInteger(mY)).toBe(true);
@@ -338,4 +340,86 @@ test("symlink export parity: broken link renders the amber warning ring + badge"
   const scene = buildGraphSVG([root, dangling], [makeEdge("e-1", "r", "dangling")], opts());
   expect(scene.svg).toContain("\u26a0 broken \u2192 nowhere");
   expect(scene.svg).toContain('stroke="#fbbf24"');
+});
+
+test("colour-vision preferences ride into the export (T-215)", () => {
+  const registry: Tag[] = [{ id: "t1", label: "One", color: "#f87171" }];
+  const file = makeNode("f", "index.ts", { type: "file", category: "code" });
+  file.measured = { width: 240, height: 36 };
+  file.data.tagIds = ["t1"];
+
+  // Safe palette: #f87171 sits at TAG_PALETTE[0], whose safe counterpart is
+  // sky blue — the canvas reads the same preference, so both repaint together.
+  const safe = buildGraphSVG([file], [], opts({ tags: registry, a11yColorBlindSafe: true }));
+  expect(safe.svg).toContain("#56b4e9");
+  expect(safe.svg).not.toContain("#f87171");
+
+  // Initials: a 7px-radius chip carrying an 11px letter instead of a bare dot.
+  const initials = buildGraphSVG([file], [], opts({ tags: registry, a11yInitials: true }));
+  expect(initials.svg).toContain('r="7"');
+  expect(initials.svg).toContain('font-size="11"');
+  expect(initials.svg).toContain(">O</text>");
+
+  // Default stays the plain dot.
+  const plain = buildGraphSVG([file], [], opts({ tags: registry }));
+  expect(plain.svg).toContain('r="5"');
+  expect(plain.svg).not.toContain(">O</text>");
+});
+
+/* -------------------------------------------------------------------------- */
+/*  Well-formedness: the scene must decode in an <img>                       */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * T-219: `exportPNG` hands this exact string to `<img>` as a blob URL. An
+ * undeclared namespace prefix makes the XML parser refuse the whole document —
+ * the image errors, and until T-219 that failure was swallowed, so the user got
+ * a success toast and no file. Every prefix the scene uses in an attribute name
+ * must therefore be declared somewhere in it.
+ *
+ * Substring assertions (the rest of this suite) cannot see this class of bug,
+ * and happy-dom never decodes images — this check is what covers the seam.
+ */
+test("the scene declares every namespace prefix it uses (T-219)", () => {
+  const nodes = [makeNode("r", "root"), makeNode("c", "child", { type: "file", x: 300 })];
+  const edges = [makeEdge("e0", "r", "c")];
+  // Branding on: the watermark mark is the only part that uses a prefix
+  // (`xlink:href` on its gradient, copied from public/logo.svg).
+  const scene = buildGraphSVG(nodes, edges, opts({ includeBranding: true }));
+  expect(scene.svg).toContain("xlink:href"); // the watermark really is in the scene
+  const declared = new Set(
+    [...scene.svg.matchAll(/xmlns:([\w-]+)=/g)].map((m) => m[1]),
+  );
+  // Attribute (and element) names only — the `=` keeps values like
+  // `style="stop-color:#f9771d"` out of the count, and `xmlns:*` itself is a
+  // declaration, not a use of the prefix it binds.
+  const used = new Set(
+    [...scene.svg.matchAll(/(?:<|[\s])([\w-]+:[\w-]+)=/g)]
+      .map((m) => m[1].split(":")[0])
+      .filter((p) => p !== "xmlns"),
+  );
+  expect([...used].filter((p) => !declared.has(p))).toEqual([]);
+  expect(used.size).toBeGreaterThan(0);
+});
+
+/* -------------------------------------------------------------------------- */
+/*  T-221: the scene carries the app's font with it                          */
+/* -------------------------------------------------------------------------- */
+
+test("an inlined @font-face block rides inside the scene, not after it", () => {
+  const nodes = [makeNode("r", "root")];
+  const fontCss =
+    '<style type="text/css"><![CDATA[\n@font-face{font-family:Geist;src:url(data:font/woff2;base64,aGk=) format("woff2");}\n]]></style>';
+  const scene = buildGraphSVG(nodes, [], opts({ fontFaceCss: fontCss }));
+
+  expect(scene.svg).toContain("<![CDATA[");
+  expect(scene.svg).toContain("font-family:Geist");
+  const open = scene.svg.indexOf("<style");
+  expect(open).toBeGreaterThan(0);
+  expect(open).toBeLessThan(scene.svg.indexOf("</svg>"));
+});
+
+test("the scene is unchanged when no font is supplied", () => {
+  const nodes = [makeNode("r", "root")];
+  expect(buildGraphSVG(nodes, [], opts()).svg).not.toContain("<style");
 });

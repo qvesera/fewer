@@ -18,6 +18,21 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
+  // Baseline security headers (audit F-5). CSP is deliberately omitted for now:
+  // Next's inline scripts make a correct CSP a larger, separate change.
+  async headers() {
+    return [
+      {
+        source: "/:path*",
+        headers: [
+          { key: "X-Frame-Options", value: "SAMEORIGIN" },
+          { key: "X-Content-Type-Options", value: "nosniff" },
+          { key: "Referrer-Policy", value: "strict-origin-when-cross-origin" },
+        ],
+      },
+    ];
+  },
+
   // Inject the version into NEXT_PUBLIC_APP_VERSION at build time
   env: {
     NEXT_PUBLIC_APP_VERSION: appVersion,

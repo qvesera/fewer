@@ -408,7 +408,7 @@ export function FeaturePlayground() {
             aria-label="View"
           >
             <GripDots />
-            <span className="font-mono text-[11px] uppercase tracking-[0.18em]">View</span>
+            <span className="font-mono text-xs uppercase tracking-[0.18em]">View</span>
             <div
               role="group"
               aria-label="Choose a view"
@@ -489,7 +489,7 @@ export function FeaturePlayground() {
                   its lines left-aligned inside it, or the tree's │ columns
                   would stagger. */}
               <div className="mx-auto flex h-full max-w-2xl flex-col items-center justify-center gap-3 px-6 py-10">
-                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   The folder, as ASCII Tree
                 </span>
                 <pre className="m-0 max-w-full overflow-x-auto font-mono text-[13px] leading-6 text-muted-foreground">
@@ -539,9 +539,9 @@ export function FeaturePlayground() {
           <div className="mk-panel mt-8 overflow-hidden">
             <div className="mk-panel-bar">
               <GripDots />
-              <span className="font-mono text-[11px] uppercase tracking-[0.18em]">Feature</span>
+              <span className="font-mono text-xs uppercase tracking-[0.18em]">Feature</span>
               <span
-                className="ml-1 truncate font-mono text-[11px] uppercase tracking-[0.18em]"
+                className="ml-1 truncate font-mono text-xs uppercase tracking-[0.18em]"
                 style={{ color: "var(--fewer-folder-icon)" }}
               >
                 {feature.chip}
@@ -549,7 +549,7 @@ export function FeaturePlayground() {
               {feature.tier === "pro" && (
                 <span
                   title="Needs a signed-in Pro account"
-                  className="rounded-md border px-1.5 font-mono text-[10px] uppercase tracking-wider"
+                  className="rounded-md border px-1.5 font-mono text-2xs"
                   style={{ borderColor: "var(--border)", color: "var(--muted-foreground)" }}
                 >
                   Pro
@@ -572,7 +572,7 @@ export function FeaturePlayground() {
                 <BarButton label="Previous feature" onClick={() => step(-1)} data-mk-cycle="prev">
                   <ChevronLeft className="h-4 w-4" aria-hidden="true" />
                 </BarButton>
-                <span className="shrink-0 whitespace-nowrap px-0.5 font-mono text-[11px] tabular-nums text-muted-foreground">
+                <span className="shrink-0 whitespace-nowrap px-0.5 font-mono text-xs tabular-nums text-muted-foreground">
                   <span aria-hidden="true">
                     {featureIndex + 1} / {MARKETING_FEATURES.length}
                   </span>
@@ -595,7 +595,7 @@ export function FeaturePlayground() {
               className="grid gap-5 px-5 py-4 sm:gap-6 sm:px-6 lg:grid-cols-[minmax(0,1fr)_336px] lg:items-center"
             >
               <div className="min-w-0">
-                <span className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground">
+                <span className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground">
                   {MARKETING_CATEGORIES.find((c) => c.features.includes(feature.id))?.label}
                 </span>
                 <h2 className="mt-2 text-xl font-semibold tracking-tight sm:text-2xl">
@@ -631,7 +631,7 @@ export function FeaturePlayground() {
               {MARKETING_CATEGORIES.map((category) => (
                 <div key={category.id}>
                   <h3
-                    className="font-mono text-[11px] uppercase tracking-[0.18em] text-muted-foreground"
+                    className="font-mono text-xs uppercase tracking-[0.18em] text-muted-foreground"
                     title={category.tip}
                   >
                     {category.label}
@@ -650,7 +650,7 @@ export function FeaturePlayground() {
                           onMouseEnter={() => activate(item.id, "hover")}
                           onFocus={() => activate(item.id, "focus")}
                           className={[
-                            "shrink-0 cursor-pointer rounded-full border px-2.5 py-1 font-mono text-[11px] transition-colors duration-200",
+                            "shrink-0 cursor-pointer rounded-full border px-2.5 py-1 font-mono text-xs transition-colors duration-200",
                             pressed
                               ? "border-transparent bg-primary text-primary-foreground"
                               : "border-border/60 text-muted-foreground hover:text-foreground",

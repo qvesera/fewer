@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getConnectionWithToken } from "@/lib/fewer/cloud/server";
 import { getAdapter } from "@/lib/fewer/cloud/registry";
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
@@ -23,7 +24,6 @@ export async function POST(request: Request) {
     const tree = await adapter.buildTree!(accessToken, ref ?? "", depth ?? 6);
     return NextResponse.json({ tree });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

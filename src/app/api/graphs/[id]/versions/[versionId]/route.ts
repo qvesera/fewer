@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { getUserPlan, limitsFor } from "@/lib/fewer/plans";
 import { retentionCutoffIso } from "@/lib/fewer/versions";
@@ -34,7 +35,7 @@ export async function GET(
     .eq("id", versionId)
     .eq("saved_graph_id", id)
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
 
   const cutoffIso = retentionCutoffIso(limits.historyDays);
@@ -68,6 +69,6 @@ export async function DELETE(
     .delete()
     .eq("id", versionId)
     .eq("saved_graph_id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

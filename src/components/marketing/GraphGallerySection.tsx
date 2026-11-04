@@ -141,18 +141,18 @@ export function GraphGallerySection() {
                 {/* Category chip + author line */}
                 <div className="flex items-center justify-between gap-2">
                   {g.gallery_category && (
-                    <span className="rounded-full bg-muted px-2 py-0.5 text-[10px] font-medium capitalize text-muted-foreground">
+                    <span className="rounded-full bg-muted px-2 py-0.5 text-2xs font-medium capitalize text-muted-foreground">
                       {g.gallery_category}
                     </span>
                   )}
-                  <span className="text-[11px] text-muted-foreground/70">
+                  <span className="text-xs text-muted-foreground/70">
                     {galleryAuthorLine(g.author_name, g.author_username)}
                   </span>
                 </div>
 
                 {/* Preview block */}
                 {g.gallery_preview && (
-                  <div className="mt-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2 font-mono text-[11px] leading-relaxed text-muted-foreground/80">
+                  <div className="mt-3 rounded-md border border-border/40 bg-muted/20 px-3 py-2 font-mono text-xs leading-relaxed text-muted-foreground/80">
                     <div className="font-semibold text-foreground/80">{g.gallery_preview.root}</div>
                     {g.gallery_preview.children.map((c, i) => (
                       <div key={i} className="pl-3">{c}</div>
@@ -171,7 +171,7 @@ export function GraphGallerySection() {
                 {g.description && (
                   <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{g.description}</p>
                 )}
-                <div className="mt-auto pt-4 text-[11px] text-muted-foreground/70">
+                <div className="mt-auto pt-4 text-xs text-muted-foreground/70">
                   {g.node_count} cards · {prettyDate(g.created_at)}
                 </div>
               </a>

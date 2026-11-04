@@ -6011,3 +6011,624 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 241, deletions: 347}
   spent_min: 12
   session_count: 1
+- id: "T-214"
+  title: "Readable type floor: px->rem codemod, 11px minimum"
+  status: "done"
+  type: "refactor"
+  area: "ux"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 513
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T22:52:51Z"
+  notes: []
+  sessions:
+  - start: "2026-10-28T23:16:34Z"
+    end: "2026-10-29T00:01:39Z"
+    measured: true
+    note: "Codemod 236 px sizes to rem tokens (text-2xs 11px floor), --ui-scale root lever, 34 uppercase labels dropped below 12px, Settings dialog 520->600px so the tab strip fits, SVG/PNG export sizes moved with the canvas; new e2e/typefloor.spec.ts guards the floor and the tab fit. Gates: lint 0, tsc 0, unit+component 2108 pass, build OK, playwright typefloor 3/3 on the standalone build (port 3100 - port 3000 is the dev server)."
+    proof: ["cb19682"]
+    effort: {commits: 1, files: 51, insertions: 406, deletions: 243}
+  spent_min: 45
+  session_count: 1
+- id: "T-215"
+  title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
+  status: "review"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 1140
+  estimate_basis: "cli"
+  issue: 514
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: ["T-214"]
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-28T22:59:12Z"
+  notes: []
+  sessions:
+  - start: "2026-10-29T08:01:17Z"
+    end: "2026-10-29T10:24:37Z"
+    measured: true
+    note: "Accessibility tab shipped in 4 slices: (1) tab scaffold + a11ySettings (5 html-class flags + 2 paint flags), globals.css blocks with prefers-contrast/preferred-reduced-transparency mirrors, dashClock class check, main#main-content skip-link target, CanvasLiveRegion + describeNode announcer, dialog 600px->44rem for 6 tabs; (2) TAG_PALETTE_CB Okabe-Ito remap by index + tag initials (14px chip, pitch 18) through the shared tags seam with export parity via GraphRenderOptions; (3) contrastRatio + ensureContrast in themeColors, CONTRAST_PAIRS/slotContrast in themeEditor, ContrastControls chips + Fix in the 16-slot theme editor; (4) content/docs/accessibility.md + settings.md + migration 0054 reseed + changelog. Gates: tsc 0, lint 0 errors, unit+component 1869+258 pass, build OK (CI tier flag), full local e2e 76/76 against standalone :3100, migrations verify 0 warnings, changelog validate OK."
+    proof: ["18fae3f", "19e6de2", "14eddbb", "4122a9b", "#519"]
+    effort: {commits: 4, files: 34, insertions: 4111, deletions: 74}
+  spent_min: 143
+  session_count: 1
+- id: "T-216"
+  title: "Interface scale: viewport-aware default + Settings control"
+  status: "done"
+  type: "feat"
+  area: "ux"
+  tier: null
+  estimate_min: 300
+  estimate_basis: "cli"
+  issue: 516
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-29T06:20:57Z"
+  notes: ["2026-10-29T06:22:09Z · Extracted from T-215: viewport-aware --ui-scale default (media query) plus the Settings control that writes it. T-215 keeps contrast, colour vision, motion, focus/targets and canvas screen reader."]
+  sessions:
+  - start: "2026-10-29T06:26:03Z"
+    end: "2026-10-29T07:00:00Z"
+    measured: true
+    note: "Viewport-aware --ui-scale default (112% @2000px, 125% @3000px) + Settings → Appearance Auto/100/125/150 control; UserSettings pick+apply (no VERSION bump), pre-paint apply via theme-init script, settingsModel decisions, content/docs/settings.md + migration 0053 reseed, e2e scale test. Gates: tsc 0, lint 0 errors, unit+component 2108 pass, build OK, e2e typefloor 4/4 on standalone :3100, migrations verify OK, changelog validate OK."
+    proof: ["15f2705"]
+    effort: {commits: 1, files: 12, insertions: 3120, deletions: 3}
+  spent_min: 34
+  session_count: 1
+- id: "T-217"
+  title: "Header logo text: plain foreground instead of the orange gradient"
+  status: "review"
+  type: "fix"
+  area: "theme"
+  tier: null
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: 517
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-29T07:35:27Z"
+  notes: ["2026-10-29T07:36:18Z · Logo.tsx:23 carries text-gradient-fewer (orange gradient + transparent colour); pre-gradient it inherited text-foreground. Restore plain text; drop the now-dead CSS class."]
+  sessions:
+  - start: "2026-10-29T07:43:14Z"
+    end: "2026-10-29T07:50:58Z"
+    measured: true
+    note: "Logo.tsx:23 text-gradient-fewer → text-foreground; deleted the dead .text-gradient-fewer rule; changelog Changed entry. Gates: tsc 0, lint 0 errors, tests 1850+258 pass, build OK; both themes screenshotted."
+    proof: ["1b22544"]
+    effort: {commits: 1, files: 6, insertions: 45, deletions: 7}
+  - start: "2026-10-29T07:58:12Z"
+    end: "2026-10-29T07:58:50Z"
+    measured: true
+    note: "Follow-up session: removed two scratch files that a git add -A swept into the commit, plus .gitignore guards /.tmp-* and /.g-*."
+    proof: ["a64a1ce"]
+    effort: {commits: 1, files: 2, insertions: 0, deletions: 14}
+  spent_min: 9
+  session_count: 2
+- id: "T-218"
+  title: "Contributor License Agreement (DCO sign-off) + contribution-licensing docs"
+  status: "review"
+  type: "docs"
+  area: "docs"
+  tier: null
+  estimate_min: 20
+  estimate_basis: "cli"
+  issue: 522
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-10-29T11:55:18Z"
+  notes: []
+  sessions:
+  - start: "2026-10-29T12:02:29Z"
+    end: "2026-10-29T12:13:16Z"
+    measured: true
+    note: "CLAs contribution docs: authored (by maintainer) on docs/cla, rebased onto origin/dev so the old-branch TASKS.yaml could not revert rows T-214..T-217, added Task: T-218 to the docs commit and Signed-off-by to all three commits (DCO per the new CONTRIBUTING), pushed, PR #523 opened. Gates: lint 0 errors, task:validate OK, validate-merge clean (212 rows, no collisions/reverts); validate-commits checked after this stop."
+    proof: ["26ccda5", "8aa4057", "99d00b8", "#523"]
+    effort: {commits: 3, files: 3, insertions: 136, deletions: 3}
+  spent_min: 11
+  session_count: 1
+- id: "T-219"
+  title: "PNG/SVG export silently broken: exported SVG uses xlink:href without declaring xmlns:xlink (T-206 regression)"
+  status: "done"
+  type: "fix"
+  area: "export"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 524
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T16:03:15Z"
+  notes: []
+  sessions:
+  - start: "2026-11-01T16:19:59Z"
+    end: "2026-11-01T16:41:08Z"
+    measured: true
+    note: "Root cause: T-206 copied public/logo.svg's mark (gradient xlink:href) into the export scene, but buildGraphSVG's root <svg> never declared xmlns:xlink, so the emitted document was not well-formed XML — exportPNG's <img> refused it and img.onerror swallowed the failure, leaving guests (branding forced on) with a success toast and no file. Verified with expat: unbound prefix before, PARSE OK after. Fix: declare xmlns:xlink on the root; exportPNG now resolves false on decode/encode failure and ExportPanel toasts an error instead of 'Exported'. Guards: renderer suite asserts every namespace prefix used is declared; new Playwright test waits for the real PNG download (fails on the pre-fix code, passes after) since happy-dom never decodes images. Gates: tsc 0, lint 0 errors, 258 tests green, build OK."
+    proof: ["3553e3e"]
+    effort: {commits: 1, files: 6, insertions: 131, deletions: 24}
+  spent_min: 21
+  session_count: 1
+- id: "T-220"
+  title: "PNG export: clamp canvas dimensions for huge graphs at high quality (toBlob can return null → silent no-download)"
+  status: "done"
+  type: "fix"
+  area: "export"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 526
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T17:04:34Z"
+  notes: ["2026-11-01T17:18:03Z · Plan: exportPNG must clamp the raster to browser canvas limits before drawImage — safeScale = min(quality/50, MAX_DIM/max(w,h), sqrt(MAX_AREA/(w*h))). Conservative caps (start MAX_DIM 16384, MAX_AREA 16.7M px for WebKit/iOS), verify per-engine before pinning constants. When clamped, toast that the export was downscaled; toBlob(null) already resolves false and surfaces an error toast (T-219). Extract the clamp as a pure fn and unit-test it; keep the T-219 e2e download green."]
+  sessions:
+  - start: "2026-11-01T17:50:26Z"
+    end: "2026-11-01T18:13:31Z"
+    measured: true
+    note: "Big graphs at high Quality asked for a canvas no engine encodes (WebKit ~16.7M px area, Blink/Gecko dim ceilings) so toBlob returned null and PNG export produced nothing. Added pure safeScale(w,h,requested)=min(requested, dim cap, area cap) with conservative constants (MAX_CANVAS_DIM 8192, MAX_CANVAS_AREA 16.7M) marked ponytail: with a probe-canvas upgrade path; raster tries the requested scale first and only steps down when the canvas refuses the size (old bitmap reported back) or toBlob returns null. exportPNG now returns PngRasterResult{ok,scale,requestedScale,reason}: ok:false feeds the error toast's reason, and a success that had to downscale appends the note to the success toast. exportGraph returns Promise<PngRasterResult>|undefined. 5 new safeScale tests; docs PNG Options + changelog. Gates: tsc 0, lint 0 errors, 1875+258 tests 0 fail, build OK, playwright 'PNG|export panel' 2 passed, changelog validate OK."
+    proof: ["eb77691", "#530"]
+    effort: {commits: 1, files: 5, insertions: 157, deletions: 41}
+  spent_min: 23
+  session_count: 1
+- id: "T-221"
+  title: "PNG export text uses fallback fonts (SVG-in-img cannot fetch webfonts) — embed a subset or document the limitation"
+  status: "review"
+  type: "research"
+  area: "export"
+  tier: 0
+  estimate_min: 360
+  estimate_basis: "cli"
+  issue: 527
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T17:04:40Z"
+  notes: ["2026-11-01T17:18:03Z · Plan: spike first, then pick. Finding: the app font is Geist (next/font/google, self-hosted woff2), so SVG-in-img cannot load it and PNG text silently falls back to system sans — a real canvas/PNG mismatch, not hypothetical. Options: (a) at export, fetch the same-origin woff2 and embed it as a base64 @font-face data URI inside the exported SVG (~15-30KB, works in Chrome/FF, must fail soft offline); (b) subset to the glyphs actually used — needs a new dep, avoid unless (a) is too big; (c) document the limitation in content/docs/import-export.md. Measure (a)'s size and Safari behaviour, default to (a) with (c) as the shipped fallback."]
+  sessions:
+  - start: "2026-11-01T19:26:09Z"
+    end: "2026-11-02T07:38:21Z"
+    measured: true
+    note: "Spike first, as planned: measurement DISPROVED the filed premise. Probe against the built app showed body/descendant font-family = system stack, geistAvailable false, 13 Geist faces all unloaded, built CSS references var(--font-sans) 0 times — next/font hangs --font-geist-sans off <body> while Tailwind v4 preflight only reads --default-font-family on <html>, and nothing set it. So canvas and PNG already matched (both system), and Geist was imported+preloaded+never drawn. Shipped both halves per user's Option 1: (a) exportFont.ts walks document.styleSheets for @font-face rules matching the scene's font stack, fetches same-origin, inlines base64 data URIs in a CDATA <style> inside the root svg — ASCII-subset-first, MAX_FONT_BYTES 512KB, every failure returns '' so exports never regress; exported pure helpers firstFamily/fontFamilies/fontFileUrl/inlineFontSrc/coversAscii/toBase64 all unit-tested (16 tests). exportGraph resolves it for svg/png via ExportExtraOptions.fontFaceCss; renderer emits it inside the document. (b) globals.css body{font-family:var(--font-geist-sans,...)} applies Geist where the variable lives; Settings dialog 44rem→47rem because six tabs measure ~630px in Geist (tab-fit e2e caught it, stale 600px comment corrected). Verified in a browser: new e2e downloads the .svg and reads back @font-face+CDATA+format(woff2)+base64 (it failed pre-wiring, proving nothing was embedded), font probe reports geistAvailable true / Geist:loaded. Gates: tsc 0, lint 0 errors, 1892+258 tests 0 fail, build OK, full e2e 76 passed (1 fail = known marketing first-scroll flake, passed on rerun), changelog validate OK."
+    proof: ["891de6e", "#533"]
+    effort: {commits: 1, files: 11, insertions: 367, deletions: 11}
+  spent_min: 732
+  session_count: 1
+- id: "T-222"
+  title: "Export 'Quality' slider is really pixel scale (quality/50 → 1x–2x) and its % is passed to toBlob where PNG ignores it — rename/decouple"
+  status: "review"
+  type: "refactor"
+  area: "export"
+  tier: 0
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 528
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-01T17:05:19Z"
+  notes: ["2026-11-01T17:18:03Z · Plan: keep the persisted quality field (no settings migration, userSettings stays compatible) but stop mislabeling it — the slider is pixel scale (quality/50 = 1x-2x at 10-100), and the quality/100 passed to toBlob is dead because PNG ignores it. Relabel UI to Resolution with an explicit xN readout (or keep % but tooltip the mapping), drop the dead toBlob arg, document in content/docs/import-export.md, changelog Changed entry. Unit-test the scale mapping in exportPanelModel."]
+  sessions:
+  - start: "2026-11-01T18:33:43Z"
+    end: "2026-11-01T18:48:58Z"
+    measured: true
+    note: "The PNG control was labelled Quality and edited a percentage that was always the raster's pixel scale (quality/50, floored 1x; PNG ignores toBlob's quality arg, already dropped in T-220). Relabelled Resolution with an editable real readout (1.6x style), slider range 50-100 = 1x-2x so the dead sub-1x positions are gone (stored values below 50 still read 1x; no settings migration, field stays 'quality'). qualityToScale/scaleToQuality/formatScale now live in exportPanelModel and are shared by ExportPanel and exportUtils, so the mapping has one home. 5 new mapping tests; docs PNG Options rewritten; changelog Changed; e2e pins the Resolution label inside the PNG download test. Gates: tsc 0, lint 0 errors, 1880+258 tests 0 fail, build OK, playwright 'PNG|export panel' 2 passed + rerun with assertion passed."
+    proof: ["857f58c", "#532"]
+    effort: {commits: 1, files: 7, insertions: 106, deletions: 8}
+  spent_min: 15
+  session_count: 1
+- id: "T-223"
+  title: "Search results don't reveal or zoom to hidden files when Hide Files is on"
+  status: "review"
+  type: "fix"
+  area: "other"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 534
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#534"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-11-02T08:56:13Z"
+  notes: ["2026-11-02T09:00:56Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-11-02T09:00:57Z"
+    end: "2026-11-02T09:12:25Z"
+    measured: true
+    note: "SearchPanel now derives the active view's effective hidden set (useActiveLeaf) and reveals a clicked/Enter-opened result through revealInView for the target + its ancestor chain, releasing per-view layers (bulk Hide Files exemption, individual, subtrees) and opening collapsed groups; badge reads the effective set too. Tests: 2 new SearchPanel cases (bulk-layer reveal+zoom, global reveal+zoom). Gates: lint 0 err, tsc 0, bun test 260+ src pass, build OK."
+    proof: ["ebe368a"]
+    effort: {commits: 1, files: 4, insertions: 56, deletions: 6}
+  spent_min: 11
+  session_count: 1
+- id: "T-224"
+  title: "Source-first security audit of the fewer web app"
+  status: "parked"
+  type: "research"
+  area: "security"
+  tier: 2
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T09:32:09Z"
+  notes: ["2026-11-02T09:32:30Z · Source-first static security audit of API routes, auth/RLS, share links, local dev helpers, export renderer, and billing webhook. Read-only analysis; report emitted as SECURITY-AUDIT.md.", "2026-11-02T09:40:44Z · marked internal post-creation: row was created without --internal (duplicate of T-225); no GitHub issue exists for this internal analysis audit"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-225"
+  title: "Source-first security audit of the fewer web app"
+  status: "done"
+  type: "research"
+  area: "security"
+  tier: 2
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: null
+  pr: 545
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T09:35:05Z"
+  notes: ["2026-11-02T09:35:05Z · Read-only static audit: API routes, auth/RLS, share links, local dev path helpers, export renderer, billing webhook. Report emitted as SECURITY-AUDIT.md; no source changes."]
+  sessions:
+  - start: "2026-11-02T09:35:14Z"
+    end: "2026-11-02T09:39:08Z"
+    measured: true
+    note: "Wrote SECURITY-AUDIT.md (commit bec3a9a): 1 medium SSRF via /api/crawl, 2 low/informational findings, controls verified. Dynamic validation deferred (no sandbox)."
+    proof: ["bec3a9a"]
+    effort: {commits: 1, files: 2, insertions: 202, deletions: 0}
+  spent_min: 4
+  session_count: 1
+- id: "T-226"
+  title: "Fix SSRF in /api/crawl: private-IP guard + manual redirects + rate limit"
+  status: "done"
+  type: "fix"
+  area: "security"
+  tier: 2
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: null
+  pr: 545
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T11:33:38Z"
+  notes: ["2026-11-02T11:33:38Z · Implements crawlGuard (private/loopback/link-local/metadata IP rejection + DNS resolution of hostnames), manual redirect following with hop cap, per-IP rate limit on POST /api/crawl. Route test + crawlGuard unit tests + crawl.ts redirect tests."]
+  sessions:
+  - start: "2026-11-02T11:33:49Z"
+    end: "2026-11-02T11:58:52Z"
+    measured: true
+    note: "SSRF fix landed in eea2706: crawlGuard (private/loopback/link-local/metadata IP rejection + DNS screening), manual redirects with 8-hop cap, discovery-time URL screening, per-IP rate limit (10/min). Tests: crawlGuard (5), route guard (6), crawl redirects/screening (4) all pass; tsc 0, lint 0 err, build OK. 2 pre-existing wall-clock timing tests fail under local load (verified identical on HEAD). Changelog security entry added."
+    proof: ["eea2706"]
+    effort: {commits: 1, files: 8, insertions: 481, deletions: 19}
+  - start: "2026-11-02T13:28:56Z"
+    end: "2026-11-02T13:33:13Z"
+    measured: true
+    note: "Follow-up: removed worker-level await guard that serialized the crawl pool (CI test job failure). Full suite green: 1926+260, 0 fail."
+    proof: ["a3bf5e4"]
+    effort: {commits: 1, files: 1, insertions: 7, deletions: 2}
+  spent_min: 29
+  session_count: 2
+- id: "T-227"
+  title: "Batch hardening: dev-only local path APIs, generic 500s in production, security headers"
+  status: "done"
+  type: "fix"
+  area: "security"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: null
+  pr: 545
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:01:57Z"
+  notes: ["2026-11-02T12:01:57Z · Audit F-2/F-4/F-5: env-gate /api/open-file|open-folder|list-directory|resolve-path; serverError returns generic 500 in production; next.config headers XFO/nosniff/Referrer-Policy."]
+  sessions:
+  - start: "2026-11-02T12:03:08Z"
+    end: "2026-11-02T12:22:02Z"
+    measured: true
+    note: "Batch hardening landed in aba8342: F-2 production gate on requireLocalhost (ENABLE_LOCAL_PATH_API opt-in), F-4 serverError/apiErrorMessage sweep across all API 500 paths, F-5 XFO/nosniff/Referrer-Policy headers. 37 files +271/-69. Gates: tsc 0, lint 0 err, build OK, 1917+260 tests pass (2 pre-existing timing failures on HEAD), changelog+env:check OK."
+    proof: ["aba8342"]
+    effort: {commits: 1, files: 37, insertions: 271, deletions: 69}
+  spent_min: 19
+  session_count: 1
+- id: "T-228"
+  title: "Bump minimatch override to ^11.0.2 (GHSA-g3hv-75wg-m249)"
+  status: "done"
+  type: "fix"
+  area: "security"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 545
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:25:10Z"
+  notes: ["2026-11-02T12:25:10Z · Dev-only lint toolchain advisory (moderate). Override forced to >=11.0.1; bun audit now clean, lint passes."]
+  sessions:
+  - start: "2026-11-02T12:25:10Z"
+    end: "2026-11-02T12:25:34Z"
+    measured: true
+    note: "minimatch override ^10.2.6 -> ^11.0.2; bun audit clean, lint 0 err."
+    proof: ["72058e4"]
+    effort: {commits: 1, files: 3, insertions: 91, deletions: 60}
+  spent_min: 0
+  session_count: 1
+- id: "T-229"
+  title: "F-3: strip local paths from share payloads + lengthen share IDs"
+  status: "done"
+  type: "fix"
+  area: "security"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: 545
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-02T12:45:19Z"
+  notes: ["2026-11-02T12:45:19Z · stripShareLocalPaths (localRootPath nulled, absolute paths relativized, absolute symlink.resolvedPath dropped) applied on share write + both read paths + ShareDialog hash; share ids randomBytes(6)->(12)."]
+  sessions:
+  - start: "2026-11-02T12:45:19Z"
+    end: "2026-11-02T12:50:45Z"
+    measured: true
+    note: "F-3 shipped: stripShareLocalPaths on write+read+hash paths, share ids 12 bytes. Gates all green."
+    proof: ["7c286e6"]
+    effort: {commits: 1, files: 9, insertions: 188, deletions: 7}
+  spent_min: 5
+  session_count: 1
+- id: "T-230"
+  title: "Accessibility settings: colour vision, contrast, motion, focus, hit targets + canvas screen reader support"
+  status: "done"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 512
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#512"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-28T22:57:52Z"
+  notes: ["2026-11-02T14:28:50Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-231"
+  title: "Raise the UI type floor: 11px minimum, px to rem so text is readable on large screens"
+  status: "done"
+  type: "feat"
+  area: "other"
+  tier: null
+  estimate_min: 480
+  estimate_basis: "type-default"
+  issue: 511
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#511"
+  time_source: "none"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-10-28T22:55:31Z"
+  notes: ["2026-11-02T14:28:54Z · adopted at intake from GitHub (closed)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-232"
+  title: "Add AI-generated code disclaimer and update privacy policy with security hardening section"
+  status: "review"
+  type: "docs"
+  area: "docs"
+  tier: 1
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 545
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-03T14:41:03Z"
+  notes: ["2026-11-03T14:42:04Z · Added AI-generated code disclaimer to README.md, SECURITY.md, and content/docs/privacy.md. Updated privacy policy with security hardening section (F-1 through F-5). Generated migration 0056_content_pages_reseed.sql to sync content_pages table."]
+  sessions:
+  - start: "2026-11-03T14:42:04Z"
+    end: "2026-11-03T14:44:38Z"
+    measured: true
+    note: "Added AI disclaimer to README.md, SECURITY.md, and privacy.md. Updated privacy policy with security hardening section. Generated migration 0056_content_pages_reseed.sql. Created PR #538."
+    proof: ["54e7b29", "#538"]
+    effort: {commits: 1, files: 6, insertions: 3042, deletions: 25}
+  spent_min: 3
+  session_count: 1
+- id: "T-233"
+  title: "Email user when their plan changes"
+  status: "done"
+  type: "feat"
+  area: "billing"
+  tier: null
+  estimate_min: 280
+  estimate_basis: "cli"
+  issue: 540
+  pr: 546
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#540"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-04T08:54:20Z"
+  notes: []
+  sessions:
+  - start: "2026-11-04T09:04:18Z"
+    end: "2026-11-04T09:25:50Z"
+    measured: true
+    note: "Plan-change email feature: 0057 outbox + profiles.plan triggers, planChangeNotify job (Resend + shared emailShell), /api/plan/notify instant route, 15-min Actions cron sweep, 13 new tests, docs reseed 0058 + changelog. PR #541."
+    proof: ["e54cc60", "2fc4a01", "#541"]
+    effort: {commits: 2, files: 11, insertions: 3529, deletions: 0}
+  - start: "2026-11-04T11:42:55Z"
+    end: "2026-11-04T11:42:59Z"
+    measured: true
+    note: "Doc correction: webhook setup path now Integrations → Database Webhooks; regenerated 0058 reseed."
+    proof: ["723e0c0", "#541"]
+    effort: {commits: 1, files: 2, insertions: 2, deletions: 2}
+  - start: "2026-11-04T13:50:05Z"
+    end: "2026-11-04T13:58:34Z"
+    measured: true
+    note: "Resolved the dev merge for PR #541: kept T-232 (from #539) alongside T-233/T-234 in TASKS.yaml, CHANGELOG auto-merged, all gates green."
+    proof: ["993c58b"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  - start: "2026-11-04T15:31:08Z"
+    end: "2026-11-04T15:38:02Z"
+    measured: true
+    note: "Sender fix follow-up: .env/.env.local, GitHub var and all 3 Netlify contexts now fewer <updates@fewer.directory> (contact.fewer.directory was unverified -> Resend 403 on every send). Probes + two live sends on dev prove it. Repo records it in .env.example, deployment.md, 0059 reseed, changelog. PR #543."
+    proof: ["91d8121", "09ff8b4", "#543"]
+    effort: {commits: 2, files: 5, insertions: 3023, deletions: 6}
+  spent_min: 37
+  session_count: 4
+- id: "T-234"
+  title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
+  status: "done"
+  type: "fix"
+  area: "test"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 542
+  pr: 545
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#542"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-04T09:54:02Z"
+  notes: []
+  sessions:
+  - start: "2026-11-04T09:54:42Z"
+    end: "2026-11-04T09:58:11Z"
+    measured: true
+    note: "Fixed the CI test flake: server.test.ts now spreads the real ./registry module (only refreshToken overridden for implemented providers) instead of replacing it wholesale, so registry.test.ts passes regardless of bun's file order. PR #541."
+    proof: ["a9d5fa5", "#541"]
+    effort: {commits: 1, files: 1, insertions: 15, deletions: 1}
+  spent_min: 3
+  session_count: 1

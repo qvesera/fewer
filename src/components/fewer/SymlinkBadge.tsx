@@ -28,8 +28,8 @@ export function SymlinkBadge({
       className={cn(
         "truncate",
         info.broken ? "text-amber-500 dark:text-amber-400" : "text-fewer-text-subtle",
-        variant === "chip" && "inline-flex min-w-0 max-w-full items-center gap-1 text-[10px]",
-        variant === "inline" && "shrink-0 text-[10px]",
+        variant === "chip" && "inline-flex min-w-0 max-w-full items-center gap-1 text-2xs",
+        variant === "inline" && "shrink-0 text-2xs",
         className,
       )}
     >

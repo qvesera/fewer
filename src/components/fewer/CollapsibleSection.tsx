@@ -87,7 +87,7 @@ export function CollapsibleSection({
         <Icon className="h-4 w-4 shrink-0 text-primary/80" />
         <span className="truncate flex-1 text-left">{title}</span>
         {badge && (
-          <span className="ml-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-[10px] font-medium text-secondary-foreground">
+          <span className="ml-auto shrink-0 rounded-full bg-secondary px-2 py-0.5 text-2xs font-medium text-secondary-foreground">
             {badge}
           </span>
         )}

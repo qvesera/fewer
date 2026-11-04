@@ -4,10 +4,13 @@ import {
   firstTagId,
   makeTagLabelLookup,
   colorForTag,
+  safeTagColor,
   tagRingColors,
   compareSiblingsByTag,
   tagSelectionState,
   TAG_FALLBACK_COLOR,
+  TAG_PALETTE,
+  TAG_PALETTE_CB,
   TAG_RING_CAP,
 } from "./tags";
 import type { Tag } from "./tags";
@@ -186,3 +189,24 @@ test("tagSelectionState: ids resolving to no node are ignored", () => {
   expect(tagSelectionState(nodes, ["ghost"], "t1")).toBe("none");
 });
 
+// ─── colour-blind-safe painting (T-215 / #514) ──────────────────────────────
+
+test("the safe palette mirrors the default one, index for index", () => {
+  expect(TAG_PALETTE_CB).toHaveLength(TAG_PALETTE.length);
+  TAG_PALETTE.forEach((color, i) => expect(safeTagColor(color)).toBe(TAG_PALETTE_CB[i]));
+});
+
+test("colours it cannot place are left alone", () => {
+  expect(safeTagColor("#123456")).toBe("#123456");
+  expect(safeTagColor(TAG_FALLBACK_COLOR)).toBe(TAG_FALLBACK_COLOR);
+});
+
+test("the remap happens only when asked — stored colours never move", () => {
+  const registry: Tag[] = [{ id: "t1", label: "Beta", color: TAG_PALETTE[0] }];
+  expect(colorForTag(registry, "t1")).toBe(TAG_PALETTE[0]);
+  expect(colorForTag(registry, "t1", true)).toBe(TAG_PALETTE_CB[0]);
+  expect(tagRingColors(registry, ["t1"])).toEqual([TAG_PALETTE[0]]);
+  expect(tagRingColors(registry, ["t1"], true)).toEqual([TAG_PALETTE_CB[0]]);
+  // The default paint path is unchanged: every flag defaults to off.
+  expect(colorForTag(tags, "t1")).toBe("#f87171");
+});

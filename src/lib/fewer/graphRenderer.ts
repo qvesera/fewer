@@ -20,6 +20,7 @@ import {
 } from "@xyflow/react";
 import { FEWER_HOME_URL } from "./branding";
 import { colorForTag, tagRingColors, TAG_RING_CAP, TAG_RING_WIDTH, type Tag } from "./tags";
+import { lumaHex } from "./themeColors";
 import { ancestorPathHighlight, buildTreeLookups } from "./edgeHighlight";
 
 /* -------------------------------------------------------------------------- */
@@ -72,6 +73,12 @@ export interface GraphRenderOptions {
   collapsedIds?: Set<string>;
   /** Tag registry, so exported rings/dots use the same colors as the canvas. */
   tags?: Tag[];
+  /** T-215: remap tag colours through the colour-blind-safe palette. The canvas
+   *  reads the same preference off the store, so both sides stay in step. */
+  a11yColorBlindSafe?: boolean;
+  /** T-215: paint each tag's initial instead of a bare coloured dot (14px chip,
+   *  18px pitch — the same geometry TagDots uses). */
+  a11yInitials?: boolean;
   /**
    * The layout direction the exported view uses. The canvas places handles from
    * the VIEW's direction (GraphViewContext), not from each card's
@@ -80,6 +87,13 @@ export interface GraphRenderOptions {
    * of correctly-placed cards. Falls back to the per-node stamp when omitted.
    */
   direction?: LayoutDirection;
+  /**
+   * T-221: `<style>` block with the app's `@font-face` inlined as data URIs,
+   * emitted straight inside the root `<svg>`. An SVG drawn in an `<img>` (how
+   * PNG rasterizes) cannot fetch external fonts, so without this the text falls
+   * back to a system sans while the canvas shows the real face.
+   */
+  fontFaceCss?: string;
 }
 
 export interface GraphScene {
@@ -409,7 +423,7 @@ function renderChildRow(child: FewerNode, i: number, ctx: FolderRowCtx): string 
   return `<g${dim}>
       <g transform="translate(16, ${ry + 7})">${iconSvg(icon, 14, iconColor)}</g>
       <text x="38" y="${ry + 18}" font-size="12" fill="${escapeXml(labelColor)}">${escapeXml(label)}</text>
-      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="10" fill="${escapeXml(metricColor)}">${escapeXml(metric)}</text>
+      <text x="${chevronX - 10}" y="${ry + 17}" text-anchor="end" font-size="11" fill="${escapeXml(metricColor)}">${escapeXml(metric)}</text>
       <g transform="translate(${chevronX}, ${ry + 10})">${iconSvg("chevron-right", 12, subtleColor)}</g>
     </g>`;
 }
@@ -424,14 +438,16 @@ function cardRadius(n: FewerNode): number {
 /** Tag colors assigned to a node, in display order — the shared ring contract
  *  from tags.ts, so the export paints the same tags the canvas does. */
 function tagColors(n: FewerNode, o: GraphRenderOptions): string[] {
-  return tagRingColors(o.tags, n.data.tagIds);
+  return tagRingColors(o.tags, n.data.tagIds, o.a11yColorBlindSafe);
 }
 
-/** Width the tag dots row needs (14px pitch + a 14px slack for the "+N"). */
-function tagDotsWidth(n: FewerNode): number {
+/** Width the tag dots row needs (14px pitch + a 14px slack for the "+N") — or
+ *  18px pitch in initials mode, matching TagDots' 14px chip + 4px gap. */
+function tagDotsWidth(n: FewerNode, o: GraphRenderOptions): number {
   const count = n.data.tagIds?.length ?? 0;
   if (count === 0) return 0;
-  return Math.min(count, TAG_RING_CAP) * 14 + (count > TAG_RING_CAP ? 14 : 0);
+  const pitch = o.a11yInitials ? 18 : 14;
+  return Math.min(count, TAG_RING_CAP) * pitch + (count > TAG_RING_CAP ? 14 : 0);
 }
 
 /**
@@ -537,15 +553,25 @@ function renderTagDots(
   if (!ids?.length || !o.tags?.length) return "";
   const tags = o.tags;
   const shown = ids.slice(0, TAG_RING_CAP);
+  const initials = o.a11yInitials ?? false;
+  const pitch = initials ? 18 : 14;
   const dots = shown
-    .map(
-      (id, i) =>
-        `<circle cx="${x + i * 14 + 5}" cy="${y}" r="5" fill="${escapeXml(colorForTag(tags, id))}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>`,
-    )
+    .map((id, i) => {
+      const color = colorForTag(tags, id, o.a11yColorBlindSafe);
+      const cx = x + i * pitch + (initials ? 7 : 5);
+      if (!initials) {
+        return `<circle cx="${cx}" cy="${y}" r="5" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/>`;
+      }
+      // Initials mode: the label's first letter, coloured for contrast against
+      // its own chip (same 128-luma split TagDots uses).
+      const label = tags.find((t) => t.id === id)?.label ?? "";
+      const ink = (lumaHex(color) ?? 0) > 128 ? "#111827" : "#ffffff";
+      return `<g><circle cx="${cx}" cy="${y}" r="7" fill="${escapeXml(color)}" stroke="rgba(255,255,255,0.4)" stroke-width="1"/><text x="${cx}" y="${y + 4}" text-anchor="middle" font-size="11" font-weight="600" fill="${ink}">${escapeXml(label.slice(0, 1).toUpperCase())}</text></g>`;
+    })
     .join("");
   const overflow = ids.length - shown.length;
   if (overflow <= 0) return dots;
-  return `${dots}<text x="${x + shown.length * 14 + 2}" y="${y + 4}" font-size="9" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
+  return `${dots}<text x="${x + shown.length * pitch + 2}" y="${y + 5}" font-size="11" font-weight="600" fill="${escapeXml(o.palette.subtle)}">+${overflow}</text>`;
 }
 
 /** Shared highlight/border ring logic for folder + file cards. `highlighted`
@@ -595,8 +621,8 @@ function renderCollapsedFolderCard(
     <g transform="translate(${x + 20}, ${y + (h - 20) / 2})">${iconSvg(n.data.symlink ? "folder-symlink" : n.data.isRoot ? "folder-open" : "folder", 20, p.folderIcon)}</g>
     <text x="${x + 60}" y="${y + 16}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 96, 14, 600))}</text>
     ${n.data.symlink
-      ? `<text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(n.data.symlink.broken ? "#fbbf24" : subtleColor)}">${escapeXml(truncateToWidth(symlinkBadgeText(n.data.symlink), w - 96, 10, 400))}</text>`
-      : `<text x="${x + 60}" y="${y + 29}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(plural(childCount, "item"))}</text>`}
+      ? `<text x="${x + 60}" y="${y + 29}" font-size="11" fill="${escapeXml(n.data.symlink.broken ? "#fbbf24" : subtleColor)}">${escapeXml(truncateToWidth(symlinkBadgeText(n.data.symlink), w - 96, 11, 400))}</text>`
+      : `<text x="${x + 60}" y="${y + 29}" font-size="11" fill="${escapeXml(subtleColor)}">${escapeXml(plural(childCount, "item"))}</text>`}
     ${renderTagDots(n, o, x + w - 34 - Math.min(n.data.tagIds?.length ?? 0, TAG_RING_CAP) * 14, y + h / 2)}
     <g transform="translate(${x + w - 30}, ${y + 11})">${iconSvg("chevron-right", 16, subtleColor)}</g>
   </g>`;
@@ -649,7 +675,7 @@ function renderFolderCard(
   const ring = selected ? "" : renderTagRing(n, size, tagColors(n, o));
   // Header tag dots sit right-aligned (canvas: TagDots + chevron in the header
   // row), so the label keeps whatever width they don't use.
-  const dotsW = tagDotsWidth(n);
+  const dotsW = tagDotsWidth(n, o);
   const dotsX = x + w - 14 - dotsW;
 
   return `<g${n.data.dimmed ? " opacity=\"0.4\"" : ""}>
@@ -659,12 +685,12 @@ function renderFolderCard(
     ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FOLDER_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
     <g transform="translate(${x + 12}, ${y + 18})">${iconSvg(rootIcon, 16, p.folderIcon)}</g>
     <text x="${x + 36}" y="${y + 20}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(truncateToWidth(n.data.label, w - 48 - dotsW, 14, 600))}</text>
-    <text x="${x + 36}" y="${y + 33}" font-size="10" fill="${escapeXml(badgeColor)}">${escapeXml(truncateToWidth(pathText, w - 48 - dotsW, 10, 400))}</text>
+    <text x="${x + 36}" y="${y + 33}" font-size="11" fill="${escapeXml(badgeColor)}">${escapeXml(truncateToWidth(pathText, w - 48 - dotsW, 11, 400))}</text>
     ${renderTagDots(n, o, dotsX, y + 26)}
     <line x1="${x}" y1="${y + HEADER_HEIGHT}" x2="${x + w}" y2="${y + HEADER_HEIGHT}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
     <g transform="translate(${x}, ${y})">${bodyHtml}</g>
     <line x1="${x}" y1="${y + footerTop}" x2="${x + w}" y2="${y + footerTop}" stroke="${escapeXml(p.folderBorder)}" stroke-width="1"/>
-    <text x="${x + 12}" y="${y + footerTop + 18}" font-size="10" fill="${escapeXml(subtleColor)}" style="text-transform:uppercase;letter-spacing:0.5px">${escapeXml(rowsCount)}</text>
+    <text x="${x + 12}" y="${y + footerTop + 18}" font-size="11" fill="${escapeXml(subtleColor)}">${escapeXml(rowsCount)}</text>
   </g>`;
 }
 
@@ -698,7 +724,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
   const iconY = y + (h - 20) / 2;
   // Canvas: TagDots sit in a `shrink-0 pr-2` slot after the text column, so the
   // label's budget shrinks by whatever the dots need.
-  const dotsW = tagDotsWidth(n);
+  const dotsW = tagDotsWidth(n, o);
   const textX = x + boxX + boxW + gap;
   const labelBudget = w - (textX - x) - 10 - dotsW;
   const label = truncateToWidth(n.data.label, labelBudget, 14, 600);
@@ -717,7 +743,7 @@ function renderFileCard(n: FewerNode, size: { w: number; h: number }, o: GraphRe
     ${n.data.symlink?.broken ? `<rect x="${x + 1}" y="${y + 1}" width="${w - 2}" height="${h - 2}" rx="${FILE_RADIUS - 1}" fill="none" stroke="#fbbf24" stroke-width="1.5" opacity="0.55"/>` : ""}
     <g transform="translate(${iconX}, ${iconY})">${iconSvg(icon, 20, p.fileIcon)}</g>
     <text x="${textX}" y="${labelBaseline}" font-size="14" font-weight="600" fill="${escapeXml(textColor)}">${escapeXml(label)}</text>
-    <text x="${textX}" y="${metaBaseline}" font-size="10" fill="${escapeXml(n.data.symlink?.broken ? "#fbbf24" : subtleColor)}"${n.data.symlink ? "" : ' style="text-transform:uppercase;letter-spacing:0.5px"'}>${escapeXml(meta)}</text>
+    <text x="${textX}" y="${metaBaseline}" font-size="11" fill="${escapeXml(n.data.symlink?.broken ? "#fbbf24" : subtleColor)}">${escapeXml(meta)}</text>
     ${renderTagDots(n, o, x + w - 8 - dotsW, y + h / 2)}
   </g>`;
 }
@@ -884,7 +910,13 @@ export function buildGraphSVG(nodes: FewerNode[], edges: FewerEdge[], o: GraphRe
   const font = o.fontFamily || "sans-serif";
   const brandingSvg = o.includeBranding ? renderBrandingMark(width, height) : "";
 
-  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
+  // `xmlns:xlink` is not optional: LOGO_MARK_PATHS is copied from
+  // `public/logo.svg` and carries `xlink:href` on its second gradient. Without
+  // the declaration the emitted document is not well-formed XML, so the PNG
+  // exporter's `<img>` refuses to decode it and downloads nothing at all
+  // (T-219).
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink" width="${width}" height="${height}" viewBox="0 0 ${width} ${height}" font-family="${escapeXml(font)}">
+  ${o.fontFaceCss ?? ""}
   ${filterDefs(o)}
   ${o.transparentBackground ? "" : `<rect x="0" y="0" width="${width}" height="${height}" fill="${escapeXml(o.palette.background)}"/>`}
   <g transform="translate(${-minX}, ${-minY})">

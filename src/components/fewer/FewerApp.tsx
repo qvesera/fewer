@@ -9,6 +9,7 @@ import {
   GraphCanvas,
   BreadcrumbBar,
 } from ".";
+import { CanvasLiveRegion } from "./CanvasLiveRegion";
 import { useGraphStore } from "@/store/graphStore";
 import { useDialogState, useViewState } from "@/store/hooks";
 import { treeToGraph } from "@/lib/fewer/treeToGraph";
@@ -506,7 +507,9 @@ export function FewerApp() {
       <GlobalNavbar onToggleNotifications={() => setNotificationOpen((o) => !o)} onOpenAuth={() => setAuthOpen(true)} />
       <CanvasToolbar onLoadSample={handleLoadSample} />
 
-      <div className="flex min-h-0 flex-1">
+      {/* The skip link in layout.tsx targets this landmark: tabindex -1 so
+          focus lands inside the workspace, not back at the document top. */}
+      <main id="main-content" tabIndex={-1} className="flex min-h-0 flex-1">
         {/* Sidebar wrapper — positioned by sidebarSide */}
         <div
           className="relative hidden sm:block shrink-0 min-h-0 overflow-hidden"
@@ -565,13 +568,14 @@ export function FewerApp() {
           onOpenImport={() => openImportFlow("folder")}
           onLoadSample={handleLoadSample}
         />
-      </div>
+      </main>
 
       {/* Drag-to-dock overlay (ghost + edge strips) */}
       <SectionDragLayer />
 
       <ExportPanel />
       <SearchPanel />
+      <CanvasLiveRegion />
       <BatchRenameDialog />
       <ParentPickerDialog />
       <NotificationPanel open={notificationOpen} onClose={() => setNotificationOpen(false)} />

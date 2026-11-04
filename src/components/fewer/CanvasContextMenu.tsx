@@ -155,7 +155,7 @@ export function CanvasContextMenu({
                       <DropdownMenuSubTrigger>By Tag</DropdownMenuSubTrigger>
                       <DropdownMenuSubContent className="w-48">
                         {allTags.length === 0 ? (
-                          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
                             No tags yet
                           </div>
                         ) : allTags.map((tag) => (
@@ -212,7 +212,7 @@ export function CanvasContextMenu({
         className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150"
         style={{ left: menu.x, top: menu.y }}
       >
-        <div className="px-2 py-1 text-[10px] uppercase tracking-wider text-muted-foreground">
+        <div className="px-2 py-1 text-2xs text-muted-foreground">
           View
         </div>
         <div className="my-1 h-px bg-border/40" />

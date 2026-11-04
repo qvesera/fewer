@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import fs from "fs";
 import nodePath from "path";
 import { buildTreeFromPath } from "@/lib/fewer/localTree";
@@ -48,7 +49,6 @@ export async function POST(request: Request) {
     const tree = await buildTreeFromPath(target, 0, options);
     return NextResponse.json({ tree });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

@@ -69,10 +69,17 @@ describe("Settings dialog interactions", () => {
   test("keyboard tabs and Escape close use real controls", async () => {
     const interaction = userEvent.setup();
     render(<SettingsDialog />);
-    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual(["Account", "About", "Appearance", "Advanced", "Help"]);
+    expect(screen.getAllByRole("tab").map((tab) => tab.textContent)).toEqual([
+      "Account",
+      "About",
+      "Appearance",
+      "Accessibility",
+      "Advanced",
+      "Help",
+    ]);
     act(() => screen.getByRole("tab", { name: "Appearance" }).focus());
     await interaction.keyboard("{ArrowRight}");
-    await waitFor(() => expect(screen.getByRole("tab", { name: "Advanced" }).getAttribute("aria-selected")).toBe("true"));
+    await waitFor(() => expect(screen.getByRole("tab", { name: "Accessibility" }).getAttribute("aria-selected")).toBe("true"));
     await interaction.keyboard("{Escape}");
     expect(useGraphStore.getState().settingsOpen).toBe(false);
   });

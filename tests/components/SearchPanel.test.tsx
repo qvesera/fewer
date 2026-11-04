@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, test } from "bun:test";
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { SearchPanel } from "@/components/fewer/SearchPanel";
 import { useGraphStore } from "@/store/graphStore";
+import { computeEffectiveHidden } from "@/lib/fewer/viewState";
 
 // The search panel drives the real store — no boundary mocks. It renders no
 // dialogs, auth or toasts, so the DOM is the actual surface under test.
@@ -99,6 +100,36 @@ describe("SearchPanel — results", () => {
     expect(state.focusedNodeId).toBe("main");
     expect(state.zoomToNode?.nodeId).toBe("main");
     expect(state.searchOpen).toBe(false);
+  });
+
+  test("a match hidden only by the view's Hide Files layer is revealed and zoomed to on click", () => {
+    open({
+      searchQuery: "logo",
+      activeLeafId: "leaf1",
+      viewSettings: {
+        leaf1: { hideLayers: { individual: [], subtrees: {}, filesBulkActive: true, filesBulkExempt: [] } },
+      },
+    });
+    const option = screen.getByRole("option");
+    // The badge reads the effective (per-view) hidden set, not just the global one.
+    expect(option.textContent).toContain("hidden");
+    fireEvent.click(option);
+
+    const state = useGraphStore.getState();
+    const layers = state.viewSettings["leaf1"].hideLayers!;
+    expect(layers.filesBulkActive).toBe(true);
+    expect(layers.filesBulkExempt).toContain("logo");
+    expect(computeEffectiveHidden(state.hiddenIds, layers, ["main", "logo"])).not.toContain("logo");
+    expect(state.zoomToNode?.nodeId).toBe("logo");
+    expect(state.searchOpen).toBe(false);
+  });
+
+  test("clicking a globally hidden result reveals it before zooming", () => {
+    open({ searchQuery: "main", hiddenIds: ["main"] });
+    fireEvent.click(screen.getByRole("option"));
+    const state = useGraphStore.getState();
+    expect(state.hiddenIds).not.toContain("main");
+    expect(state.zoomToNode?.nodeId).toBe("main");
   });
 });
 

@@ -151,7 +151,7 @@
     "source-map-js": "^1.2.2",
     "happy-dom": "^21.0.4",
     "zod": "^4.6.6",
-    "minimatch": "^3.1.5 || ^9.0.5 || ^10.2.6",
+    "minimatch": "^11.0.2",
     "brace-expansion": "^1.1.21 || ^2.0.2 || ^5.0.12",
     "picomatch": "^4.0.7"
   }

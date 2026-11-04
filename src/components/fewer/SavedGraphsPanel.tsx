@@ -255,7 +255,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
           <Loader2 className="h-4 w-4 animate-spin" />
         </div>
       ) : graphs.length === 0 ? (
-        <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+        <p className="px-1 py-2 text-xs text-muted-foreground/70">
           {tier !== "guest"
             ? "No saved graphs yet. Save one to access it from any device."
             : "Sign in to save and access your directories."}
@@ -289,7 +289,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                     onClick={(e) => e.stopPropagation()}
                   />
                 ) : (
-                  <span className="truncate text-[11px] text-foreground/90 flex-1 min-w-0">
+                  <span className="truncate text-xs text-foreground/90 flex-1 min-w-0">
                     {g.share && (
                       <span
                         className="inline-flex mr-1 align-middle"
@@ -303,7 +303,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                       </span>
                     )}
                     {g.name}
-                    <span className="ml-1 text-[10px] text-muted-foreground/60">
+                    <span className="ml-1 text-2xs text-muted-foreground/60">
                       {nodeCount(g)} cards · {timeAgo(g.updated_at)}
                     </span>
                   </span>
@@ -428,7 +428,7 @@ export function SavedGraphsPanel({ onRequireAuth }: SavedGraphsPanelProps) {
                   ))}
                 </SelectContent>
               </Select>
-              <p className="text-[11px] text-muted-foreground/70">
+              <p className="text-xs text-muted-foreground/70">
                 Updating an existing graph keeps its share link and records a new version.
               </p>
             </div>
@@ -671,7 +671,7 @@ function ShareGraphDialog({
               <Globe className="h-4 w-4 text-muted-foreground" />
               <div className="min-w-0">
                 <p className="text-xs font-medium">Anyone with the link</p>
-                <p className="text-[11px] text-muted-foreground/70">Anyone can open this graph.</p>
+                <p className="text-xs text-muted-foreground/70">Anyone can open this graph.</p>
               </div>
               <Switch checked={access === "public"} onClick={(e) => e.stopPropagation()} onCheckedChange={(checked) => setAccess(checked ? "public" : "none")} className="ml-auto shrink-0" />
             </div>
@@ -686,14 +686,14 @@ function ShareGraphDialog({
               <Mail className="h-4 w-4 text-muted-foreground" />
               <div className="min-w-0">
                 <p className="text-xs font-medium">Invite only</p>
-                <p className="text-[11px] text-muted-foreground/70">Only invited emails can open it.</p>
+                <p className="text-xs text-muted-foreground/70">Only invited emails can open it.</p>
               </div>
               <Switch checked={access === "invite"} onClick={(e) => e.stopPropagation()} onCheckedChange={(checked) => { setAccess(checked ? "invite" : "none"); if (checked) setGallery(false); }} className="ml-auto shrink-0" />
             </div>
           </div>
 
           {access !== "none" && (
-            <p className="text-[11px] text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
+            <p className="text-xs text-muted-foreground/70">Signed-in shares never expire. Stop sharing to revoke access.</p>
           )}
 
           {/* Invite emails */}
@@ -706,7 +706,7 @@ function ShareGraphDialog({
                 onChange={(e) => setEmails(e.target.value)}
                 placeholder="a@example.com, b@example.com"
               />
-              <p className="text-[11px] text-muted-foreground/70">
+              <p className="text-xs text-muted-foreground/70">
                 Comma-separated. Click "Generate link" to create the share link.
               </p>
             </div>
@@ -719,7 +719,7 @@ function ShareGraphDialog({
                 <Globe2 className="h-4 w-4 shrink-0 text-emerald-500" />
                 <div className="min-w-0">
                   <p className="text-xs font-medium">List in the public gallery</p>
-                  <p className="text-[11px] text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
+                  <p className="text-xs text-muted-foreground/70">Anyone can browse this graph from the community gallery.</p>
                 </div>
                 <Switch checked={gallery} onCheckedChange={(checked) => setGallery(checked)} className="ml-auto shrink-0" />
               </div>
@@ -744,7 +744,7 @@ function ShareGraphDialog({
                     />
                   </div>
                   {gallery && (!profile.first_name.trim() || !profile.username.trim()) && (
-                    <p className="text-[11px] text-amber-600 dark:text-amber-400">
+                    <p className="text-xs text-amber-600 dark:text-amber-400">
                       Your gallery entry will show as Anonymous. Add your name in{" "}
                       <button type="button" onClick={() => { /* handled by parent — open settings */ }} className="underline cursor-pointer">
                         Settings → Account
@@ -759,7 +759,7 @@ function ShareGraphDialog({
 
           {/* Generate link (hidden when private) */}
           {access === "none" ? (
-            <p className="text-[11px] text-muted-foreground/70">
+            <p className="text-xs text-muted-foreground/70">
               {existingId
                 ? "A share link still exists: use Stop sharing below to make it fully private."
                 : "This saved graph is private and visible only to you."}

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { recordVersion } from "@/lib/fewer/versions";
 import { isDangerousText } from "@/lib/fewer/textValidation";
 import { countOwned, limitsFor, getUserPlan, overLimit, type PlanLimits } from "@/lib/fewer/plans";
@@ -46,7 +47,7 @@ export async function GET() {
     .order("is_favorite", { ascending: false })
     .order("updated_at", { ascending: false });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
 
   // Attach each graph's active share (access mode) so the UI can show a badge.
   const { data: shares } = await supabase
@@ -101,7 +102,7 @@ export async function POST(request: Request) {
       .eq("id", body.id)
       .select("id, name, data, created_at, updated_at")
       .maybeSingle();
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
     // Best-effort history snapshot; never blocks the save on failure.
     await snapshotHistory(
@@ -135,7 +136,7 @@ export async function POST(request: Request) {
     .insert({ name, data: body.data, user_id: user.id })
     .select("id, name, data, created_at, updated_at")
     .single();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   // Best-effort history snapshot; never blocks the save on failure.
   await snapshotHistory(supabase, user.id, data.id, body.data, limits);
   return NextResponse.json({ graph: data });

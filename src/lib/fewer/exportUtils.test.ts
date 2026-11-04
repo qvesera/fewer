@@ -5,6 +5,9 @@ import {
   buildExportSnapshot,
   buildFwrDocument,
   buildJsonExport,
+  safeScale,
+  MAX_CANVAS_AREA,
+  MAX_CANVAS_DIM,
 } from "./exportUtils";
 import { detectImportFormat } from "./importDetect";
 import { parseCSVGraph, parseDOTGraph, parseJSONGraph } from "./parsers";
@@ -247,5 +250,43 @@ describe(".fwr document (T-145)", () => {
     expect(graph.data.meta).toBeUndefined();
     expect(doc.app).toBe("fewer");
     expect(doc.format_version).toBe(1);
+  });
+});
+
+/* -------------------------------------------------------------------------- */
+/*                       T-220: the canvas ceiling guard                     */
+/* -------------------------------------------------------------------------- */
+
+describe("safeScale", () => {
+  test("a scene that fits keeps the requested scale", () => {
+    // The sample graph at the default Quality (80 → 1.6×) must not be touched.
+    expect(safeScale(1200, 800, 1.6)).toBe(1.6);
+    expect(safeScale(1200, 800, 2)).toBe(2);
+    expect(safeScale(1200, 800, 1)).toBe(1);
+  });
+
+  test("never returns a scale above the request — it only ever comes down", () => {
+    expect(safeScale(10_000, 10_000, 1.5)).toBeLessThanOrEqual(1.5);
+    expect(safeScale(10_000, 10_000, 1)).toBeLessThanOrEqual(1);
+  });
+
+  test("a side over the dimension cap comes down far enough to fit", () => {
+    const scale = safeScale(MAX_CANVAS_DIM * 2, 100, 2);
+    expect(scale).toBeLessThan(2);
+    expect(Math.floor(MAX_CANVAS_DIM * 2 * scale)).toBeLessThanOrEqual(MAX_CANVAS_DIM);
+  });
+
+  test("the area cap wins on a scene that is wide and tall at once", () => {
+    // 6000×4000 at 2× = 96M px — far past any engine's canvas.
+    const scale = safeScale(6000, 4000, 2);
+    expect(scale).toBeLessThan(2);
+    expect(Math.floor(6000 * scale) * Math.floor(4000 * scale)).toBeLessThanOrEqual(
+      MAX_CANVAS_AREA,
+    );
+  });
+
+  test("degenerate sizes do not produce NaN or zero", () => {
+    expect(safeScale(0, 0, 2)).toBe(2);
+    expect(Number.isFinite(safeScale(500, 500, 2))).toBe(true);
   });
 });
