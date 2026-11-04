@@ -6556,3 +6556,32 @@ tasks:
     effort: {commits: 2, files: 11, insertions: 3529, deletions: 0}
   spent_min: 22
   session_count: 1
+- id: "T-234"
+  title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
+  status: "review"
+  type: "fix"
+  area: "test"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 542
+  pr: 541
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#542"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-04T09:54:02Z"
+  notes: []
+  sessions:
+  - start: "2026-11-04T09:54:42Z"
+    end: "2026-11-04T09:58:11Z"
+    measured: true
+    note: "Fixed the CI test flake: server.test.ts now spreads the real ./registry module (only refreshToken overridden for implemented providers) instead of replacing it wholesale, so registry.test.ts passes regardless of bun's file order. PR #541."
+    proof: ["a9d5fa5", "#541"]
+    effort: {commits: 1, files: 1, insertions: 15, deletions: 1}
+  spent_min: 3
+  session_count: 1
