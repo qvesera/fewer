@@ -6565,7 +6565,7 @@ tasks:
   estimate_min: 280
   estimate_basis: "cli"
   issue: 540
-  pr: 541
+  pr: 543
   internal: false
   milestone: null
   blocked_by: []
@@ -6595,11 +6595,17 @@ tasks:
     note: "Resolved the dev merge for PR #541: kept T-232 (from #539) alongside T-233/T-234 in TASKS.yaml, CHANGELOG auto-merged, all gates green."
     proof: ["993c58b"]
     effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
-  spent_min: 30
-  session_count: 3
+  - start: "2026-11-04T15:31:08Z"
+    end: "2026-11-04T15:38:02Z"
+    measured: true
+    note: "Sender fix follow-up: .env/.env.local, GitHub var and all 3 Netlify contexts now fewer <updates@fewer.directory> (contact.fewer.directory was unverified -> Resend 403 on every send). Probes + two live sends on dev prove it. Repo records it in .env.example, deployment.md, 0059 reseed, changelog. PR #543."
+    proof: ["91d8121", "09ff8b4", "#543"]
+    effort: {commits: 2, files: 5, insertions: 3023, deletions: 6}
+  spent_min: 37
+  session_count: 4
 - id: "T-234"
   title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "test"
   tier: null

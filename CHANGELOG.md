@@ -24,6 +24,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PNG's export control tells the truth: the 'Quality' percentage was always the raster's pixel scale (1x-2x), so it is now labelled Resolution with an explicit 1.6x-style readout, and the slider no longer offers the dead positions below 1x that could not change the output. One shared mapping drives the panel and the exporter.
 - The app renders in the Geist it already imported and preloaded: next/font's variable sat on <body> while Tailwind's preflight only ever reads --default-font-family on <html>, so every page silently fell back to the system stack (the woff2 files were fetched and never drawn). The Settings dialog grows 44rem to 47rem to keep its six tabs on one non-wrapping row in the real face.
 - Added AI-generated code disclaimer to README.md, SECURITY.md, and privacy policy. Updated privacy policy with security hardening section.
+- Plan-change, invite and digest emails now send from fewer <updates@fewer.directory> instead of the unverified contact.fewer.directory subdomain, which Resend was rejecting (the root domain fewer.directory is the verified one); .env.example and the deployment doc record the sender and how to push it (env-sync)
 
 ### Added
 

@@ -183,7 +183,7 @@ Watching file indexes and emailing daily change digests uses **Resend** for emai
 | Variable | Purpose |
 | -------- | ------- |
 | `RESEND_API_KEY` | Resend API key for sending digest emails |
-| `RESEND_FROM_EMAIL` | Sender address for digest emails (defaults to `fewer <onboarding@resend.dev>`) |
+| `RESEND_FROM_EMAIL` | Sender for every Resend email (plan-change notices, invites, digests). Production: `fewer <updates@fewer.directory>` — only **verified** domains send; `fewer.directory` is verified, an unverified subdomain (e.g. `contact.fewer.directory`) is rejected with `domain is not verified`. Code fallback `fewer <onboarding@resend.dev>` only delivers to the Resend account's own address. Changing this value needs `bun scripts/env-sync.ts sync` (Netlify contexts + GitHub Actions var) |
 | `SUPABASE_SERVICE_ROLE_KEY` | Service-role key (server-side only) so the nightly job can read every user's watchlist |
 | `CRON_SECRET` | Secret sent with the `x-cron-secret` header that authorizes the `/api/watch/run` route (manual/debug trigger) |
 
