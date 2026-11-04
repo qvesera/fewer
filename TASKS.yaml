@@ -6558,7 +6558,7 @@ tasks:
   session_count: 1
 - id: "T-233"
   title: "Email user when their plan changes"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "billing"
   tier: null
