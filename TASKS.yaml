@@ -6558,7 +6558,7 @@ tasks:
   session_count: 1
 - id: "T-233"
   title: "Email user when their plan changes"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "billing"
   tier: null
@@ -6590,12 +6590,12 @@ tasks:
     proof: ["723e0c0", "#541"]
     effort: {commits: 1, files: 2, insertions: 2, deletions: 2}
   - start: "2026-11-04T13:50:05Z"
-    end: null
+    end: "2026-11-04T13:58:34Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 22
+    note: "Resolved the dev merge for PR #541: kept T-232 (from #539) alongside T-233/T-234 in TASKS.yaml, CHANGELOG auto-merged, all gates green."
+    proof: ["993c58b"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 30
   session_count: 3
 - id: "T-234"
   title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
