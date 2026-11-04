@@ -1,0 +1,40 @@
+name: Plan change emails
+
+# Safety-net sweep for plan-change emails. The instant path is a Supabase
+# Database Webhook on plan_change_events → POST /api/plan/notify; this cron
+# catches rows that webhook never delivered (missed call, transient outage).
+# Both run the shared job in src/lib/fewer/planChangeNotify.ts, which claims
+# each row before sending, so the two never double-mail.
+on:
+  schedule:
+    - cron: "*/15 * * * *" # every 15 min
+  workflow_dispatch: # manual trigger for testing
+
+concurrency:
+  group: plan-change-notify
+  cancel-in-progress: false
+
+jobs:
+  notify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: 1.3.14
+      - name: Cache bun install
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+          key: ${{ runner.os }}-bun-${{ hashFiles('bun.lock') }}
+      - run: bun install --frozen-lockfile
+      - name: Send plan change emails
+        run: bun scripts/plan-change-notify.ts
+        env:
+          NEXT_PUBLIC_SUPABASE_URL: ${{ vars.NEXT_PUBLIC_SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          RESEND_API_KEY: ${{ secrets.RESEND_API_KEY }}
+          RESEND_FROM_EMAIL: ${{ vars.RESEND_FROM_EMAIL }}

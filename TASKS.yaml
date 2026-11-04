@@ -6546,13 +6546,83 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-03T14:41:03Z"
-  notes: ["2026-11-03T14:42:04Z · Added AI disclaimer to README.md, SECURITY.md, and content/docs/privacy.md. Updated privacy policy with security hardening section (F-1 through F-5). Generated migration 0056_content_pages_reseed.sql to sync content_pages table."]
+  notes: ["2026-11-03T14:42:04Z · Added AI-generated code disclaimer to README.md, SECURITY.md, and content/docs/privacy.md. Updated privacy policy with security hardening section (F-1 through F-5). Generated migration 0056_content_pages_reseed.sql to sync content_pages table."]
   sessions:
   - start: "2026-11-03T14:42:04Z"
     end: "2026-11-03T14:44:38Z"
     measured: true
-    note: "Added AI disclaimer to README.md, SECURITY.md, and privacy policy. Updated privacy policy with security hardening section. Generated migration 0056_content_pages_reseed.sql. Created PR #538."
+    note: "Added AI disclaimer to README.md, SECURITY.md, and privacy.md. Updated privacy policy with security hardening section. Generated migration 0056_content_pages_reseed.sql. Created PR #538."
     proof: ["54e7b29", "#538"]
     effort: {commits: 1, files: 6, insertions: 3042, deletions: 25}
+  spent_min: 3
+  session_count: 1
+- id: "T-233"
+  title: "Email user when their plan changes"
+  status: "review"
+  type: "feat"
+  area: "billing"
+  tier: null
+  estimate_min: 280
+  estimate_basis: "cli"
+  issue: 540
+  pr: 541
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#540"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-04T08:54:20Z"
+  notes: []
+  sessions:
+  - start: "2026-11-04T09:04:18Z"
+    end: "2026-11-04T09:25:50Z"
+    measured: true
+    note: "Plan-change email feature: 0057 outbox + profiles.plan triggers, planChangeNotify job (Resend + shared emailShell), /api/plan/notify instant route, 15-min Actions cron sweep, 13 new tests, docs reseed 0058 + changelog. PR #541."
+    proof: ["e54cc60", "2fc4a01", "#541"]
+    effort: {commits: 2, files: 11, insertions: 3529, deletions: 0}
+  - start: "2026-11-04T11:42:55Z"
+    end: "2026-11-04T11:42:59Z"
+    measured: true
+    note: "Doc correction: webhook setup path now Integrations → Database Webhooks; regenerated 0058 reseed."
+    proof: ["723e0c0", "#541"]
+    effort: {commits: 1, files: 2, insertions: 2, deletions: 2}
+  - start: "2026-11-04T13:50:05Z"
+    end: "2026-11-04T13:58:34Z"
+    measured: true
+    note: "Resolved the dev merge for PR #541: kept T-232 (from #539) alongside T-233/T-234 in TASKS.yaml, CHANGELOG auto-merged, all gates green."
+    proof: ["993c58b"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 30
+  session_count: 3
+- id: "T-234"
+  title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
+  status: "review"
+  type: "fix"
+  area: "test"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 542
+  pr: 541
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#542"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-04T09:54:02Z"
+  notes: []
+  sessions:
+  - start: "2026-11-04T09:54:42Z"
+    end: "2026-11-04T09:58:11Z"
+    measured: true
+    note: "Fixed the CI test flake: server.test.ts now spreads the real ./registry module (only refreshToken overridden for implemented providers) instead of replacing it wholesale, so registry.test.ts passes regardless of bun's file order. PR #541."
+    proof: ["a9d5fa5", "#541"]
+    effort: {commits: 1, files: 1, insertions: 15, deletions: 1}
   spent_min: 3
   session_count: 1

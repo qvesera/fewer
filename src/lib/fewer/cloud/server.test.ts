@@ -18,8 +18,22 @@ mock.module("./crypto", () => ({
   encryptToken: (s: string) => `encrypted:${s}`,
 }));
 const mockRefreshToken = mock(async () => ({ accessToken: "new-token", expiresIn: 3600 }));
+// Spread the real registry — the same rule as ../supabaseServer above, and
+// the same class of bug: a whole-module replacement here leaks into
+// cloud/registry.test.ts whenever bun's file order runs this file first (the
+// order is not stable — CI flips it between runs), and that suite then sees a
+// module with only `getAdapter`: `isProviderImplemented` is undefined and
+// getAdapter hands back this stub, so 10 assertions fail. Only refreshToken is
+// overridden, and only for providers that really have an adapter, so the
+// unknown-provider stub (buildAuthUrl throws / refreshToken → null) survives.
+const _registry = await import("./registry");
+const _realGetAdapter = _registry.getAdapter;
 mock.module("./registry", () => ({
-  getAdapter: async () => ({ refreshToken: mockRefreshToken }),
+  ..._registry,
+  getAdapter: async (provider: any) => {
+    const real = await _realGetAdapter(provider);
+    return _registry.isProviderImplemented(provider) ? { ...real, refreshToken: mockRefreshToken } : real;
+  },
 }));
 
 const { getAuthedClient, getConnectionWithToken } = await import("./server");
