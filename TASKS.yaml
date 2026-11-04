@@ -6558,7 +6558,7 @@ tasks:
   session_count: 1
 - id: "T-233"
   title: "Email user when their plan changes"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "billing"
   tier: null
@@ -6595,8 +6595,14 @@ tasks:
     note: "Resolved the dev merge for PR #541: kept T-232 (from #539) alongside T-233/T-234 in TASKS.yaml, CHANGELOG auto-merged, all gates green."
     proof: ["993c58b"]
     effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
-  spent_min: 30
-  session_count: 3
+  - start: "2026-11-04T15:17:14Z"
+    end: "2026-11-04T15:19:25Z"
+    measured: true
+    note: "Sender fix: env/env.local, GitHub var and all 3 Netlify contexts now 'fewer <updates@fewer.directory>' (contact.fewer.directory was unverified -> Resend 403). Probes confirm fewer.directory verified; row #1 and #5 delivered through the route. Repo: .env.example + deployment.md + 0059 reseed + changelog."
+    proof: ["2c2f278"]
+    effort: {commits: 1, files: 4, insertions: 3014, deletions: 3}
+  spent_min: 32
+  session_count: 4
 - id: "T-234"
   title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
   status: "review"
