@@ -55,3 +55,6 @@ We ask that you:
 - Do not exploit the vulnerability beyond what is necessary to demonstrate the issue
 
 Thank you for helping keep fewer and its users safe.
+
+
+*Generated with the assistance of AI coding tools. Some code, particularly auto-generated boilerplate, configuration, and test scaffolding, may have been produced with the help of artificial intelligence. All code has been reviewed, tested, and verified to function correctly, but users should exercise typical open-source caution.*
