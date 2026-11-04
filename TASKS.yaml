@@ -6529,24 +6529,30 @@ tasks:
   session_count: 0
 - id: "T-233"
   title: "Email user when their plan changes"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "billing"
   tier: null
   estimate_min: 280
   estimate_basis: "cli"
   issue: 540
-  pr: null
+  pr: 541
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "gh#540"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-04T08:54:20Z"
   notes: []
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-04T09:04:18Z"
+    end: "2026-11-04T09:25:50Z"
+    measured: true
+    note: "Plan-change email feature: 0057 outbox + profiles.plan triggers, planChangeNotify job (Resend + shared emailShell), /api/plan/notify instant route, 15-min Actions cron sweep, 13 new tests, docs reseed 0058 + changelog. PR #541."
+    proof: ["e54cc60", "2fc4a01", "#541"]
+    effort: {commits: 2, files: 11, insertions: 3529, deletions: 0}
+  spent_min: 22
+  session_count: 1
