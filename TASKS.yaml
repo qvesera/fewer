@@ -6558,7 +6558,7 @@ tasks:
   session_count: 1
 - id: "T-233"
   title: "Email user when their plan changes"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "billing"
   tier: null
@@ -6596,12 +6596,12 @@ tasks:
     proof: ["993c58b"]
     effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
   - start: "2026-11-04T15:31:08Z"
-    end: null
+    end: "2026-11-04T15:38:02Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 30
+    note: "Sender fix follow-up: .env/.env.local, GitHub var and all 3 Netlify contexts now fewer <updates@fewer.directory> (contact.fewer.directory was unverified -> Resend 403 on every send). Probes + two live sends on dev prove it. Repo records it in .env.example, deployment.md, 0059 reseed, changelog. PR #543."
+    proof: ["91d8121", "09ff8b4", "#543"]
+    effort: {commits: 2, files: 5, insertions: 3023, deletions: 6}
+  spent_min: 37
   session_count: 4
 - id: "T-234"
   title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
