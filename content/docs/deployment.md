@@ -193,7 +193,7 @@ The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * 
 
 Every `profiles.plan` change (free/pro/team) writes a row to `plan_change_events` through the trigger in migration `0057_plan_change_events.sql`, and the account owner is emailed — whether the plan was moved by the Stripe webhook or by operator SQL in Studio. Two paths share one job (`src/lib/fewer/planChangeNotify.ts`), which claims each row before sending, so they can never double-mail:
 
-1. **Instant** — a Supabase **Database Webhook**: Dashboard → Database → Webhooks → trigger on `INSERT` for `plan_change_events` (schema `public`), type `HTTP POST`, URL `https://<app origin>/api/plan/notify`, one custom header `x-cron-secret: <CRON_SECRET>`. It needs the `pg_net` extension (Dashboard → Database → Extensions). Test it with:
+1. **Instant** — a Supabase **Database Webhook**: the page is no longer under Database (Supabase moved it to the marketplace-style integrations UI) — go to **Integrations → Database Webhooks** (direct: `https://supabase.com/dashboard/project/<ref>/integrations/webhooks`), create a hook on `INSERT` for `plan_change_events` (schema `public`), type `HTTP POST`, URL `https://<app origin>/api/plan/notify`, one custom header `x-cron-secret: <CRON_SECRET>`. It runs on `pg_net` (Dashboard → Database → Extensions); the integration page offers an **Enable database webhooks** button that installs it. Test it with:
    ```bash
    curl -X POST https://<app origin>/api/plan/notify \
      -H "x-cron-secret: $CRON_SECRET" -H 'content-type: application/json' \
