@@ -6527,3 +6527,26 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-233"
+  title: "Email user when their plan changes"
+  status: "triaged"
+  type: "feat"
+  area: "billing"
+  tier: null
+  estimate_min: 280
+  estimate_basis: "cli"
+  issue: 540
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#540"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-04T08:54:20Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
