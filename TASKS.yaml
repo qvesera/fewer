@@ -6554,8 +6554,14 @@ tasks:
     note: "Plan-change email feature: 0057 outbox + profiles.plan triggers, planChangeNotify job (Resend + shared emailShell), /api/plan/notify instant route, 15-min Actions cron sweep, 13 new tests, docs reseed 0058 + changelog. PR #541."
     proof: ["e54cc60", "2fc4a01", "#541"]
     effort: {commits: 2, files: 11, insertions: 3529, deletions: 0}
+  - start: "2026-11-04T11:42:55Z"
+    end: "2026-11-04T11:42:59Z"
+    measured: true
+    note: "Doc correction: webhook setup path now Integrations → Database Webhooks; regenerated 0058 reseed."
+    proof: ["723e0c0", "#541"]
+    effort: {commits: 1, files: 2, insertions: 2, deletions: 2}
   spent_min: 22
-  session_count: 1
+  session_count: 2
 - id: "T-234"
   title: "CI test job fails intermittently: cloud/server.test.ts whole-module mock of ./registry leaks into cloud/registry.test.ts when bun's file order puts server before registry (isProviderImplemented undefined, getAdapter returns the stub)"
   status: "review"
