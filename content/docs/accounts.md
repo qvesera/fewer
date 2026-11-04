@@ -27,6 +27,10 @@ Your avatar is the profile picture from Google or GitHub when you signed up with
 
 In **Settings → Account**, use the **Email** card to enter a new address and click **Change**. A confirmation link is emailed to the new address; your email (and login) only changes after you confirm it. The old address keeps working until then.
 
+## Plan Change Emails
+
+Whenever your account's plan changes — an upgrade, a downgrade, or a change made by an operator — fewer emails your account address with what changed from and to, and a reminder that plan limits apply immediately. Review your current tier and its usage anytime in **Settings → Account**.
+
 ## Delete Your Account
 
 In **Settings → Account**, the **Delete account** action schedules your account for permanent deletion in 7 days. Your saved graphs, watch lists, cloud connections, and any shared graphs you own are removed when the window lapses. **Signing in again before then cancels the deletion**: no separate restore step needed.

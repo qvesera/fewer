@@ -73,6 +73,12 @@ update profiles set plan = 'free' where user_id = '<uuid>';
 
 Any metered API route re-reads the plan on every request, so a plan change takes effect immediately and requires no deploy (only service-role SQL via Studio: never the anon/authenticated roles).
 
+## Plan change emails
+
+Whenever your plan changes — an upgrade, a downgrade, a first Pro grant, or a change made by an operator — fewer emails the address on your account. The message says what the plan changed from and to, and points at **Settings → Account** for what your plan includes and how much of it you are using. Plan limits apply immediately; the email is the receipt.
+
+Only real transitions are emailed: a change that leaves your plan exactly as it was sends nothing.
+
 ## How limits work
 
 Limits are enforced server-side in the API routes (403 `plan_limit`). Nothing local ever stops working: when you hit a cap you can still edit, export, and use everything in the browser: you just can't add new saved rows until you upgrade or remove some. Existing graphs and watches are never deleted when a limit applies.

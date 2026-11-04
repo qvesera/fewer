@@ -189,6 +189,20 @@ Watching file indexes and emailing daily change digests uses **Resend** for emai
 
 The nightly job runs in `.github/workflows/watch-digest.yml` (schedule `59 23 * * *`, plus a `workflow_dispatch` button for manual runs). It runs `scripts/watch-digest.ts`, which calls the shared job in `src/lib/fewer/watchDigest.ts`: crawling watched indexes, diffing against the previous crawl, and sending one consolidated email per user only when something changed. Set the required secrets/variables on the repo with `bun scripts/env-sync.ts github` (the digest job reads `NEXT_PUBLIC_SUPABASE_URL`, `SUPABASE_SERVICE_ROLE_KEY`, `RESEND_API_KEY`, and `RESEND_FROM_EMAIL` from GitHub Actions secrets/variables: same names as everywhere else). The `/api/watch/run` route remains as a cron-secret-protected manual trigger over the same code.
 
+### Plan change emails
+
+Every `profiles.plan` change (free/pro/team) writes a row to `plan_change_events` through the trigger in migration `0057_plan_change_events.sql`, and the account owner is emailed — whether the plan was moved by the Stripe webhook or by operator SQL in Studio. Two paths share one job (`src/lib/fewer/planChangeNotify.ts`), which claims each row before sending, so they can never double-mail:
+
+1. **Instant** — a Supabase **Database Webhook**: Dashboard → Database → Webhooks → trigger on `INSERT` for `plan_change_events` (schema `public`), type `HTTP POST`, URL `https://<app origin>/api/plan/notify`, one custom header `x-cron-secret: <CRON_SECRET>`. It needs the `pg_net` extension (Dashboard → Database → Extensions). Test it with:
+   ```bash
+   curl -X POST https://<app origin>/api/plan/notify \
+     -H "x-cron-secret: $CRON_SECRET" -H 'content-type: application/json' \
+     -d '{"record":{"id":1}}'
+   ```
+2. **Safety net** — `.github/workflows/plan-change-notify.yml` (cron every 15 minutes, plus `workflow_dispatch`) runs `scripts/plan-change-notify.ts`, sweeping whatever the webhook missed. Same four variables as the digest job, already pushed by `bun scripts/env-sync.ts github`; no new env vars.
+
+Without `RESEND_API_KEY` the job warns and sends nothing (rows stay pending). A failed send is retried up to 3 times, then left with `last_error` set for inspection in `plan_change_events`; a user with no address on file is marked skipped rather than retried.
+
 ### Email Templates
 
 All outbound emails (auth flows + digest + invite) share one shell defined in `src/lib/fewer/emailTemplate.ts`. The shell uses the app's brand: dark background, `fewer.directory` wordmark, orange CTA, table-based layout for Outlook compatibility.
