@@ -6558,14 +6558,14 @@ tasks:
   session_count: 1
 - id: "T-233"
   title: "Email user when their plan changes"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "billing"
   tier: null
   estimate_min: 280
   estimate_basis: "cli"
   issue: 540
-  pr: 543
+  pr: 544
   internal: false
   milestone: null
   blocked_by: []
