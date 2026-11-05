@@ -180,7 +180,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto" onClick={() => setResetConfirmOpen(true)} disabled={nodes.length === 0}>
+                <Button variant="ghost" size="icon" aria-label="Clear Canvas" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto" onClick={() => setResetConfirmOpen(true)} disabled={nodes.length === 0}>
                   <Trash2 className="h-3.5 w-3.5 shrink-0" />
                 </Button>
               </TooltipTrigger>
@@ -350,7 +350,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 setResetConfirmOpen(false);
                 toast({ title: "Canvas cleared" });
               }}
-              className="bg-destructive text-white hover:bg-destructive/90 text-xs text-muted-foreground"
+              className="bg-destructive text-white hover:bg-destructive/90 text-xs"
             >
               Clear Canvas
             </AlertDialogAction>

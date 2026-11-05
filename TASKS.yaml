@@ -6632,3 +6632,32 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 15, deletions: 1}
   spent_min: 3
   session_count: 1
+- id: "T-235"
+  title: "Clear Canvas confirm button label renders in muted grey on the destructive background (text-muted-foreground is the last colour class, tailwind-merge drops text-white)"
+  status: "in-progress"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 547
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#547"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T14:59:37Z"
+  notes: []
+  sessions:
+  - start: "2026-11-05T15:00:06Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
