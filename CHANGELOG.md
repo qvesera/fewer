@@ -41,6 +41,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clear Canvas confirmation button label is readable again: the destructive button carried both text-white and a trailing text-muted-foreground, and cn()/tailwind-merge keeps the last colour class, so the label rendered muted grey on red (~2:1) instead of white (~5:1)
 - Plan-change email cron actually runs now: scripts/plan-change-notify.ts was never committed because scripts/* is gitignored (all three scheduled runs failed with 'Module not found'), so production rows only ever delivered via the webhook; the script is tracked with a .gitignore exception
 
+### Performance
+
+- Hidden Cards panel now renders at most 300 rows on large graphs, with a 'Showing X of Y rows' footer so the rest stays reachable via search (was one row per hidden root — ~190k DOM nodes at 25k cards)
+
 ## [0.8.0] - 2026-10-28
 
 ### Changed

@@ -6690,3 +6690,55 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 58, deletions: 0}
   spent_min: 10
   session_count: 1
+- id: "T-237"
+  title: "Cap the Hidden Cards panel at 300 rows with an accounted footer"
+  status: "in-progress"
+  type: "perf"
+  area: "performance"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 558
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T21:59:38Z"
+  notes: ["2026-11-05T22:03:46Z · Port of desktop T-226: 300-row budget + accounted footer in the Hidden Cards panel"]
+  sessions:
+  - start: "2026-11-05T22:13:17Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
+- id: "T-238"
+  title: "Settings tab strip clips tabs at Pro tier: 47rem sized for six tabs but non-guest desktop shows eight; strip…"
+  status: "triaged"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 557
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#557"
+  time_source: null
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-11-05T21:22:38Z"
+  notes: ["2026-11-05T22:00:22Z · adopted at intake from GitHub (open)"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
