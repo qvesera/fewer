@@ -55,7 +55,7 @@ export function LayoutPicker({ direction, onPick, advancedModeEnabled = false }:
         >
           <Icon className={cn("mb-1 shrink-0", iconSize)} />
           <span className="text-xs truncate w-full text-center font-medium">{l.label}</span>
-          <span className="text-[10px] text-muted-foreground/70 font-normal truncate w-full text-center">{l.sublabel}</span>
+          <span className="text-2xs text-muted-foreground/70 font-medium truncate w-full text-center">{l.sublabel}</span>
         </button>
       );
     });

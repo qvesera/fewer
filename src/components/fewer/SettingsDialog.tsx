@@ -18,6 +18,8 @@ import { Slider } from "@/components/ui/slider";
 import { EditableNumber } from "@/components/ui/editable-number";
 import { Switch } from "@/components/ui/switch";
 import {
+  Accessibility,
+  Contrast,
   Sun,
   Moon,
   Palette,
@@ -52,6 +54,7 @@ import {
   SlidersHorizontal,
   KeyRound,
   Download,
+  Type,
 } from "lucide-react";
 import type { ThemeMode, EdgeStyle, EdgeStrokeStyle } from "@/lib/fewer/types";
 import type { SortKey, SortDir } from "@/lib/fewer/sorting";
@@ -108,6 +111,9 @@ import {
   runProfileSave,
   strokeStyleOptions,
   themeModeOptions,
+  UI_SCALE_OPTIONS,
+  uiScaleFromValue,
+  uiScaleValue,
   usageMeter,
   validateProfileFields,
   visibleTabs,
@@ -123,6 +129,7 @@ const TAB_META: Record<SettingsTabId, { label: string; Icon: LucideIcon }> = {
   account: { label: "Account", Icon: User2 },
   about: { label: "About", Icon: Info },
   appearance: { label: "Appearance", Icon: Palette },
+  accessibility: { label: "Accessibility", Icon: Accessibility },
   watched: { label: "Watched", Icon: BellRing },
   cloud: { label: "Cloud", Icon: Cloud },
   advanced: { label: "Advanced", Icon: Settings },
@@ -434,7 +441,7 @@ function AccountTab() {
                 {plan !== "free" ? "Manage subscription" : "Upgrade to Pro"}
               </Button>
             ) : (
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-xs text-muted-foreground/70">
                 {plan === "team"
                   ? "Team is managed by your organization."
                   : plan === "pro"
@@ -447,7 +454,7 @@ function AccountTab() {
           {/* Row 2: usage meters + account-level status */}
           <div className="border-t border-border/40 pt-3 space-y-2.5">
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/80">Saved graphs</span>
                 <span className="font-medium text-foreground/80">
                   {usage === null ? "…" : formatUsage(usage.savedGraphs, limits.savedGraphs)}
@@ -467,7 +474,7 @@ function AccountTab() {
             </div>
 
             <div className="space-y-1.5">
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/80">Watched indexes</span>
                 <span className="font-medium text-foreground/80">
                   {usage === null ? "…" : formatUsage(usage.watchedIndexes, limits.watchedIndexes)}
@@ -486,14 +493,14 @@ function AccountTab() {
               )}
             </div>
 
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground/80">Version history</span>
               <span className="font-medium text-foreground/80">
                 {limits.historyDays > 0 ? `${limits.historyDays}-day history` : "Not available"}
               </span>
             </div>
 
-            <div className="flex items-center justify-between text-[11px]">
+            <div className="flex items-center justify-between text-xs">
               <span className="text-muted-foreground/80">Email</span>
               <span className="font-medium text-foreground/80 flex items-center gap-1">
                 {user.email ?? "-"}
@@ -506,7 +513,7 @@ function AccountTab() {
             </div>
 
             {user.created_at && (
-              <div className="flex items-center justify-between text-[11px]">
+              <div className="flex items-center justify-between text-xs">
                 <span className="text-muted-foreground/80">Member since</span>
                 <span className="font-medium text-foreground/80">
                   {new Date(user.created_at).toLocaleDateString(undefined, { month: "short", year: "numeric" })}
@@ -527,7 +534,7 @@ function AccountTab() {
             <span className="text-xs font-medium text-foreground">
               {loading ? "Loading…" : user ? user.email : "Signed out"}
             </span>
-            <span className="text-[11px] text-muted-foreground/70">
+            <span className="text-xs text-muted-foreground/70">
               {loading ? "Checking session" : user ? "Account" : "Sign in to save and share graphs"}
             </span>
           </div>
@@ -568,7 +575,7 @@ function AccountTab() {
             </div>
             <div className="flex flex-col">
               <span className="text-xs font-medium text-foreground">Change Email</span>
-              <span className="text-[11px] text-muted-foreground/70">
+              <span className="text-xs text-muted-foreground/70">
                 Current: {user.email ?? "-"}
               </span>
             </div>
@@ -673,7 +680,7 @@ function AboutTab() {
           <div>
             <div className="flex items-center gap-2">
               <h3 className="text-base font-semibold tracking-tight text-foreground">fewer</h3>
-              <span className="rounded-full bg-accent/60 px-2 py-0.5 text-[10px] font-medium tracking-wide text-muted-foreground border border-border/40">
+              <span className="rounded-full bg-accent/60 px-2 py-0.5 text-2xs font-medium text-muted-foreground border border-border/40">
                 v{APP_VERSION}
               </span>
             </div>
@@ -721,7 +728,7 @@ function AboutTab() {
         </Button>
       </div>
 
-      <p className="text-[11px] text-center text-muted-foreground/50 pt-2">
+      <p className="text-xs text-center text-muted-foreground/50 pt-2">
         Built with Next.js, React Flow & shadcn/ui • Released under AGPLv3 License
       </p>
     </div>
@@ -769,7 +776,7 @@ function AppearanceTab() {
   return (
     <div className="flex flex-col gap-5 py-1">
       <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Theme Preferences
         </Label>
         <div className="grid grid-cols-3 gap-2.5">
@@ -811,7 +818,7 @@ function AppearanceTab() {
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
           <Spline className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Connection Styling
           </Label>
         </div>
@@ -885,7 +892,7 @@ function AppearanceTab() {
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
           <SlidersHorizontal className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Sibling Sort
           </Label>
           <span className="ml-auto flex items-center">
@@ -931,7 +938,7 @@ function AppearanceTab() {
         <div className="space-y-2.5">
           <div className="flex items-center gap-2">
             <Zap className="h-3.5 w-3.5 text-muted-foreground/70" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
               Connection Motion
             </Label>
             <span className="ml-auto flex items-center">
@@ -978,7 +985,7 @@ function AppearanceTab() {
       <div className="space-y-2.5">
         <div className="flex items-center gap-2">
           <MinimapIcon className="h-3.5 w-3.5 text-muted-foreground/70" />
-          <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
             Minimap
           </Label>
         </div>
@@ -986,6 +993,149 @@ function AppearanceTab() {
           <MinimapControls />
         </div>
       </div>
+    </div>
+  );
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Accessibility tab (T-215 / #514)                                           */
+/* -------------------------------------------------------------------------- */
+
+/** One switch row — label + info tip + switch, with the label wired to the
+ *  control (`htmlFor`/`id` derived from the text). */
+function A11yRow({
+  label,
+  hint,
+  checked,
+  onCheckedChange,
+}: {
+  label: string;
+  hint: string;
+  checked: boolean;
+  onCheckedChange: (v: boolean) => void;
+}) {
+  const id = `a11y-${label.toLowerCase().replace(/[^a-z0-9]+/g, "-")}`;
+  return (
+    <div className="flex items-center justify-between gap-4 py-2">
+      <div className="flex min-w-0 items-center gap-2">
+        <Label htmlFor={id} className="cursor-pointer text-xs font-medium text-foreground">
+          {label}
+        </Label>
+        <Hint id={`${id}-hint`} label={label}>
+          {hint}
+        </Hint>
+      </div>
+      <Switch id={id} checked={checked} onCheckedChange={onCheckedChange} />
+    </div>
+  );
+}
+
+/** A titled card of switch rows, matching the section style used elsewhere in
+ *  this dialog (icon + uppercase label over a rounded panel). */
+function A11ySection({ icon, title, children }: { icon: ReactNode; title: string; children: ReactNode }) {
+  return (
+    <div className="space-y-2.5">
+      <div className="flex items-center gap-2">
+        <span className="text-muted-foreground/70 [&_svg]:h-3.5 [&_svg]:w-3.5">{icon}</span>
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">{title}</Label>
+      </div>
+      <div className="divide-y divide-border/30 rounded-2xl border border-border/50 bg-card/30 px-4 py-1 shadow-sm">
+        {children}
+      </div>
+    </div>
+  );
+}
+
+function AccessibilityTab() {
+  const a11y = useGraphStore((s) => s.a11y);
+  const setA11y = useGraphStore((s) => s.setA11y);
+  const uiScale = useGraphStore((s) => s.uiScale);
+  const setUiScale = useGraphStore((s) => s.setUiScale);
+
+  return (
+    <div className="flex flex-col gap-5 py-1">
+      {/* Interface scale lives here rather than in Appearance: it is about
+          legibility, and this tab is where legibility settings belong. */}
+      <div className="space-y-2.5">
+        <div className="flex items-center gap-2">
+          <Type className="h-3.5 w-3.5 text-muted-foreground/70" />
+          <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
+            Interface Scale
+          </Label>
+          <span className="ml-auto flex items-center">
+            <Hint id="hint-interface-scale" label="Interface Scale">
+              One multiplier for the whole interface: text, spacing, icons and corner radii scale together, so nothing
+              clips when the type grows. Auto follows your window width. The choice is saved to your account.
+            </Hint>
+          </span>
+        </div>
+        <div className="rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
+          <SlidingToggle
+            options={UI_SCALE_OPTIONS.map(({ value, label }) => ({ value, label }))}
+            value={uiScaleValue(uiScale)}
+            onValueChange={(v) => setUiScale(uiScaleFromValue(v))}
+          />
+          <p className="text-xs text-muted-foreground/70 pt-3">
+            {uiScale === null
+              ? "Auto: 100% under 2000px wide, 112% from 2000px, 125% from 3000px."
+              : `${Math.round(uiScale * 100)}% — applied everywhere, on every screen size.`}
+          </p>
+        </div>
+      </div>
+
+      <A11ySection icon={<Contrast />} title="Vision">
+        <A11yRow
+          label="High contrast"
+          hint="Hardens borders, muted text and card sub-lines so text stands apart from its surface. Your OS 'increased contrast' preference turns this on by itself."
+          checked={a11y.highContrast}
+          onCheckedChange={(v) => setA11y({ highContrast: v })}
+        />
+        <A11yRow
+          label="Solid surfaces"
+          hint="Removes the blur and translucency behind dialogs, menus and panels, so nothing behind the text moves while you read it."
+          checked={a11y.solidSurfaces}
+          onCheckedChange={(v) => setA11y({ solidSurfaces: v })}
+        />
+      </A11ySection>
+
+      <A11ySection icon={<Palette />} title="Colour vision">
+        <A11yRow
+          label="Colour-blind-safe tag palette"
+          hint="Paints tags from hues separated for red-green and blue-yellow colour vision instead of the default rainbow, which collapses for dichromatic viewers."
+          checked={a11y.colorBlindSafe}
+          onCheckedChange={(v) => setA11y({ colorBlindSafe: v })}
+        />
+        <A11yRow
+          label="Show tag initials"
+          hint="Each tag carries its first letter as well as its colour, so tags stay tellable apart with no colour information at all."
+          checked={a11y.tagInitials}
+          onCheckedChange={(v) => setA11y({ tagInitials: v })}
+        />
+      </A11ySection>
+
+      <A11ySection icon={<Zap />} title="Motion">
+        <A11yRow
+          label="Reduce motion"
+          hint="Stops animations — marching edges, node entrances, transitions — whether or not your system asks for reduced motion."
+          checked={a11y.reduceMotion}
+          onCheckedChange={(v) => setA11y({ reduceMotion: v })}
+        />
+      </A11ySection>
+
+      <A11ySection icon={<Mouse />} title="Pointer & focus">
+        <A11yRow
+          label="Larger hit targets"
+          hint="Raises the button height floor and widens the invisible hit area around small controls."
+          checked={a11y.largeTargets}
+          onCheckedChange={(v) => setA11y({ largeTargets: v })}
+        />
+        <A11yRow
+          label="Stronger focus ring"
+          hint="Heavier focus outline, shown on click as well as when tabbing, so the focused control is never ambiguous."
+          checked={a11y.strongFocus}
+          onCheckedChange={(v) => setA11y({ strongFocus: v })}
+        />
+      </A11ySection>
     </div>
   );
 }
@@ -1031,7 +1181,7 @@ function MinimapControls() {
         <>
           <div className="space-y-2">
             <div className="flex items-center gap-1">
-              <Label className="text-[11px] text-muted-foreground font-medium">Position</Label>
+              <Label className="text-xs text-muted-foreground font-medium">Position</Label>
               <Hint id="hint-minimap-position" label="Position">
                 Custom position is pinned in place and only moves when you adjust the
                 X / Y sliders above.
@@ -1060,7 +1210,7 @@ function MinimapControls() {
 
           <div className="space-y-2 pt-1">
             <div className="flex items-center justify-between">
-              <Label className="text-[11px] text-muted-foreground font-medium">Size</Label>
+              <Label className="text-xs text-muted-foreground font-medium">Size</Label>
               <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapSize} onCommit={(v) => setMiniMapSize(v)} unit="px" /></span>
             </div>
             <Slider
@@ -1076,7 +1226,7 @@ function MinimapControls() {
             <>
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] text-muted-foreground font-medium">X Position</Label>
+                  <Label className="text-xs text-muted-foreground font-medium">X Position</Label>
                   <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapX} onCommit={(v) => setMiniMapX(v)} unit="px" /></span>
                 </div>
                 <Slider
@@ -1089,7 +1239,7 @@ function MinimapControls() {
               </div>
               <div className="space-y-2 pt-1">
                 <div className="flex items-center justify-between">
-                  <Label className="text-[11px] text-muted-foreground font-medium">Y Position</Label>
+                  <Label className="text-xs text-muted-foreground font-medium">Y Position</Label>
                   <span className="text-xs font-mono tabular-nums text-foreground/80"><EditableNumber value={miniMapY} onCommit={(v) => setMiniMapY(v)} unit="px" /></span>
                 </div>
                 <Slider
@@ -1143,7 +1293,7 @@ function AdvancedTab() {
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <SlidersHorizontal className="h-3.5 w-3.5 text-primary" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
               Layout Policy
             </Label>
             <span className="ml-auto flex items-center">
@@ -1242,7 +1392,7 @@ function AdvancedTab() {
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Mouse className="h-3.5 w-3.5 text-primary" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
               Canvas Navigation
             </Label>
             <span className="ml-auto flex items-center">
@@ -1269,7 +1419,7 @@ function AdvancedTab() {
         <div className="flex flex-col gap-4 rounded-2xl border border-border/50 bg-card/30 p-4 shadow-sm">
           <div className="flex items-center gap-2 border-b border-border/30 pb-2.5">
             <Maximize2 className="h-3.5 w-3.5 text-primary" />
-            <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">
+            <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">
               Card Metrics
             </Label>
           </div>
@@ -1426,13 +1576,13 @@ function HelpTab() {
   return (
     <div className="flex flex-col gap-5 py-1">
       <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Learn
         </Label>
         {renderActions(learnActions)}
       </div>
       <div className="space-y-2.5">
-        <Label className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+        <Label className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/70">
           Support
         </Label>
         {renderActions(supportActions)}
@@ -1480,7 +1630,17 @@ export function SettingsDialog() {
 
   return (
     <Dialog open={settingsOpen} onOpenChange={setSettingsOpen}>
-      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[520px] max-w-[calc(100%-2rem)] h-[590px] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
+      {/* 600px, not 520: the tab strip is a single non-wrapping row, and the
+          type floor raised every tab label to 12px — five tabs measure ~484px
+          of content, which scrolls (and clips) inside a 512px dialog. The
+          sm:max-w override is required: DialogContent's base sm:max-w-lg (512px)
+          would otherwise cap this width back down. */}
+      {/* 47rem (752px at the default scale): six tabs with icons measure ~585px
+          of content in the system face and ~630px once Geist is actually
+          applied (T-221), and every dimension here is rem so the whole dialog
+          scales with --ui-scale — a px width would shrink the strip's room as
+          the type grew (the tab-fit e2e pins scrollWidth <= clientWidth). */}
+      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[47rem] max-w-[calc(100%-2rem)] sm:max-w-[47rem] h-[36.875rem] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
@@ -1520,6 +1680,7 @@ export function SettingsDialog() {
                 {id === "account" && <AccountTab />}
                 {id === "about" && <AboutTab />}
                 {id === "appearance" && <AppearanceTab />}
+                {id === "accessibility" && <AccessibilityTab />}
                 {id === "watched" && <WatchedIndexesPanel />}
                 {id === "cloud" && <CloudTab />}
                 {id === "advanced" && <AdvancedTab />}

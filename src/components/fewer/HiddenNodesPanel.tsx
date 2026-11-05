@@ -80,7 +80,7 @@ function HiddenGroupRow({ group, getChildren }: { group: HiddenGroup; getChildre
         />
         <Folder className="h-3.5 w-3.5 shrink-0 text-fewer-folder-icon" />
         <span className="truncate font-medium text-foreground/80 flex-1 min-w-0">{p.data.label}</span>
-        <span className="shrink-0 text-[10px] tabular-nums text-muted-foreground/70">
+        <span className="shrink-0 text-2xs font-medium tabular-nums text-muted-foreground/70">
           {group.hiddenCount} hidden
         </span>
       </div>
@@ -198,7 +198,7 @@ function HiddenNodeRow({ tree, depth = 0, getChildren }: { tree: HiddenTreeNode;
               onCancel={() => useGraphStore.getState().setRenamingId(null)}
             />
           ) : (
-            <span className="truncate text-foreground/90 flex-1 min-w-0 text-[11px] leading-tight">
+            <span className="truncate text-foreground/90 flex-1 min-w-0 text-xs leading-tight">
               {node.data.label}
             </span>
           )}
@@ -313,7 +313,7 @@ export function HiddenNodesPanel() {
             <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} getChildren={getChildren} />
           ))
         ) : (
-          <p className="px-1 py-2 text-[11px] text-muted-foreground/70">
+          <p className="px-1 py-2 text-xs text-muted-foreground/70">
             No hidden cards match “{hiddenSearch.trim()}”.
           </p>
         )}

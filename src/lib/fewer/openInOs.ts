@@ -175,6 +175,15 @@ export async function resolveLocalPath(
 }
 
 export function requireLocalhost(request: Request): Response | null {
+  // Production builds never expose the local path APIs (they can open/read
+  // arbitrary files on the server machine). Opt back in for a local standalone
+  // run with ENABLE_LOCAL_PATH_API=true.
+  if (process.env.NODE_ENV === "production" && process.env.ENABLE_LOCAL_PATH_API !== "true") {
+    return Response.json(
+      { error: "Local path APIs are disabled on this server." },
+      { status: 403 },
+    );
+  }
   let hostname: string;
   try {
     hostname = new URL(request.url).hostname;

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getAuthedClient } from "@/lib/fewer/apiAuth";
 
 export async function GET() {
@@ -12,7 +13,7 @@ export async function GET() {
     .eq("user_id", user.id)
     .maybeSingle();
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ settings: data?.settings ?? null });
 }
 
@@ -35,6 +36,6 @@ export async function POST(request: Request) {
     .from("user_settings")
     .upsert({ user_id: user.id, settings: body.settings }, { onConflict: "user_id" });
 
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

@@ -64,9 +64,9 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
   return (
     <div className="space-y-2">
       <div className="flex items-center justify-between">
-        <p className="text-[11px] font-semibold uppercase tracking-wider text-muted-foreground/80">Cloud</p>
+        <p className="text-xs font-semibold uppercase tracking-wider text-muted-foreground/80">Cloud</p>
         {connections.length > 0 && (
-          <Button variant="ghost" size="sm" className="h-6 gap-1 text-[10px] text-muted-foreground" onClick={onBrowse}>
+          <Button variant="ghost" size="sm" className="h-6 gap-1 text-2xs text-muted-foreground" onClick={onBrowse}>
             <ExternalLink className="h-3 w-3" /> Browse
           </Button>
         )}
@@ -87,9 +87,9 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
                   <div className="min-w-0 flex-1">
                     <p className="truncate text-xs font-medium text-foreground">{PROVIDER_LABELS[provider]}</p>
                     {isLinked ? (
-                      <p className="truncate text-[10px] text-muted-foreground">{conns.map((c) => c.account_name).join(", ")}</p>
+                      <p className="truncate text-2xs text-muted-foreground">{conns.map((c) => c.account_name).join(", ")}</p>
                     ) : (
-                      <p className="text-[10px] text-muted-foreground">Not linked</p>
+                      <p className="text-2xs text-muted-foreground">Not linked</p>
                     )}
                   </div>
                   {isLinked ? (
@@ -109,7 +109,7 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
                       ))}
                     </div>
                   ) : (
-                    <Button variant="outline" size="sm" className="h-6 gap-1 text-[10px]" onClick={() => handleConnect(provider)}>
+                    <Button variant="outline" size="sm" className="h-6 gap-1 text-2xs" onClick={() => handleConnect(provider)}>
                       <Icon className="h-3 w-3" /> Link
                     </Button>
                   )}

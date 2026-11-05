@@ -70,7 +70,7 @@ export function TagMenu({ ids }: { ids: string[] }) {
       </ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-52">
         {tags.length === 0 && !creating && (
-          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
             No tags yet. Create one below.
           </div>
         )}
@@ -138,7 +138,7 @@ export function TagMenu({ ids }: { ids: string[] }) {
                 );
               })}
             </div>
-            <p className="text-[10px] text-muted-foreground/60">
+            <p className="text-2xs text-muted-foreground/60">
               Uncheck a tag above to remove it from{" "}
               {ids.length === 1 ? "this card" : `these ${ids.length} cards`}.
             </p>
@@ -175,7 +175,7 @@ export function SelectByTagSubmenu({ label = "Select by Tag" }: { label?: string
       <ContextMenuSubTrigger className="cursor-pointer">{label}</ContextMenuSubTrigger>
       <ContextMenuSubContent className="w-48">
         {tags.length === 0 ? (
-          <div className="px-2 py-1.5 text-[11px] text-muted-foreground">
+          <div className="px-2 py-1.5 text-xs text-muted-foreground">
             No tags yet
           </div>
         ) : (

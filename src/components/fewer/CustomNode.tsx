@@ -997,13 +997,13 @@ function ChildEntry({ child }: { child: FewerNode }) {
       )}
       {child.data.isArchive && (
         <span
-          className="shrink-0 rounded bg-fewer-folder-icon/15 px-1 text-[9px] font-medium uppercase tracking-wide text-fewer-folder-icon"
+          className="shrink-0 rounded bg-fewer-folder-icon/15 px-1 text-2xs font-medium text-fewer-folder-icon"
           title="Archive expanded: this is the archive's listing, not a folder on disk"
         >
           archive
         </span>
       )}
-      <span className="ml-auto shrink-0 tabular-nums text-[10px] text-fewer-text-subtle">
+      <span className="ml-auto shrink-0 tabular-nums text-2xs text-fewer-text-subtle">
         {child.data.type === "folder"
           ? plural(folderChildCount, "item")
           : formatSize(child.data.size ?? 0)}
@@ -1141,7 +1141,7 @@ if (isCollapsed) {
               {data.symlink ? (
                 <SymlinkBadge info={data.symlink} className="tracking-normal" />
               ) : (
-                <span className="truncate text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text">
+                <span className="truncate text-2xs text-fewer-folder-subtle-text">
                   {plural(childCount, "item")}
                 </span>
               )}
@@ -1269,7 +1269,7 @@ if (isCollapsed) {
                   </span>
                 )}
                 <span
-                  className="truncate text-[10px] text-fewer-folder-subtle-text"
+                  className="truncate text-2xs text-fewer-folder-subtle-text"
                   title={data.path}
                 >
                   {data.path}
@@ -1317,13 +1317,13 @@ if (isCollapsed) {
               )}
             </div>
 <div
-              className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-[10px] uppercase tracking-wider text-fewer-folder-subtle-text bg-fewer-folder-bg"
+              className="flex items-center justify-between rounded-b-xl border-t border-fewer-folder-border px-3 py-1.5 text-2xs text-fewer-folder-subtle-text bg-fewer-folder-bg"
             >
               <span>
                 {plural(childCount, "item")}
               </span>
               {hiddenChildCount > 0 && (
-                <span className="rounded bg-fewer-folder-subtle-text/15 px-1 py-px text-[9px] text-fewer-folder-subtle-text">
+                <span className="rounded bg-fewer-folder-subtle-text/15 px-1 py-px text-2xs text-fewer-folder-subtle-text">
                   {hiddenChildCount} hidden
                 </span>
               )}
@@ -1414,7 +1414,7 @@ if (isCollapsed) {
               {data.label}
             </span>
           )}
-          <div className="flex items-center gap-2 text-[10px] uppercase tracking-wider text-fewer-file-subtle-text">
+          <div className="flex items-center gap-2 text-2xs text-fewer-file-subtle-text">
             {data.symlink && <SymlinkBadge info={data.symlink} className="normal-case tracking-normal" />}
             <span className="shrink-0">{data.extension ? `.${data.extension}` : "file"}</span>
             {data.size ? (

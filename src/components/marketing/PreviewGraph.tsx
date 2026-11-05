@@ -134,7 +134,7 @@ function ChildRow({ child, childCount }: { child: PreviewNode; childCount: numbe
       </span>
       {isFolder && (
         <span
-          className="ml-auto shrink-0 tabular-nums text-[10px]"
+          className="ml-auto shrink-0 tabular-nums text-2xs"
           style={{ color: "var(--fewer-text-subtle)" }}
         >
           {childCount} {childCount === 1 ? "item" : "items"}
@@ -199,7 +199,7 @@ function FolderCard({
             {node.label}
           </span>
           <span
-            className="truncate text-[10px]"
+            className="truncate text-2xs"
             style={{ color: "var(--fewer-folder-subtle-text)" }}
             title={path}
           >
@@ -229,7 +229,7 @@ function FolderCard({
       </div>
 
       <div
-        className="flex items-center justify-between border-t px-3 py-1.5 text-[10px] uppercase tracking-wider"
+        className="flex items-center justify-between border-t px-3 py-1.5 text-2xs"
         style={{
           borderColor: "var(--fewer-folder-border)",
           background: "var(--fewer-folder-bg)",

@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { resolveLocalPath, requireLocalhost } from "@/lib/fewer/openInOs";
 
 /**
@@ -19,7 +20,6 @@ export async function POST(request: Request) {
     const resolved = await resolveLocalPath(rawPath);
     return NextResponse.json({ resolved });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

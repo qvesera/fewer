@@ -374,7 +374,7 @@ function MinimizedDialogPill({
       </span>
       <span
         className={cn(
-          "text-[10px] font-medium text-current/80",
+          "text-2xs font-medium text-current/80",
           isVertical ? "writing-vertical" : ""
         )}
         style={isVertical ? { writingMode: "vertical-rl", textOrientation: "mixed" } : undefined}

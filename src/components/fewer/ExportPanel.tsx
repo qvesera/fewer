@@ -45,7 +45,7 @@ import {
   filterVisibleEdges,
   filterVisibleNodes,
 } from "@/hooks/use-canvas-visible-graph";
-import { exportGraph } from "@/lib/fewer/exportUtils";
+import { exportGraph, type PngRasterResult } from "@/lib/fewer/exportUtils";
 import {
   exportDirectoryScript,
   exportDirectoryTree,
@@ -60,7 +60,15 @@ import { edgeDashPattern, edgeTypeFromStyle } from "@/lib/fewer/types";
 import type { ExportSettings } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
 import { plural } from "@/lib/fewer/plural";
-import { isSingleFileSelected, isAdvancedFormatOnly } from "@/lib/fewer/exportPanelModel";
+import {
+  isSingleFileSelected,
+  isAdvancedFormatOnly,
+  qualityToScale,
+  scaleToQuality,
+  formatScale,
+  QUALITY_MIN,
+  QUALITY_MAX,
+} from "@/lib/fewer/exportPanelModel";
 import { can } from "@/lib/fewer/tiers";
 
 const BASIC_FORMATS: {
@@ -283,9 +291,10 @@ export function ExportPanel() {
     tags, edgeStyle, edgeStrokeStyle, edgeWidth, groups,
   ]);
 
-  const handleExport = () => {
+  const handleExport = async () => {
     const nodesToExport = exportNodes;
     const edgesToExport = exportEdges;
+    let outcome: PngRasterResult | undefined;
 
     if (settings.format === "script") {
       exportDirectoryScript(nodesToExport, edgesToExport, includeBranding);
@@ -294,7 +303,7 @@ export function ExportPanel() {
     } else {
       const stats = computeStats(nodesToExport, edgesToExport);
       // Images export the active view's graph; data formats export the raw graph.
-      exportGraph(
+      outcome = await exportGraph(
         isImageFormat ? imageGraph.nodes : nodesToExport,
         isImageFormat ? imageGraph.edges : edgesToExport,
         { ...settings, includeBranding },
@@ -317,11 +326,28 @@ export function ExportPanel() {
           direction: resolved?.direction ?? direction,
         },
       );
+      // T-219/T-220: `ok: false` means the rasterizer refused the scene and
+      // nothing was downloaded — say why instead of celebrating.
+      if (outcome && !outcome.ok) {
+        toast({
+          title: "Export failed",
+          description:
+            outcome.reason ??
+            `${settings.format.toUpperCase()} could not be rendered, so no file was downloaded.`,
+          variant: "destructive",
+        });
+        return;
+      }
     }
     setOpen(false);
+    // T-220: the file is real, but smaller than asked for — never silently.
+    const note =
+      outcome && outcome.scale < outcome.requestedScale
+        ? ` Downscaled to ${outcome.scale.toFixed(2)}× (browser canvas limit; asked for ${outcome.requestedScale.toFixed(2)}×).`
+        : "";
     toast({
       title: "Exported",
-      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} connection${edgesToExport.length === 1 ? "" : "s"}`,
+      description: `${settings.format.toUpperCase()}: ${nodesToExport.length} card${nodesToExport.length === 1 ? "" : "s"}, ${edgesToExport.length} connection${edgesToExport.length === 1 ? "" : "s"}.${note}`,
     });
   };
 
@@ -476,14 +502,25 @@ export function ExportPanel() {
           {isRaster && (
             <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">
               <div className="flex items-center justify-between">
-                <Label className="text-xs font-semibold text-muted-foreground">Quality</Label>
-                <span className="text-xs font-mono font-semibold text-foreground/80"><EditableNumber value={settings.quality} onCommit={(v) => setSettings({ quality: v })} unit="%" /></span>
+                <div className="space-y-0.5">
+                  <Label className="text-xs font-semibold text-muted-foreground">Resolution</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Canvas pixels per output pixel. Too large for this browser to encode, and the export says it stepped down.
+                  </p>
+                </div>
+                <span className="text-xs font-mono font-semibold text-foreground/80">
+                  <EditableNumber
+                    value={qualityToScale(settings.quality)}
+                    onCommit={(v) => setSettings({ quality: scaleToQuality(v) })}
+                    labelFn={(v) => `${formatScale(v)}×`}
+                  />
+                </span>
               </div>
               <Slider
                 value={[settings.quality]}
                 onValueChange={([v]) => setSettings({ quality: v })}
-                min={10}
-                max={100}
+                min={QUALITY_MIN}
+                max={QUALITY_MAX}
                 step={5}
               />
             </div>
@@ -524,7 +561,7 @@ export function ExportPanel() {
           <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
             <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
               <CollapsibleTrigger asChild>
-                <Button variant="ghost" className="flex items-center gap-1.5 w-full justify-start h-auto p-0 font-bold text-foreground/90 tracking-wider text-[10px] uppercase hover:bg-transparent">
+                <Button variant="ghost" className="flex items-center gap-1.5 w-full justify-start h-auto p-0 font-bold text-foreground/90 text-2xs hover:bg-transparent">
                   <ChevronRight className={cn("h-3 w-3 transition-transform duration-200", summaryOpen && "rotate-90")} />
                   Summary
                 </Button>
@@ -554,7 +591,7 @@ export function ExportPanel() {
                 </div>
                 <div className="flex items-center justify-between">
                   <span>Format</span>
-                  <span className="uppercase font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-[10px]">{settings.format}</span>
+                  <span className="font-mono font-semibold bg-secondary text-secondary-foreground px-2 py-0.5 rounded text-2xs">{settings.format}</span>
                 </div>
               </CollapsibleContent>
             </div>

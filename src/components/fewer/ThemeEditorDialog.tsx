@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2, Globe } from "lucide-react";
-import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
+import { toCssColor, toCssValue, suggestGradientEnd, ensureContrast } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
+import { cn } from "@/lib/utils";
 import type { ThemesBackend } from "@/lib/fewer/themesData";
 import { HexAlphaColorPicker, HexColorInput } from "react-colorful";
 import { THEME_PRESETS } from "@/lib/fewer/themePresets";
@@ -33,7 +34,56 @@ import {
   recordSectionChange,
   popSectionUndo,
   sectionUndoDepth,
+  slotContrast,
+  type PaletteKey,
 } from "@/lib/fewer/themeEditor";
+
+/**
+ * Live WCAG ratio for a slot that has a meaningful counterpart (T-215), plus a
+ * one-click **Fix** while it is below target — ensureContrast takes the
+ * smallest edit toward white or black that clears the pair's threshold, and the
+ * edit goes through handleChange, so it lands in the per-section undo stack.
+ */
+function ContrastControls({
+  theme,
+  slotKey,
+  onFix,
+}: {
+  theme: CustomTheme;
+  slotKey: PaletteKey;
+  onFix: (color: string) => void;
+}) {
+  const measured = slotContrast(theme, slotKey);
+  if (!measured) return null;
+  const pass = measured.ratio >= measured.target;
+  return (
+    <>
+      <span
+        title={`Contrast ${measured.ratio.toFixed(2)}:1 against ${measured.against} — WCAG target ${measured.target}:1`}
+        className={cn(
+          "shrink-0 rounded-sm border px-1 py-px text-2xs font-semibold tabular-nums",
+          pass
+            ? "border-border/60 bg-muted/40 text-muted-foreground"
+            : "border-amber-500/50 bg-amber-500/15 text-amber-700 dark:text-amber-400",
+        )}
+      >
+        {measured.ratio.toFixed(1)}:1
+      </span>
+      {!pass && (
+        <button
+          type="button"
+          onClick={() =>
+            onFix(ensureContrast(theme[slotKey].color, theme[measured.against].color, measured.target))
+          }
+          title={`Adjust this colour to ${measured.target}:1 against ${measured.against}`}
+          className="shrink-0 rounded-sm border border-amber-500/50 bg-amber-500/15 px-1.5 py-0.5 text-2xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 dark:text-amber-400"
+        >
+          Fix
+        </button>
+      )}
+    </>
+  );
+}
 
 export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend } = {}) {
   const themeEditorOpen = useGraphStore((s) => s.themeEditorOpen);
@@ -490,7 +540,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
               <Button
                 variant="ghost"
                 size="sm"
-                className="h-6 gap-1 px-2 text-[10px]"
+                className="h-6 gap-1 px-2 text-2xs"
                 disabled={saving}
                 title="Save this theme to your account"
               >
@@ -499,7 +549,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
               </Button>
             </PopoverTrigger>
             <PopoverContent className="w-72 p-2 space-y-2" align="start" sideOffset={4}>
-              <Label className="text-[10px] font-medium uppercase tracking-wider text-muted-foreground">
+              <Label className="text-2xs font-medium text-muted-foreground">
                 Save custom theme
               </Label>
               <Input
@@ -522,7 +572,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                       checked={shareGallery}
                       onCheckedChange={(checked) => setShareGallery(checked === true)}
                     />
-                    <span className="text-[10px] text-foreground/80">Share to the community gallery</span>
+                    <span className="text-2xs text-foreground/80">Share to the community gallery</span>
                   </label>
                   {shareGallery && (
                     <>
@@ -551,7 +601,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
           <Button
             variant="ghost"
             size="sm"
-            className="h-6 gap-1 px-2 text-[10px]"
+            className="h-6 gap-1 px-2 text-2xs"
             onClick={resetCustomTheme}
           >
             <RotateCcw className="h-3 w-3" />
@@ -580,7 +630,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
       <div className="flex-1 overflow-y-auto p-3 space-y-3">
         {/* Preset Themes */}
         <div className="space-y-1.5">
-          <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+          <Label className="text-2xs font-semibold text-muted-foreground/60">
             Preset Themes
           </Label>
           <Popover
@@ -593,7 +643,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
             <PopoverTrigger asChild>
               <button
                 type="button"
-                className="flex w-full items-center justify-between rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-[10px] text-foreground hover:bg-background/80 transition-colors"
+                className="flex w-full items-center justify-between rounded-lg border border-border/40 bg-background/60 px-2.5 py-1.5 text-2xs text-foreground hover:bg-background/80 transition-colors"
               >
                 <span>Select a theme preset...</span>
                 <ChevronDown className="h-3 w-3 text-muted-foreground" />
@@ -602,7 +652,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
             <PopoverContent className="w-[calc(min(360px,100vw-16px)-24px)] p-1.5 max-h-[300px] overflow-y-auto" align="start">
               {/* Saved-to-cloud themes, grouped under "Custom" */}
               <div key="custom" className="mb-1.5">
-                <div className="flex items-center justify-between px-2 py-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+                <div className="flex items-center justify-between px-2 py-1 text-2xs font-semibold text-muted-foreground/40">
                   <span>Custom</span>
                   {themesLoading && <Loader2 className="h-2.5 w-2.5 animate-spin" />}
                 </div>
@@ -610,7 +660,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                   savedThemes.map((t) => (
                     <div
                       key={t.id}
-                      className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-[10px] text-left"
+                      className="group flex w-full items-center gap-2 rounded-md px-2 py-1 text-2xs text-left"
                     >
                       <div className="flex gap-0.5 shrink-0">
                         <div className="h-2.5 w-2.5 rounded-full" style={{ background: t.theme.folderIcon?.color }} />
@@ -701,21 +751,21 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                     </div>
                   ))
                 ) : (
-                  <div className="flex items-center gap-1.5 px-2 py-1.5 text-[10px] text-muted-foreground/60">
+                  <div className="flex items-center gap-1.5 px-2 py-1.5 text-2xs text-muted-foreground/60">
                     {user || localThemes ? "No saved themes yet. Use Save to store one." : "Sign in to sync custom themes to your account."}
                   </div>
                 )}
               </div>
               {Object.entries(groupedPresets).map(([category, presets]) => (
                 <div key={category} className="mb-1.5">
-                  <div className="px-2 py-1 text-[8px] font-semibold uppercase tracking-wider text-muted-foreground/40">
+                  <div className="px-2 py-1 text-2xs font-semibold text-muted-foreground/40">
                     {category}
                   </div>
                   {presets.map((preset) => (
                     <button
                       key={preset.name}
                       onClick={() => setCustomTheme(preset.theme)}
-                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-[10px] hover:bg-muted/50 transition-colors text-left"
+                      className="flex w-full items-center gap-2 rounded-md px-2 py-1.5 text-2xs hover:bg-muted/50 transition-colors text-left"
                     >
                       <div className="flex gap-0.5 shrink-0">
                         <div className="h-2.5 w-2.5 rounded-full" style={{ background: preset.theme.folderIcon.color }} />
@@ -733,7 +783,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
         {THEME_EDITOR_SECTIONS.map((section) => (
           <div key={section.title} className="space-y-1.5">
             <div className="flex items-center justify-between">
-              <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+              <Label className="text-2xs font-semibold text-muted-foreground/60">
                 {section.title}
               </Label>
               <button
@@ -760,25 +810,32 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                         title={`${meta.label}: ${meta.description}`}
                       />
                       <Label
-                        className="truncate text-[10px] font-medium uppercase tracking-wider text-foreground/80"
+                        className="truncate text-2xs font-medium text-foreground/80"
                         title={`${meta.label}: ${meta.description}`}
                       >
                         {meta.label}
                       </Label>
                       {meta.gradientCssVar && isGradientOnKey(meta.key) && (
-                        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/40 px-1 py-px text-[8px] font-semibold uppercase tracking-wider text-muted-foreground">
+                        <span className="shrink-0 rounded-sm border border-border/60 bg-muted/40 px-1 py-px text-2xs font-semibold text-muted-foreground">
                           Gradient
                         </span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5" onClick={(e) => e.stopPropagation()}>
+                      <ContrastControls
+                        theme={customTheme}
+                        slotKey={meta.key as PaletteKey}
+                        onFix={(color) =>
+                          handleChange(meta.key, { color, opacity: customTheme[meta.key].opacity })
+                        }
+                      />
                       <input
                         type="text"
                         value={customTheme[meta.key].color}
                         onChange={(e) =>
                           handleChange(meta.key, { color: e.target.value, opacity: customTheme[meta.key].opacity })
                         }
-                        className="w-20 rounded-md border border-border bg-background px-1.5 py-1 font-mono text-[10px] text-foreground"
+                        className="w-20 rounded-md border border-border bg-background px-1.5 py-1 font-mono text-2xs text-foreground"
                       />
                     </div>
                   </div>
@@ -794,13 +851,13 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                       {meta.gradientCssVar && (
                         <div className="space-y-2 rounded-lg border border-border/40 bg-background/40 p-2">
                           <div className="flex items-center justify-between">
-                            <Label className="text-[9px] font-semibold uppercase tracking-widest text-muted-foreground/60">
+                            <Label className="text-2xs font-semibold text-muted-foreground/60">
                               Gradient
                             </Label>
                             <button
                               type="button"
                               onClick={() => toggleGradient(meta.key)}
-                              className={`rounded-md border px-2 py-0.5 text-[10px] font-medium transition-colors ${
+                              className={`rounded-md border px-2 py-0.5 text-2xs font-medium transition-colors ${
                                 isGradientOnKey(meta.key)
                                   ? "border-border/60 bg-foreground/5 text-foreground"
                                   : "border-border/40 text-muted-foreground hover:text-foreground"
@@ -834,13 +891,13 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                                     prefixed
                                     className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
                                   />
-                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">
+                                  <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground">
                                     #
                                   </span>
                                 </div>
                               </div>
                               <div className="flex items-center gap-2">
-                                <Label className="shrink-0 text-[10px] text-muted-foreground">
+                                <Label className="shrink-0 text-2xs text-muted-foreground">
                                   Angle
                                 </Label>
                                 <input
@@ -871,7 +928,7 @@ export function ThemeEditorDialog({ localThemes }: { localThemes?: ThemesBackend
                             prefixed
                             className="w-full rounded-md border border-border bg-background px-2 py-1.5 pl-5 font-mono text-xs text-foreground"
                           />
-                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-[10px] text-muted-foreground">#</span>
+                          <span className="absolute left-1.5 top-1/2 -translate-y-1/2 text-2xs text-muted-foreground">#</span>
                         </div>
                         <span className="shrink-0 rounded-md border border-border bg-background px-2 py-1.5 font-mono text-xs tabular-nums text-foreground/70">
                           {Math.round(customTheme[meta.key].opacity * 100)}%

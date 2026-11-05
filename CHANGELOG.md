@@ -10,10 +10,35 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Security
 
 - Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
+- Crawl endpoint hardening: POST /api/crawl now rejects private, loopback, link-local and metadata addresses (root URL, redirect hops and discovered links) and rate-limits requests per client, closing the SSRF gap in the server-side crawler.
+- Local path APIs (/api/open-file, /api/open-folder, /api/list-directory, /api/resolve-path) are disabled in production builds with a 403; opt back in for local standalone use with ENABLE_LOCAL_PATH_API=true.
+- API 500 responses return a generic "Internal server error" in production and log the detail server-side instead of echoing database/provider error text; non-production keeps the detail for debugging.
+- Baseline security headers on every route: X-Frame-Options: SAMEORIGIN, X-Content-Type-Options: nosniff, Referrer-Policy: strict-origin-when-cross-origin.
+- Share links no longer publish local filesystem paths: the stored local root and any absolute node/symlink paths are stripped from share payloads (hash and DB shares, plus existing rows on read), and share IDs are lengthened from 8 to 16 URL-safe characters (~96 bits).
 
 ### Changed
 
 - Dependency wave C: within-range refresh of 49 packages (radix suite, supabase-js/ssr, @xyflow/react, react-day-picker, zustand, eslint chain, ...) — 58 → 9 outdated, the 9 being major-only holds (prisma 7, stripe 23, lucide 1, eslint 10, ...). The refreshed react-hooks rules surfaced render-phase ref access: GraphGallerySection now keeps its fetch results in state (dropping the x/y dep hack), GraphCanvas' #285 stamp cache and TutorialDialog's run-once guard carry scoped, justified disables.
+- Text is legible everywhere: the 236 hardcoded 8-11px sizes across 44 files became a rem-based 11px floor (new `text-2xs` token driven by a `--ui-scale` root font-size), uppercase headings below 12px dropped to sentence case, two micro-labels gained weight, the Settings dialog is 600px so all five tabs fit on one row without scrolling, and SVG/PNG export text matches the canvas sizes again
+- The header wordmark is plain theme text again (white in dark, near-black in light) instead of the orange gradient it had picked up; the now-unused .text-gradient-fewer rule is gone
+- PNG's export control tells the truth: the 'Quality' percentage was always the raster's pixel scale (1x-2x), so it is now labelled Resolution with an explicit 1.6x-style readout, and the slider no longer offers the dead positions below 1x that could not change the output. One shared mapping drives the panel and the exporter.
+- The app renders in the Geist it already imported and preloaded: next/font's variable sat on <body> while Tailwind's preflight only ever reads --default-font-family on <html>, so every page silently fell back to the system stack (the woff2 files were fetched and never drawn). The Settings dialog grows 44rem to 47rem to keep its six tabs on one non-wrapping row in the real face.
+- Added AI-generated code disclaimer to README.md, SECURITY.md, and privacy policy. Updated privacy policy with security hardening section.
+- Plan-change, invite and digest emails now send from fewer <updates@fewer.directory> instead of the unverified contact.fewer.directory subdomain, which Resend was rejecting (the root domain fewer.directory is the verified one); .env.example and the deployment doc record the sender and how to push it (env-sync)
+
+### Added
+
+- Interface scale in Settings → Appearance: Auto / 100% / 125% / 150%, one multiplier for text, spacing, icons and corner radii that persists with your other settings; Auto follows the window (100% under 2000px, 112% from 2000px, 125% from 3000px) so a large screen is readable without anyone hunting for a setting, and an inline --ui-scale on <html> applies it before first paint
+- New Settings → Accessibility tab (available on every plan, every screen): interface scale Auto/100/125/150%, high contrast (also honoured from the OS increased-contrast setting), solid surfaces (also from reduced transparency), colour-blind-safe tag palette + tag initials that repaint canvas and exports without touching stored colours, reduce motion on top of the OS setting, larger hit targets and a heavier focus ring, a skip link that lands on the workspace, and an sr-only live region that announces the card under arrow-key navigation; the Custom Theme Editor now shows a live WCAG ratio per colour slot with a one-click Fix
+- Plan-change emails: the account owner is emailed whenever their plan changes (free/pro/team), whether the change comes from Stripe checkout or an operator updating profiles.plan in the database — a DB trigger records the change, an instant Supabase webhook and a 15-minute cron sweep both run the shared Resend job, and docs/plans + docs/accounts describe it
+
+### Fixed
+
+- PNG/SVG image export no longer silently fails: the exported scene declared the "xlink" namespace it uses (it was copied from public/logo.svg without it), so rasterizing works again for anyone whose export carries the watermark — signed-out users included, where branding is forced on. A raster that still cannot be decoded now raises an error toast instead of a success toast with no file.
+- PNG export no longer vanishes on very large graphs: the raster now retries at a canvas size the browser actually accepts instead of handing back nothing, and when it has to step down below the requested Quality the export note says so.
+- PNG export text is set in the app's font again: an SVG rendered inside an <img> cannot fetch webfonts, so exported cards quietly fell back to a system sans while the canvas showed Geist. The export now embeds the matching @font-face as a data URI (same-origin fetch, fails soft when unavailable), which also makes the downloaded .svg carry its typeface and open correctly offline.
+- Clicking a search result now reveals it (and its hidden ancestors) even when it is hidden by the active view's Hide Files layer or another per-view hide layer, so the canvas zooms to it instead of nothing — search selection outranks every hide mechanism, and the result's hidden badge now reflects the view's effective hidden set.
+- Clear Canvas confirmation button label is readable again: the destructive button carried both text-white and a trailing text-muted-foreground, and cn()/tailwind-merge keeps the last colour class, so the label rendered muted grey on red (~2:1) instead of white (~5:1)
 
 ## [0.8.0] - 2026-10-28
 

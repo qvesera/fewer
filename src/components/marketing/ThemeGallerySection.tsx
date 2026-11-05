@@ -178,7 +178,7 @@ export function ThemeGallerySection() {
                     ))}
                   </div>
                   {appliedName === item.name && (
-                    <span className="flex items-center gap-1 rounded-full border border-green-500/40 bg-green-500/10 px-2 py-0.5 text-[10px] font-medium text-green-500">
+                    <span className="flex items-center gap-1 rounded-full border border-green-500/40 bg-green-500/10 px-2 py-0.5 text-2xs font-medium text-green-500">
                       <Check className="h-3 w-3" /> Applied
                     </span>
                   )}
@@ -192,7 +192,7 @@ export function ThemeGallerySection() {
                 )}
 
                 <div className="mt-auto space-y-3 pt-4">
-                  <p className="text-[11px] text-muted-foreground/70">
+                  <p className="text-xs text-muted-foreground/70">
                     {galleryAuthorLine(item.author_name, item.author_username)} · {prettyDate(item.created_at)}
                   </p>
                   <div className="flex gap-2">

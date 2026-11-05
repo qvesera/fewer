@@ -104,7 +104,7 @@ function LeafNode({
         {leaf.primary ? (
           // The primary leaf is always the main graph viewport — no editor-type picker.
           <span
-            className="flex-1 flex items-center truncate text-left h-7 px-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground"
+            className="flex-1 flex items-center truncate text-left h-7 px-1.5 text-xs font-semibold uppercase tracking-wider text-muted-foreground"
             title={AREA_EDITOR_LABELS.graph}
           >
             {AREA_EDITOR_LABELS.graph}
@@ -115,7 +115,7 @@ function LeafNode({
               <Button
                 variant="ghost"
                 size="sm"
-                className="flex-1 justify-between gap-1 h-7 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground px-1.5"
+                className="flex-1 justify-between gap-1 h-7 text-xs font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground px-1.5"
               >
                 <span className="truncate text-left">
                   {isGraph ? AREA_EDITOR_LABELS.graph : meta?.title ?? leaf.area.editor}
@@ -124,7 +124,7 @@ function LeafNode({
               </Button>
             </DropdownMenuTrigger>
             <DropdownMenuContent align="start" className="w-48">
-              <DropdownMenuLabel className="text-[10px] uppercase tracking-wider text-muted-foreground">
+              <DropdownMenuLabel className="text-2xs text-muted-foreground">
                 Editor Type
               </DropdownMenuLabel>
               <DropdownMenuSeparator />

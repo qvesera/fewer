@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 
 export async function PATCH(
@@ -26,7 +27,7 @@ export async function PATCH(
     .eq("id", id)
     .select("id, is_favorite")
     .maybeSingle();
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   if (!data) return NextResponse.json({ error: "Not found" }, { status: 404 });
   return NextResponse.json({ graph: data });
 }
@@ -41,6 +42,6 @@ export async function DELETE(
 
   const { id } = await params;
   const { error } = await supabase.from("saved_graphs").delete().eq("id", id);
-  if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+  if (error) return serverError(error);
   return NextResponse.json({ ok: true });
 }

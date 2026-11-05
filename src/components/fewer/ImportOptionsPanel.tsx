@@ -162,7 +162,7 @@ export function ImportOptionsPanel({
                     Include Hidden Files
                   </Label>
                   <p className="text-xs text-muted-foreground">
-                    Include hidden files (<code className="font-mono text-[10px] bg-muted px-1 rounded">.gitignore</code>, <code className="font-mono text-[10px] bg-muted px-1 rounded">.env</code>, etc.)
+                    Include hidden files (<code className="font-mono text-2xs bg-muted px-1 rounded">.gitignore</code>, <code className="font-mono text-2xs bg-muted px-1 rounded">.env</code>, etc.)
                   </p>
                 </div>
               </div>
@@ -185,16 +185,16 @@ export function ImportOptionsPanel({
                   <p className="text-xs text-muted-foreground">
                     {scope === "file:text" ? (
                       <>
-                        Drop <code className="font-mono text-[10px] bg-muted px-1 rounded">node_modules</code>,{" "}
-                        <code className="font-mono text-[10px] bg-muted px-1 rounded">dist</code>,{" "}
-                        <code className="font-mono text-[10px] bg-muted px-1 rounded">.git</code>, and other generated
+                        Drop <code className="font-mono text-2xs bg-muted px-1 rounded">node_modules</code>,{" "}
+                        <code className="font-mono text-2xs bg-muted px-1 rounded">dist</code>,{" "}
+                        <code className="font-mono text-2xs bg-muted px-1 rounded">.git</code>, and other generated
                         folders found in the file. Everything else imports exactly as given.
                       </>
                     ) : (
                       <>
-                        Scan <code className="font-mono text-[10px] bg-muted px-1 rounded">node_modules</code>,{" "}
-                        <code className="font-mono text-[10px] bg-muted px-1 rounded">dist</code>,{" "}
-                        <code className="font-mono text-[10px] bg-muted px-1 rounded">.git</code>, and other{" "}
+                        Scan <code className="font-mono text-2xs bg-muted px-1 rounded">node_modules</code>,{" "}
+                        <code className="font-mono text-2xs bg-muted px-1 rounded">dist</code>,{" "}
+                        <code className="font-mono text-2xs bg-muted px-1 rounded">.git</code>, and other{" "}
                         generated folders.
                       </>
                     )}
@@ -286,9 +286,9 @@ export function ImportOptionsPanel({
                   </Label>
                   <p className="text-xs text-muted-foreground">
                     Show what&apos;s inside{" "}
-                    <code className="font-mono text-[10px] bg-muted px-1 rounded">.zip</code>,{" "}
-                    <code className="font-mono text-[10px] bg-muted px-1 rounded">.tar</code>,{" "}
-                    <code className="font-mono text-[10px] bg-muted px-1 rounded">.7z</code>{" "}
+                    <code className="font-mono text-2xs bg-muted px-1 rounded">.zip</code>,{" "}
+                    <code className="font-mono text-2xs bg-muted px-1 rounded">.tar</code>,{" "}
+                    <code className="font-mono text-2xs bg-muted px-1 rounded">.7z</code>{" "}
                     and friends found in the folder, without extracting them.
                   </p>
                 </div>

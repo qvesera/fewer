@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getAuthedSupabase } from "@/lib/fewer/supabaseServer";
 import { countOwned, getUserPlan, limitsFor, overLimit, PRO_LIMITS } from "@/lib/fewer/plans";
 
@@ -27,11 +28,10 @@ export async function GET() {
       .eq("user_id", user.id)
       .order("created_at", { ascending: false });
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json({ watched: data ?? [] });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -84,11 +84,10 @@ export async function POST(request: Request) {
       .select("id, url, active, last_crawled_at, created_at")
       .single();
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json({ watched: data });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
 
@@ -112,10 +111,9 @@ export async function DELETE(request: Request) {
       .eq("user_id", user.id)
       .eq("url", url);
 
-    if (error) return NextResponse.json({ error: error.message }, { status: 500 });
+    if (error) return serverError(error);
     return NextResponse.json({ ok: true });
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }

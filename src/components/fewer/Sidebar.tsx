@@ -180,7 +180,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
             </Button>
             <Tooltip>
               <TooltipTrigger asChild>
-                <Button variant="ghost" size="icon" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto" onClick={() => setResetConfirmOpen(true)} disabled={nodes.length === 0}>
+                <Button variant="ghost" size="icon" aria-label="Clear Canvas" className="h-8 w-8 text-muted-foreground hover:text-destructive hover:bg-destructive/10 shrink-0 ml-auto" onClick={() => setResetConfirmOpen(true)} disabled={nodes.length === 0}>
                   <Trash2 className="h-3.5 w-3.5 shrink-0" />
                 </Button>
               </TooltipTrigger>
@@ -244,7 +244,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
       >
         <div className="flex flex-col gap-3 w-full min-w-0">
           <div className="space-y-1.5 w-full min-w-0">
-            <Label className="text-[11px] font-medium text-muted-foreground">Style</Label>
+            <Label className="text-xs font-medium text-muted-foreground">Style</Label>
             <SlidingToggle options={availableEdgeStyles} value={activeLeaf?.resolved.edgeStyle ?? edgeStyle} onValueChange={(v) => { if (activeLeaf) useGraphStore.getState().updateViewSettings(activeLeaf.leafId, { edgeStyle: v as EdgeStyle }); else setEdgeStyle(v as EdgeStyle); }} />
           </div>
         </div>
@@ -350,7 +350,7 @@ export function Sidebar({ onOpenDirectory, onRequireAuth }: SidebarProps) {
                 setResetConfirmOpen(false);
                 toast({ title: "Canvas cleared" });
               }}
-              className="bg-destructive text-white hover:bg-destructive/90 text-xs text-muted-foreground"
+              className="bg-destructive text-white hover:bg-destructive/90 text-xs"
             >
               Clear Canvas
             </AlertDialogAction>

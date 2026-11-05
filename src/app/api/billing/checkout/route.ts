@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getStripe, getProPriceId, getAppUrl, getServiceSupabase, getAuthedUser, billingNotConfigured, billingEnabled, billingDisabled } from "@/lib/fewer/billing";
 
 /**
@@ -41,8 +42,7 @@ export async function POST() {
         .upsert({ user_id: user.id, stripe_customer_id: customerId }, { onConflict: "user_id" });
       if (error) throw new Error(error.message);
     } catch (err) {
-      const msg = err instanceof Error ? err.message : "Could not create billing customer";
-      return NextResponse.json({ error: msg }, { status: 500 });
+      return serverError(err);
     }
   }
 

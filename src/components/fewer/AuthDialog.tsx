@@ -216,7 +216,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                 GitHub
               </Button>
             </div>
-            <div className="flex items-center gap-2 text-[11px] text-muted-foreground/70">
+            <div className="flex items-center gap-2 text-xs text-muted-foreground/70">
               <span className="h-px flex-1 bg-border" />
               or with email
               <span className="h-px flex-1 bg-border" />
@@ -252,7 +252,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
               autoComplete={mode === "signin" ? "username" : "email"}
               aria-invalid={!!emailError}
             />
-            {emailError && <p className="text-[11px] text-destructive">{emailError}</p>}
+            {emailError && <p className="text-xs text-destructive">{emailError}</p>}
           </div>
 
           {(mode === "signin" || mode === "signup") && (
@@ -314,7 +314,7 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                     return (
                       <li
                         key={h.id}
-                        className={`flex items-center gap-1.5 text-[11px] ${
+                        className={`flex items-center gap-1.5 text-xs ${
                           ok ? "text-green-600 dark:text-green-500" : "text-muted-foreground/70"
                         }`}
                       >
@@ -363,11 +363,11 @@ export function AuthDialog({ open, onOpenChange }: AuthDialogProps) {
                 </button>
               </div>
               {confirmError ? (
-                <p className="text-[11px] text-destructive">{confirmError}</p>
+                <p className="text-xs text-destructive">{confirmError}</p>
               ) : (
                 confirmPassword.length > 0 &&
                 confirmPassword !== password && (
-                  <p className="text-[11px] text-muted-foreground/70">Passwords do not match yet.</p>
+                  <p className="text-xs text-muted-foreground/70">Passwords do not match yet.</p>
                 )
               )}
             </div>

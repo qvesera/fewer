@@ -1,4 +1,5 @@
 import { NextResponse } from "next/server";
+import { serverError } from "@/lib/fewer/apiHelpers";
 import { getConnectionWithToken } from "@/lib/fewer/cloud/server";
 import { getAdapter } from "@/lib/fewer/cloud/registry";
 import type { CloudProvider } from "@/lib/fewer/cloud/types";
@@ -23,7 +24,6 @@ export async function POST(request: Request) {
     const result = await adapter.listChildren(accessToken, ref);
     return NextResponse.json(result);
   } catch (err) {
-    const msg = err instanceof Error ? err.message : "Unknown error";
-    return NextResponse.json({ error: msg }, { status: 500 });
+    return serverError(err);
   }
 }
