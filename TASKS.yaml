@@ -6632,3 +6632,32 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 15, deletions: 1}
   spent_min: 3
   session_count: 1
+- id: "T-235"
+  title: "Clear Canvas confirm button label renders in muted grey on the destructive background (text-muted-foreground is the last colour class, tailwind-merge drops text-white)"
+  status: "done"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 547
+  pr: 549
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#547"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T14:59:37Z"
+  notes: []
+  sessions:
+  - start: "2026-11-05T15:00:06Z"
+    end: "2026-11-05T15:08:05Z"
+    measured: true
+    note: "Fixed the Clear Canvas confirm label: dropped the trailing text-muted-foreground that tailwind-merge preferred over text-white (grey on red, ~2:1 -> white, ~5:1); added aria-label to the icon-only trigger; regression test added and verified to fail on reintroduction. PR #548."
+    proof: ["3ce07cf", "#548"]
+    effort: {commits: 1, files: 4, insertions: 54, deletions: 2}
+  spent_min: 8
+  session_count: 1

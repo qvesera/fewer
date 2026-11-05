@@ -93,6 +93,28 @@ describe("Sidebar rendering", () => {
     // Instead verify the AlertDialog starts closed (no dialog content rendered).
     expect(screen.queryByText("Clear canvas?")).toBeNull();
   });
+
+  test("Clear Canvas confirm action keeps white text on the destructive background (T-235)", async () => {
+    renderSidebar({
+      nodes: [{ id: "n1", type: "folder", position: { x: 0, y: 0 }, data: { label: "src", path: "/src", type: "folder" } }],
+    });
+
+    // Icon-only trigger: named by aria-label, not by the hover tooltip.
+    const trigger = screen.getByRole("button", { name: "Clear Canvas" });
+    expect(trigger.getAttribute("aria-label")).toBe("Clear Canvas");
+    act(() => trigger.click());
+
+    const title = await screen.findByText("Clear canvas?");
+    const dialog = title.closest("[role=alertdialog]") as HTMLElement;
+    const action = within(dialog).getByRole("button", { name: "Clear Canvas" });
+
+    // cn() is twMerge: the LAST colour class wins, so a trailing
+    // text-muted-foreground used to discard text-white and render a grey
+    // label on red (~2:1). White on --destructive is ~5:1 (dark theme).
+    expect(action.className).toContain("text-white");
+    expect(action.className).not.toContain("text-muted-foreground");
+    expect(action.className).toContain("bg-destructive");
+  });
 });
 
 describe("Sidebar info tips (T-173)", () => {
