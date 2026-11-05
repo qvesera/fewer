@@ -28,11 +28,39 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+/** Wait until at least `min` cards of the sample graph are mounted.
+ *  The canvas culls to the viewport since T-239 (cards mount as the initial
+ *  fit lands), so a census taken at one instant can see fewer cards than the
+ *  graph actually has — poll instead of sampling. `offset` measures layout px
+ *  (`offsetHeight`, zoom-independent), otherwise the scaled screen height. */
+async function waitForCards(
+  page: Page,
+  min: number,
+  { offset = false, minHeight = 40 }: { offset?: boolean; minHeight?: number } = {},
+) {
+  await expect
+    .poll(
+      async () =>
+        page.locator(".react-flow__node").evaluateAll(
+          (els, o) =>
+            els.filter((e) => {
+              const el = e as HTMLElement;
+              const h = o.offset ? el.offsetHeight : el.getBoundingClientRect().height;
+              return h > o.minHeight;
+            }).length,
+          { offset, minHeight },
+        ),
+      { timeout: 10000 },
+    )
+    .toBeGreaterThanOrEqual(min);
+}
+
 /** Two standalone cards to group. Child rows are also `.react-flow__node` but
  *  are drawn INSIDE their parent card (13px tall) and their centres are covered
  *  by the parent's DOM, so pick real cards by height — as app.spec.ts does by
  *  matching headers instead of nth(). */
 async function standaloneCards(page: Page) {
+  await waitForCards(page, 2);
   const ids = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .filter((e) => (e as HTMLElement).getBoundingClientRect().height > 40)
@@ -261,7 +289,9 @@ test("a collapsed multi-level group keeps its children in place and wires them t
   // shape that used to stretch the tree (#439). Child rows are separate
   // `.react-flow__node`s drawn inside their parent card; offsetHeight (layout
   // px, unaffected by the canvas zoom) separates real folders (200) from rows
-  // and files (≤58).
+  // and files (≤58). Cards mount as the initial fit lands (the canvas culls to
+  // the viewport since T-239), so wait for the third folder before picking.
+  await waitForCards(page, 3, { offset: true, minHeight: 100 });
   const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
@@ -342,6 +372,7 @@ test("a collapsed multi-level group keeps its children in place and wires them t
 
 test("dragging a collapsed pill moves the group — one gesture, one undo (T-180)", async ({ page }) => {
   await openCanvas(page);
+  await waitForCards(page, 3, { offset: true, minHeight: 100 });
   const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
@@ -383,6 +414,7 @@ test("dragging a collapsed pill moves the group — one gesture, one undo (T-180
 
 test("a group's colour tints its pill's edges (T-180)", async ({ page }) => {
   await openCanvas(page);
+  await waitForCards(page, 3, { offset: true, minHeight: 100 });
   const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
@@ -485,6 +517,9 @@ test("revealing ONE card of a collapsed group opens the frame but keeps the sibl
   // The reload cache is written debounced after Load Sample — wait for it so
   // the peer pair can be computed from the real edges.
   await page.waitForFunction(() => sessionStorage.getItem("fewer-graph") !== null);
+  // Only rendered CARDS are groupable, and the canvas culls to the viewport
+  // since T-239 — wait for the cards before reading the rendered set.
+  await waitForCards(page, 3);
   // Two folders that are NEITHER ancestor nor descendant of each other — an
   // ancestor pair would make a subtree reveal legitimately un-hide both (its
   // targets include the whole subtree), which is not what this test is about.

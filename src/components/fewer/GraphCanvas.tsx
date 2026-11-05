@@ -5,7 +5,6 @@ import {
   ReactFlow,
   Background,
   BackgroundVariant,
-  MiniMap,
   PanOnScrollMode,
   useReactFlow,
   useNodesState,
@@ -48,6 +47,8 @@ import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
 import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
+import { seedRfInternals } from "@/lib/fewer/rfInternals";
+import { GraphMinimap } from "@/components/fewer/GraphMinimap";
 import { collapsedGroupMembers } from "@/lib/fewer/groups";
 import {
   collapsedGroupBlocks,
@@ -311,15 +312,26 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   // that has no flag at all (RF would keep its internal selection and re-report
   // it forever, #285).
   const lastStampedRef = useRef<readonly FewerNode[] | undefined>(undefined);
+  // Seed first-paint internals (measured + handles) onto unmeasured cards so
+  // RF culls to the viewport on the first pass instead of force-rendering
+  // every node (T-239: forceInitialRender = !handleBounds, and a zero-area
+  // node reads as visible). Seeding happens HERE — the stamped array — never
+  // on the store, so snapshots/saves never see it, and a node that has been
+  // measured (store `measured`) drops back to the DOM-owned path by itself.
+  const collapsedSet = useMemo(() => new Set(vs.collapsedFolderIds), [vs.collapsedFolderIds]);
   /* eslint-disable react-hooks/refs -- #285 stamp cache: the "store info from
      previous renders" ref pattern (React docs). stampSelection diffs against
      what RF last PAINTED so a clear can emit an explicit `selected: false`;
      a state write here would re-render inside the memo. */
   const stampedNodes = useMemo(() => {
-    const next = stampSelection(positionedNodes, selectionSet, lastStampedRef.current);
+    const seeded = seedRfInternals(positionedNodes, {
+      direction: vs.direction,
+      collapsedIds: collapsedSet,
+    });
+    const next = stampSelection(seeded, selectionSet, lastStampedRef.current);
     lastStampedRef.current = next;
     return next;
-  }, [positionedNodes, selectionSet]);
+  }, [positionedNodes, selectionSet, vs.direction, collapsedSet]);
   /* eslint-enable react-hooks/refs */
 
   const graphsExists = allNodes.length > 0;
@@ -358,7 +370,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const reflowTarget = useGraphStore((s) => s.reflowTarget);
   useCanvasInitialFit(positionedNodes, containerRef, setViewport, reflowVersion, reflowTarget, leafId);
   useCanvasZoomToNode(isActive ? zoomToNode : null, isActive ? useGraphStore.getState().zoomToNodeIds : null, fitView, setZoomToNodeIds);
-  const mini = useCanvasMinimap({ themeColors, isDark, leafId });
+  const mini = useCanvasMinimap({ isDark, leafId });
 
   const { seedOnFirstDrag, effectiveRecordDragMoves } = useCanvasDragRecording({
     leafId, positionedNodes, seedNodePositions, setNodePositionForLeaf, recordDragMoves,
@@ -514,7 +526,17 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       >
         <Background variant={BackgroundVariant.Dots} gap={24} size={1.5} color={themeColors.bgDot} className="transition-colors" />
         {mini.showMiniMap && (
-          <MiniMap position={mini.rfMiniMapPosition} style={mini.minimapStyle} pannable zoomable nodeColor={mini.nodeColor} nodeStrokeColor={mini.nodeStrokeColor} nodeStrokeWidth={2} nodeBorderRadius={4} ariaLabel="Mini map" />
+          <GraphMinimap
+            nodes={stampedNodes}
+            position={mini.rfMiniMapPosition}
+            style={mini.minimapStyle}
+            folderFill={themeColors.folderBg}
+            fileFill={themeColors.fileBg}
+            folderStroke={themeColors.folderIcon}
+            fileStroke={themeColors.fileIcon}
+            selectedFill={themeColors.folderIcon}
+            ariaLabel="Mini map"
+          />
         )}
         <CanvasZoomControls zoomIn={zoomIn} zoomOut={zoomOut} fitView={fitView} fitToSelection={fitToSelection} />
         <CanvasOverlays

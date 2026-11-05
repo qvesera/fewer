@@ -1,12 +1,9 @@
-import { useMemo, useCallback } from "react";
+import { useMemo } from "react";
 import type { CSSProperties } from "react";
 import type { PanelPosition } from "@xyflow/react";
 import { useGraphStore } from "@/store/graphStore";
-import type { FewerNode } from "@/lib/fewer/types";
-import type { CanvasThemeColors } from "./use-canvas-theme-colors";
 
 interface UseCanvasMinimapDeps {
-  themeColors: CanvasThemeColors;
   isDark: boolean;
   leafId?: string;
 }
@@ -16,15 +13,13 @@ interface UseCanvasMinimapResult {
   scrollAction: "pan" | "zoom";
   minimapStyle: CSSProperties;
   rfMiniMapPosition: PanelPosition;
-  nodeColor: (n: FewerNode) => string;
-  nodeStrokeColor: (n: FewerNode) => string;
 }
 
 /**
  * Minimap state + styling. Collapses store selectors into one logical unit.
  * When leafId is provided, minimap visibility is per-view (toggled via context menu).
  */
-export function useCanvasMinimap({ themeColors, isDark, leafId }: UseCanvasMinimapDeps): UseCanvasMinimapResult {
+export function useCanvasMinimap({ isDark, leafId }: UseCanvasMinimapDeps): UseCanvasMinimapResult {
   const showMiniMapGlobal = useGraphStore((s) => s.showMiniMap);
   const viewSettingsMap = useGraphStore((s) => s.viewSettings);
   const leafVs = leafId ? viewSettingsMap[leafId] : undefined;
@@ -64,15 +59,6 @@ export function useCanvasMinimap({ themeColors, isDark, leafId }: UseCanvasMinim
   // corner for the base placement (the inline style above overrides it).
   const rfMiniMapPosition = (miniMapPosition === "custom" ? "top-left" : miniMapPosition) as PanelPosition;
 
-  const nodeColor = useCallback(
-    (n: FewerNode) => n.data?.type === "folder" ? themeColors.folderBg : themeColors.fileBg,
-    [themeColors],
-  );
-  const nodeStrokeColor = useCallback(
-    (n: FewerNode) => n.data?.type === "folder" ? themeColors.folderIcon : themeColors.fileIcon,
-    [themeColors],
-  );
-
-  return { showMiniMap, scrollAction, minimapStyle, rfMiniMapPosition, nodeColor, nodeStrokeColor };
+  return { showMiniMap, scrollAction, minimapStyle, rfMiniMapPosition };
 }
 
