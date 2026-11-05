@@ -94,6 +94,10 @@ scripts/*
 !scripts/og-card.ts
 # the raster brand-asset generator (see scripts/logo-assets.ts)
 !scripts/logo-assets.ts
+# the plan-change email sweep run by .github/workflows/plan-change-notify.yml —
+# without this exception scripts/* silently swallowed it and the cron failed
+# with "Module not found" on every scheduled run
+!scripts/plan-change-notify.ts
 lighthouse/*
 .clinerules/*
 
