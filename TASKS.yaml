@@ -6663,7 +6663,7 @@ tasks:
   session_count: 1
 - id: "T-236"
   title: "plan-change-notify cron has never run: scripts/* is gitignored, so scripts/plan-change-notify.ts was never committed and every scheduled run fails with Module not found"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "billing"
   tier: null
