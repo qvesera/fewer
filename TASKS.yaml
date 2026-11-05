@@ -6634,14 +6634,14 @@ tasks:
   session_count: 1
 - id: "T-235"
   title: "Clear Canvas confirm button label renders in muted grey on the destructive background (text-muted-foreground is the last colour class, tailwind-merge drops text-white)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 547
-  pr: 548
+  pr: 549
   internal: false
   milestone: null
   blocked_by: []
