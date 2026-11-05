@@ -39,6 +39,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - PNG export text is set in the app's font again: an SVG rendered inside an <img> cannot fetch webfonts, so exported cards quietly fell back to a system sans while the canvas showed Geist. The export now embeds the matching @font-face as a data URI (same-origin fetch, fails soft when unavailable), which also makes the downloaded .svg carry its typeface and open correctly offline.
 - Clicking a search result now reveals it (and its hidden ancestors) even when it is hidden by the active view's Hide Files layer or another per-view hide layer, so the canvas zooms to it instead of nothing — search selection outranks every hide mechanism, and the result's hidden badge now reflects the view's effective hidden set.
 - Clear Canvas confirmation button label is readable again: the destructive button carried both text-white and a trailing text-muted-foreground, and cn()/tailwind-merge keeps the last colour class, so the label rendered muted grey on red (~2:1) instead of white (~5:1)
+- Plan-change email cron actually runs now: scripts/plan-change-notify.ts was never committed because scripts/* is gitignored (all three scheduled runs failed with 'Module not found'), so production rows only ever delivered via the webhook; the script is tracked with a .gitignore exception
 
 ## [0.8.0] - 2026-10-28
 

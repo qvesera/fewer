@@ -6661,3 +6661,32 @@ tasks:
     effort: {commits: 1, files: 4, insertions: 54, deletions: 2}
   spent_min: 8
   session_count: 1
+- id: "T-236"
+  title: "plan-change-notify cron has never run: scripts/* is gitignored, so scripts/plan-change-notify.ts was never committed and every scheduled run fails with Module not found"
+  status: "review"
+  type: "fix"
+  area: "billing"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 551
+  pr: 552
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#551"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T17:28:29Z"
+  notes: []
+  sessions:
+  - start: "2026-11-05T17:29:39Z"
+    end: "2026-11-05T17:39:56Z"
+    measured: true
+    note: "Root cause: .gitignore scripts/* had no exception for scripts/plan-change-notify.ts, so the file was never committed and all 3 cron runs failed Module not found. Fixed with the !exception + tracked script. PR #552."
+    proof: ["4bc81ce", "#552"]
+    effort: {commits: 1, files: 4, insertions: 58, deletions: 0}
+  spent_min: 10
+  session_count: 1
