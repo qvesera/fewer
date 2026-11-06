@@ -45,6 +45,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Hidden Cards panel now renders at most 300 rows on large graphs, with a 'Showing X of Y rows' footer so the rest stays reachable via search (was one row per hidden root — ~190k DOM nodes at 25k cards)
 - Large graphs open far faster: the canvas no longer force-mounts every card on first paint (React Flow now culls to the viewport using seeded first-paint geometry), and the minimap is painted as three paths instead of one DOM node per card
+- Cards re-render only when their own children change: per-child rows/counts are derived with referentially-stable selectors, per-card height lookups no longer scan the whole node list (O(1) instead of O(N) per store write), and the canvas scope carries a content-stable hidden set instead of a rebuilt-per-write visible set
 
 ## [0.8.0] - 2026-10-28
 

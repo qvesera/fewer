@@ -13,6 +13,7 @@ import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, c
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { captureViewState } from "../historySlice";
 import { applySearchHighlight } from "../searchHighlight";
+import { resetCardChildSlots } from "@/lib/fewer/cardChildRows";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
@@ -303,7 +304,12 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
   triggerSavedGraphsExpand: () => {
     set((s) => ({ savedGraphsExpandTrigger: s.savedGraphsExpandTrigger + 1 }));
   },
-  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => setGraph(set, get, nodes, edges, pushHistory, hiddenFileIds, options),
+  // A whole-graph write invalidates every card-child slot (they pin refs from
+  // the previous graph) — drop them in the same call (T-240).
+  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => {
+    resetCardChildSlots();
+    return setGraph(set, get, nodes, edges, pushHistory, hiddenFileIds, options);
+  },
   relayout: () => relayout(set, get),
   relayoutIfAuto: () => relayoutIfAuto(set, get),
   organize: (leafId) => organize(set, get, leafId),

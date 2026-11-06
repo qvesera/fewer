@@ -6777,3 +6777,38 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 20, deletions: 0}
   spent_min: 23
   session_count: 2
+- id: "T-240"
+  title: "Cards subscribe to their own children, not the whole graph"
+  status: "review"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 562
+  pr: 563
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-06T09:56:30Z"
+  notes: ["2026-11-06T09:56:31Z · Port of desktop T-219a (ac32cc4): value selectors via cardChildRows + scope hiddenIds instead of per-batch visibleIds"]
+  sessions:
+  - start: "2026-11-06T10:00:36Z"
+    end: "2026-11-06T10:23:58Z"
+    measured: true
+    note: "Ported desktop T-219a: cardChildRows stable selectors, scope hiddenIds + GroupFrames paintedIds, O(1) height lookup, setGraph/reset slot wiring (unwired upstream). 1966+264 tests, e2e 77/77. PR #563."
+    proof: ["f7ee3b1", "#563"]
+    effort: {commits: 1, files: 11, insertions: 318, deletions: 26}
+  - start: "2026-11-06T11:05:34Z"
+    end: "2026-11-06T11:06:18Z"
+    measured: true
+    note: "Follow-up: both context menus' ten nodes.find scans replaced with nodeByIdOf (shared cached index). 1966+264 tests, app+groups e2e 44/44. PR #563."
+    proof: ["a9e35e7", "#563"]
+    effort: {commits: 1, files: 1, insertions: 10, deletions: 10}
+  spent_min: 24
+  session_count: 2

@@ -1,5 +1,7 @@
 import { test, expect, beforeEach } from "bun:test";
 import { useGraphStore } from "@/store/graphStore";
+import { childRowsOf, resetCardChildSlots } from "@/lib/fewer/cardChildRows";
+import type { FewerNode, FewerEdge } from "@/lib/fewer/types";
 
 /** Minimal React Flow shapes — see groupsSlice.test.ts for the same node shape. */
 function folder(id: string, label: string) {
@@ -200,4 +202,19 @@ test("applySearch re-derives nodes with the highlight pass", () => {
   const v = useGraphStore.getState().graphVersion;
   useGraphStore.getState().applySearch();
   expect(useGraphStore.getState().graphVersion).toBe(v + 1);
+});
+
+test("setGraph and reset drop the card-child slots (T-240: a graph swap cannot pin the old graph)", () => {
+  resetCardChildSlots();
+  const oldNodes = [folder("old", "Old"), file("a", "a.md")] as unknown as FewerNode[];
+  const oldEdges = [edge("old", "a")] as unknown as FewerEdge[];
+  const pinned = childRowsOf("old", oldNodes, oldEdges);
+  expect(childRowsOf("old", [...oldNodes], [...oldEdges])).toBe(pinned); // slot alive
+
+  useGraphStore.getState().setGraph([folder("f1", "F1")], []);
+  expect(childRowsOf("old", [...oldNodes], [...oldEdges])).not.toBe(pinned);
+
+  const again = childRowsOf("old", [...oldNodes], [...oldEdges]);
+  useGraphStore.getState().reset();
+  expect(childRowsOf("old", [...oldNodes], [...oldEdges])).not.toBe(again);
 });
