@@ -6769,5 +6769,11 @@ tasks:
     note: "Ported desktop T-225: rfInternals first-paint seeding + path-painted minimap (GraphMinimap), CustomMiniMap deleted, PERF_SOURCEMAPS probe flag, groups e2e censuses hardened for viewport culling. Full e2e 77/77. PR #561 (stacked on #559)."
     proof: ["ea1a4db", "#561"]
     effort: {commits: 1, files: 13, insertions: 765, deletions: 118}
-  spent_min: 22
-  session_count: 1
+  - start: "2026-11-06T08:32:05Z"
+    end: "2026-11-06T08:32:59Z"
+    measured: true
+    note: "e2e hardening for culling: groups censuses poll for mounted cards, app #285 waits for the fit to settle before selecting (CI caught both). PR #561."
+    proof: ["70a0e6e", "#561"]
+    effort: {commits: 1, files: 2, insertions: 20, deletions: 0}
+  spent_min: 23
+  session_count: 2
