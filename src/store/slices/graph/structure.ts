@@ -11,6 +11,7 @@ import type { HistoryOp } from "@/lib/fewer/types";
 import { rewriteConnectionPaths } from "@/lib/fewer/pathRewrite";
 import { applySearchHighlight } from "../searchHighlight";
 import { unparentSubtree } from "./detach";
+import { resetCardChildSlots } from "@/lib/fewer/cardChildRows";
 
 export type StructureSliceCreator = StateCreator<GraphState, [], [], {
   connectNodes: GraphState["connectNodes"];
@@ -173,6 +174,7 @@ export const createStructureSlice: StructureSliceCreator = (set, get) => ({
   },
   reset: () => {
     fsHandleStore.clear();
+    resetCardChildSlots();
     set({
       nodes: [], edges: [], past: [], future: [], leafHistories: {}, selectedNodeIds: [],
       searchQuery: "", categoryFilter: [], categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
