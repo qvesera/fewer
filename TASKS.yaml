@@ -6742,3 +6742,38 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-239"
+  title: "Stop force-mounting every card on open; paint the minimap as paths"
+  status: "review"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 560
+  pr: 561
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T22:28:17Z"
+  notes: ["2026-11-05T22:28:28Z · Port of desktop T-225 (6108aba): rfInternals seeding + path-painted minimap"]
+  sessions:
+  - start: "2026-11-05T22:32:40Z"
+    end: "2026-11-05T22:55:07Z"
+    measured: true
+    note: "Ported desktop T-225: rfInternals first-paint seeding + path-painted minimap (GraphMinimap), CustomMiniMap deleted, PERF_SOURCEMAPS probe flag, groups e2e censuses hardened for viewport culling. Full e2e 77/77. PR #561 (stacked on #559)."
+    proof: ["ea1a4db", "#561"]
+    effort: {commits: 1, files: 13, insertions: 765, deletions: 118}
+  - start: "2026-11-06T08:32:05Z"
+    end: "2026-11-06T08:32:59Z"
+    measured: true
+    note: "e2e hardening for culling: groups censuses poll for mounted cards, app #285 waits for the fit to settle before selecting (CI caught both). PR #561."
+    proof: ["70a0e6e", "#561"]
+    effort: {commits: 1, files: 2, insertions: 20, deletions: 0}
+  spent_min: 23
+  session_count: 2
