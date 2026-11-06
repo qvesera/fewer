@@ -786,6 +786,9 @@ test("zoom to selection centers a selected group — toolbar button and Alt+F (T
  *  Returns a stable locator keyed on the frame's group id. */
 async function createGroupFrom(page: Page, indices: number[]) {
   const maxIdx = Math.max(...indices);
+  // Cards mount as the initial fit lands (the canvas culls to the viewport
+  // since T-239) — wait for the full set before indexing into it.
+  await waitForCards(page, maxIdx + 1);
   const ids = await page.locator(".react-flow__node").evaluateAll(
     (els, count) =>
       els

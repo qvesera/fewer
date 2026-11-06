@@ -507,6 +507,23 @@ test("splitting the canvas while a card is selected keeps both canvases alive (#
   await page.goto("/app?tier=pro");
   await loadSample(page);
   await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+  // Let the initial fit settle before selecting: the viewport transform is
+  // still animating while cards mount (the canvas culls to the viewport since
+  // T-239), and a click that lands mid-fit can end up on a card the fit then
+  // pans out of view — unmounted, so `.selected` counts zero.
+  const vp = page.locator(".react-flow__viewport");
+  let lastTransform = "";
+  await expect
+    .poll(
+      async () => {
+        const t = (await vp.getAttribute("style")) ?? "";
+        const settled = t !== "" && t === lastTransform;
+        lastTransform = t;
+        return settled;
+      },
+      { timeout: 10000 },
+    )
+    .toBe(true);
 
   // The precondition: a non-empty selection.
   await page.locator(".react-flow__node").first().click();
