@@ -6804,5 +6804,11 @@ tasks:
     note: "Ported desktop T-219a: cardChildRows stable selectors, scope hiddenIds + GroupFrames paintedIds, O(1) height lookup, setGraph/reset slot wiring (unwired upstream). 1966+264 tests, e2e 77/77. PR #563."
     proof: ["f7ee3b1", "#563"]
     effort: {commits: 1, files: 11, insertions: 318, deletions: 26}
-  spent_min: 23
-  session_count: 1
+  - start: "2026-11-06T11:05:34Z"
+    end: "2026-11-06T11:06:18Z"
+    measured: true
+    note: "Follow-up: both context menus' ten nodes.find scans replaced with nodeByIdOf (shared cached index). 1966+264 tests, app+groups e2e 44/44. PR #563."
+    proof: ["a9e35e7", "#563"]
+    effort: {commits: 1, files: 1, insertions: 10, deletions: 10}
+  spent_min: 24
+  session_count: 2
