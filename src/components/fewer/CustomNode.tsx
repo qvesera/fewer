@@ -234,7 +234,7 @@ function FolderContextMenu({
   const hasChildren = edges.some((e) => e.source === nodeId);
   // An expanded archive renders as a folder but is not a directory on disk, so
   // the disk-only actions below must not target it.
-  const isArchive = !!nodes.find((n) => n.id === nodeId)?.data.isArchive;
+  const isArchive = !!nodeByIdOf(nodes, nodeId)?.data.isArchive;
   // When the right-clicked node is part of a multi-node selection (shift-drag,
   // Select Children, …), the menu shows ONLY batch actions.
   const isBatchSelection = useGraphStore(
@@ -257,7 +257,7 @@ function FolderContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            const node = nodes.find((n) => n.id === nodeId);
+            const node = nodeByIdOf(nodes, nodeId);
             if (node) {
               setClipboard("copy", [nodeId]);
               toast({ title: "Copied", description: nodeLabel });
@@ -269,7 +269,7 @@ function FolderContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            const node = nodes.find((n) => n.id === nodeId);
+            const node = nodeByIdOf(nodes, nodeId);
             if (node) {
               setClipboard("cut", [nodeId]);
               useGraphStore.getState().moveNode(nodeId);
@@ -382,7 +382,7 @@ function FolderContextMenu({
                   </ContextMenuItem>
                 )}
                 {hasChildren && (() => {
-                  const isCollapsedInMenu = scope.resolved.collapsedFolderIds.includes(nodeId) || !!nodes.find((n) => n.id === nodeId)?.data.collapsed;
+                  const isCollapsedInMenu = scope.resolved.collapsedFolderIds.includes(nodeId) || !!nodeByIdOf(nodes, nodeId)?.data.collapsed;
                   return (
                     <ContextMenuItem
                       onSelect={() => {
@@ -501,8 +501,8 @@ function FolderContextMenu({
                     </ContextMenuItem>
                   )
                 )}
-                {nodes.find((n) => n.id === nodeId)?.data.symlink && (
-                  <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
+                {nodeByIdOf(nodes, nodeId)?.data.symlink && (
+                  <SymlinkMenuItems info={nodeByIdOf(nodes, nodeId)!.data.symlink!} />
                 )}
                 {dataSource === "directory" && !isArchive && (
                   <ContextMenuItem
@@ -712,7 +712,7 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            const node = nodes.find((n) => n.id === nodeId);
+            const node = nodeByIdOf(nodes, nodeId);
             if (node) {
               setClipboard("copy", [nodeId]);
               toast({ title: "Copied", description: nodeLabel });
@@ -724,7 +724,7 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
-            const node = nodes.find((n) => n.id === nodeId);
+            const node = nodeByIdOf(nodes, nodeId);
             if (node) {
               setClipboard("cut", [nodeId]);
               useGraphStore.getState().moveNode(nodeId);
@@ -876,8 +876,8 @@ function FileEntryContextMenu({
               >
                 Copy Name
               </ContextMenuItem>
-              {nodes.find((n) => n.id === nodeId)?.data.symlink && (
-                <SymlinkMenuItems info={nodes.find((n) => n.id === nodeId)!.data.symlink!} />
+              {nodeByIdOf(nodes, nodeId)?.data.symlink && (
+                <SymlinkMenuItems info={nodeByIdOf(nodes, nodeId)!.data.symlink!} />
               )}
             </ContextMenuSubContent>
           </ContextMenuSub>
