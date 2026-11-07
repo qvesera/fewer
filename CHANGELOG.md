@@ -7,6 +7,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored the canvas breadcrumb bar: it was left unmounted by the panel-split refactor (03166bb) even though it still shipped in the bundle, so the selected card's path no longer showed anywhere.
+
 ## [0.9.0] - 2026-11-08
 
 ### Security

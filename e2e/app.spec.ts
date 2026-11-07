@@ -627,3 +627,27 @@ test("the app header keeps the fewer brand link", async ({ page }) => {
   await expect(brand.getByText("fewer")).toBeVisible();
   await expect(brand.locator("img[alt='fewer logo']")).toBeVisible();
 });
+
+// The pill kept shipping but lost its mount in the panel-split refactor
+// (03166bb): `<BreadcrumbBar />` was a sibling of the old <main>-level canvas
+// and TreeRenderer never got it — while README/docs still promised it. Pin the
+// mount plus the selection → path behaviour (T-244 / #576).
+test("the canvas breadcrumb bar shows the selected card's path (T-244)", async ({ page }) => {
+  await openCanvas(page);
+
+  // Nothing selected → the component returns null, no pill at all.
+  const bar = page.getByTestId("breadcrumb-bar");
+  await expect(bar).toHaveCount(0);
+
+  // Select the src folder → root-to-card path appears.
+  await srcHeader(page).click();
+  await expect(bar).toBeVisible();
+  await expect(bar).toContainText("fewer");
+  await expect(bar).toContainText("src");
+
+  // The crumb buttons navigate: picking the root leaves root alone.
+  await bar.getByRole("button", { name: "fewer" }).click();
+  await expect(bar.getByRole("button")).toHaveCount(1);
+  await expect(bar).toContainText("fewer");
+});
+
