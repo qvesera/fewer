@@ -18,6 +18,13 @@ const nextConfig: NextConfig = {
   },
   reactStrictMode: false,
 
+  // T-239 diagnosis: the CPU profile's hot frames come back minified (`eV @2`),
+  // and guessing at them once already produced a wrong verdict (the census
+  // blamed the minimap; the A/B exonerated it). A probe build emits browser
+  // source maps so hot frames resolve to real file:line — never the shipping
+  // build, which stays map-free.
+  productionBrowserSourceMaps: process.env.PERF_SOURCEMAPS === "1",
+
   // Baseline security headers (audit F-5). CSP is deliberately omitted for now:
   // Next's inline scripts make a correct CSP a larger, separate change.
   async headers() {

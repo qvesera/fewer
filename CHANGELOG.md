@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-08
+
 ### Security
 
 - Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
@@ -40,6 +42,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clicking a search result now reveals it (and its hidden ancestors) even when it is hidden by the active view's Hide Files layer or another per-view hide layer, so the canvas zooms to it instead of nothing — search selection outranks every hide mechanism, and the result's hidden badge now reflects the view's effective hidden set.
 - Clear Canvas confirmation button label is readable again: the destructive button carried both text-white and a trailing text-muted-foreground, and cn()/tailwind-merge keeps the last colour class, so the label rendered muted grey on red (~2:1) instead of white (~5:1)
 - Plan-change email cron actually runs now: scripts/plan-change-notify.ts was never committed because scripts/* is gitignored (all three scheduled runs failed with 'Module not found'), so production rows only ever delivered via the webhook; the script is tracked with a .gitignore exception
+- Settings dialog no longer clips its tab strip at any tier: the dialog now matches the Import dialog's width (sm:max-w-xl, 36rem), so its strip — up to eight tabs ≈820px — is wider than the dialog by design and is reached by scrolling it horizontally (vertical wheel over the strip scrolls it sideways, gliding smoothly, with the scrollbar hidden); the e2e proves every far tab stays reachable for both the six-tab guest and eight-tab Pro sets
+
+### Performance
+
+- Hidden Cards panel now renders at most 300 rows on large graphs, with a 'Showing X of Y rows' footer so the rest stays reachable via search (was one row per hidden root — ~190k DOM nodes at 25k cards)
+- Large graphs open far faster: the canvas no longer force-mounts every card on first paint (React Flow now culls to the viewport using seeded first-paint geometry), and the minimap is painted as three paths instead of one DOM node per card
+- Cards re-render only when their own children change: per-child rows/counts are derived with referentially-stable selectors, per-card height lookups no longer scan the whole node list (O(1) instead of O(N) per store write), and the canvas scope carries a content-stable hidden set instead of a rebuilt-per-write visible set
+- Perf harness lands with CI regression gates: deterministic fixtures (perfFixtures.ts), a perf:bench script, and perfBudgets.test.ts guarding the open path, child-row derivation (slot map), indexed height lookups, the path-painted minimap, and the hidden-cards row cap
+- Context menu content now mounts only while the menu is open, so an unrelated store write no longer re-renders every card's menu or eagerly recomputes parent/child checks and descendant walks (the last T-240 ceiling)
 
 ## [0.8.0] - 2026-10-28
 
