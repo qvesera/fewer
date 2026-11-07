@@ -212,6 +212,7 @@ Access via sidebar. Shows all hidden cards grouped by their visible parent folde
 - One reveal is one undo step (it used to be two or three, one per internal action)
 - **Hover a row** to highlight the corresponding folder(s) on the canvas. Hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
 - **Search** filters by folder name or path as well as file name
+- **Row budget**: at most 300 rows are rendered at once (folder headers plus roots), so a graph with thousands of hidden cards stays fast. A footer shows `Showing X of Y rows` when rows were left out — use search to narrow the list, and the budget lifts for a query that matches only a few. Rows are filtered by search first, so a narrow query is never truncated
 
 ## Search
 

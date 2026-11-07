@@ -6042,7 +6042,7 @@ tasks:
   session_count: 1
 - id: "T-215"
   title: "Accessibility settings tab: colour vision, contrast, motion, focus, canvas screen reader support"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: null
@@ -6100,7 +6100,7 @@ tasks:
   session_count: 1
 - id: "T-217"
   title: "Header logo text: plain foreground instead of the orange gradient"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "theme"
   tier: null
@@ -6135,7 +6135,7 @@ tasks:
   session_count: 2
 - id: "T-218"
   title: "Contributor License Agreement (DCO sign-off) + contribution-licensing docs"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "docs"
   tier: null
@@ -6222,7 +6222,7 @@ tasks:
   session_count: 1
 - id: "T-221"
   title: "PNG export text uses fallback fonts (SVG-in-img cannot fetch webfonts) — embed a subset or document the limitation"
-  status: "review"
+  status: "done"
   type: "research"
   area: "export"
   tier: 0
@@ -6251,7 +6251,7 @@ tasks:
   session_count: 1
 - id: "T-222"
   title: "Export 'Quality' slider is really pixel scale (quality/50 → 1x–2x) and its % is passed to toBlob where PNG ignores it — rename/decouple"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "export"
   tier: 0
@@ -6280,7 +6280,7 @@ tasks:
   session_count: 1
 - id: "T-223"
   title: "Search results don't reveal or zoom to hidden files when Hide Files is on"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "other"
   tier: null
@@ -6529,7 +6529,7 @@ tasks:
   session_count: 0
 - id: "T-232"
   title: "Add AI-generated code disclaimer and update privacy policy with security hardening section"
-  status: "review"
+  status: "done"
   type: "docs"
   area: "docs"
   tier: 1
@@ -6663,14 +6663,14 @@ tasks:
   session_count: 1
 - id: "T-236"
   title: "plan-change-notify cron has never run: scripts/* is gitignored, so scripts/plan-change-notify.ts was never committed and every scheduled run fails with Module not found"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "billing"
   tier: null
   estimate_min: 120
   estimate_basis: "type-default"
   issue: 551
-  pr: 552
+  pr: 556
   internal: false
   milestone: null
   blocked_by: []
@@ -6689,4 +6689,225 @@ tasks:
     proof: ["4bc81ce", "#552"]
     effort: {commits: 1, files: 4, insertions: 58, deletions: 0}
   spent_min: 10
+  session_count: 1
+- id: "T-237"
+  title: "Cap the Hidden Cards panel at 300 rows with an accounted footer"
+  status: "done"
+  type: "perf"
+  area: "performance"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 558
+  pr: 559
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T21:59:38Z"
+  notes: ["2026-11-05T22:03:46Z · Port of desktop T-226: 300-row budget + accounted footer in the Hidden Cards panel"]
+  sessions:
+  - start: "2026-11-05T22:13:17Z"
+    end: "2026-11-05T22:24:24Z"
+    measured: true
+    note: "Ported desktop T-226: capHiddenRows() 300-row budget + accounted footer in Hidden Cards panel. New unit + DOM tests, docs bullet, changelog entry. PR #559."
+    proof: ["26b8d28", "#559"]
+    effort: {commits: 1, files: 7, insertions: 247, deletions: 2}
+  spent_min: 11
+  session_count: 1
+- id: "T-238"
+  title: "Settings tab strip clips tabs at Pro tier: 47rem sized for six tabs but non-guest desktop shows eight; strip…"
+  status: "done"
+  type: "fix"
+  area: "ux"
+  tier: null
+  estimate_min: 120
+  estimate_basis: "type-default"
+  issue: 557
+  pr: 568
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#557"
+  time_source: "measured"
+  reporter: "qvesera"
+  assignee: "qvesera"
+  created_at: "2026-11-05T21:22:38Z"
+  notes: ["2026-11-05T22:00:22Z · adopted at intake from GitHub (open)"]
+  sessions:
+  - start: "2026-11-07T14:04:25Z"
+    end: "2026-11-07T14:23:09Z"
+    measured: true
+    note: "Widen Settings dialog 47rem->59rem to fit the 8-tab Pro set, unhide strip scrollbar, e2e covers guest+Pro. Reproduced scroll=820>client=654 at 47rem; both pass at 59rem. 1973+264 tests, e2e 78/78. PR #568."
+    proof: ["14617ca", "#568"]
+    effort: {commits: 1, files: 3, insertions: 32, deletions: 19}
+  - start: "2026-11-07T18:19:34Z"
+    end: "2026-11-07T18:25:46Z"
+    measured: true
+    note: "Follow-up: Settings width now matches Import (sm:max-w-xl/36rem) instead of 59rem; tab strip wheel-scrolls horizontally (React onWheel — the settingsOpen effect never attached because it ran before Radix's portal mounted the strip) with scroll-smooth and a hidden scrollbar; e2e pins the 576px width and wheel reachability for guest + Pro."
+    proof: ["125dc87"]
+    effort: {commits: 1, files: 3, insertions: 74, deletions: 30}
+  spent_min: 25
+  session_count: 2
+- id: "T-239"
+  title: "Stop force-mounting every card on open; paint the minimap as paths"
+  status: "done"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 560
+  pr: 561
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-05T22:28:17Z"
+  notes: ["2026-11-05T22:28:28Z · Port of desktop T-225 (6108aba): rfInternals seeding + path-painted minimap"]
+  sessions:
+  - start: "2026-11-05T22:32:40Z"
+    end: "2026-11-05T22:55:07Z"
+    measured: true
+    note: "Ported desktop T-225: rfInternals first-paint seeding + path-painted minimap (GraphMinimap), CustomMiniMap deleted, PERF_SOURCEMAPS probe flag, groups e2e censuses hardened for viewport culling. Full e2e 77/77. PR #561 (stacked on #559)."
+    proof: ["ea1a4db", "#561"]
+    effort: {commits: 1, files: 13, insertions: 765, deletions: 118}
+  - start: "2026-11-06T08:32:05Z"
+    end: "2026-11-06T08:32:59Z"
+    measured: true
+    note: "e2e hardening for culling: groups censuses poll for mounted cards, app #285 waits for the fit to settle before selecting (CI caught both). PR #561."
+    proof: ["70a0e6e", "#561"]
+    effort: {commits: 1, files: 2, insertions: 20, deletions: 0}
+  spent_min: 23
+  session_count: 2
+- id: "T-240"
+  title: "Cards subscribe to their own children, not the whole graph"
+  status: "done"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 562
+  pr: 563
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-06T09:56:30Z"
+  notes: ["2026-11-06T09:56:31Z · Port of desktop T-219a (ac32cc4): value selectors via cardChildRows + scope hiddenIds instead of per-batch visibleIds"]
+  sessions:
+  - start: "2026-11-06T10:00:36Z"
+    end: "2026-11-06T10:23:58Z"
+    measured: true
+    note: "Ported desktop T-219a: cardChildRows stable selectors, scope hiddenIds + GroupFrames paintedIds, O(1) height lookup, setGraph/reset slot wiring (unwired upstream). 1966+264 tests, e2e 77/77. PR #563."
+    proof: ["f7ee3b1", "#563"]
+    effort: {commits: 1, files: 11, insertions: 318, deletions: 26}
+  - start: "2026-11-06T11:05:34Z"
+    end: "2026-11-06T11:06:18Z"
+    measured: true
+    note: "Follow-up: both context menus' ten nodes.find scans replaced with nodeByIdOf (shared cached index). 1966+264 tests, app+groups e2e 44/44. PR #563."
+    proof: ["a9e35e7", "#563"]
+    effort: {commits: 1, files: 1, insertions: 10, deletions: 10}
+  spent_min: 24
+  session_count: 2
+- id: "T-241"
+  title: "Perf harness: deterministic fixtures, benches, CI budgets"
+  status: "done"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 564
+  pr: 565
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-06T12:07:56Z"
+  notes: ["2026-11-06T12:08:04Z · Phase D: deterministic perf fixtures + benches + CI budgets; replaces throwaway /tmp benches with repeatable regression gates"]
+  sessions:
+  - start: "2026-11-06T12:12:18Z"
+    end: "2026-11-06T12:23:20Z"
+    measured: true
+    note: "Perf harness: perfFixtures.ts, perf.bench.ts, perfBudgets.test.ts (7 CI budgets), perf:bench script, changelog entry. 1973+264 tests pass, bench runs clean. PR #565."
+    proof: ["2e3ed49", "#565"]
+    effort: {commits: 1, files: 5, insertions: 397, deletions: 0}
+  spent_min: 11
+  session_count: 1
+- id: "T-242"
+  title: "Defer context-menu content to open time (T-240 ceiling)"
+  status: "done"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 566
+  pr: 567
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-07T13:41:09Z"
+  notes: ["2026-11-07T13:41:28Z · Extract Folder/File context-menu content into child components that mount only while open (Radix Portal), deferring eager graph reads to open time"]
+  sessions:
+  - start: "2026-11-07T13:45:34Z"
+    end: "2026-11-07T13:53:58Z"
+    measured: true
+    note: "Split Folder/File context menus into thin wrapper + content component mounted only on open; eager graph reads deferred to open time, closing T-240's ceiling. 1973+264 tests, full e2e 77 pass. PR #567."
+    proof: ["2c80e02", "#567"]
+    effort: {commits: 1, files: 2, insertions: 78, deletions: 18}
+  spent_min: 8
+  session_count: 1
+- id: "T-243"
+  title: "Release v0.9.0: changelog cut + package.json sync"
+  status: "review"
+  type: "task"
+  area: "docs"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 570
+  pr: 571
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-07T19:36:25Z"
+  notes: []
+  sessions:
+  - start: "2026-11-07T19:43:34Z"
+    end: "2026-11-07T19:48:07Z"
+    measured: true
+    note: "Changelog cut: finalized 28 Unreleased entries into ## [0.9.0] - 2026-11-08, opened a fresh Unreleased, bumped package.json 0.8.0 -> 0.9.0. v0.8.0 was already cut 2026-10-28 so this is the next train. Lands via a PR to dev (protected), then the release: dev -> main promote PR."
+    proof: ["4e34dcb"]
+    effort: {commits: 1, files: 2, insertions: 3, deletions: 1}
+  spent_min: 5
   session_count: 1

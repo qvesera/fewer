@@ -6,6 +6,9 @@ import {
   buildRingIds,
   hiddenChildrenOf,
   indexHiddenTreeChildren,
+  capHiddenRows,
+  HIDDEN_ROW_BUDGET,
+  type HiddenGroup,
   type HiddenTreeNode,
 } from "./hiddenGroups";
 import type { FewerNode, FewerEdge } from "./types";
@@ -300,5 +303,63 @@ describe("buildRingIds", () => {
 
   test("no subtree roots → just node + ancestors", () => {
     expect(buildRingIds("a", edges, [])).toEqual(["a", "docs", "root"]);
+  });
+});
+
+describe("capHiddenRows (T-237 row budget)", () => {
+  /** A group the way `getHiddenLayerGroups` emits it. `roots` = row count. */
+  const group = (label: string, roots: number, standalone = false): HiddenGroup => ({
+    parentNode: standalone
+      ? null
+      : ({ id: `p-${label}`, data: { label } } as HiddenGroup["parentNode"]),
+    parentPath: standalone ? "" : `/root/${label}`,
+    hiddenCount: roots,
+    roots: Array.from({ length: roots }, (_, i) => ({
+      node: { id: `${label}-${i}` } as HiddenGroup["roots"][number]["node"],
+      children: [],
+    })),
+  });
+
+  test("lists under the budget pass through untouched", () => {
+    const groups = [group("docs", 2), group("src", 3)];
+    const capped = capHiddenRows(groups, 100);
+    expect(capped.groups).toEqual(groups); // same refs: no copy for the common case
+    expect(capped.shown).toBe(1 + 2 + 1 + 3);
+    expect(capped.omitted).toBe(0);
+  });
+
+  test("caps the overflowing group, drops what follows, and every row is accounted for", () => {
+    // rows: A(1 header + 2) + B(1 + 5) + C(1 + 3) = 13 total, budget 5
+    const capped = capHiddenRows([group("a", 2), group("b", 5), group("c", 3)], 5);
+    expect(capped.shown).toBe(5); // a-complete (3) + b header + 1 root
+    expect(capped.omitted).toBe(8);
+    expect(capped.shown + capped.omitted).toBe(13);
+    expect(capped.groups).toHaveLength(2);
+    expect(capped.groups[0]!.roots).toHaveLength(2);
+    expect(capped.groups[1]!.roots).toHaveLength(1); // b truncated
+    expect(capped.groups[1]!.hiddenCount).toBe(5); // header still tells the truth
+  });
+
+  test("standalone roots (no context folder) cost no header row", () => {
+    // 6 standalone roots, budget 4 → row units minus header = 6
+    const capped = capHiddenRows([group("bare", 6, true)], 4);
+    expect(capped.shown).toBe(4);
+    expect(capped.omitted).toBe(2);
+    expect(capped.groups[0]!.parentNode).toBeNull();
+  });
+
+  test("budget smaller than the first header omits everything", () => {
+    const capped = capHiddenRows([group("docs", 3)], 0);
+    expect(capped.groups).toHaveLength(0);
+    expect(capped.shown).toBe(0);
+    expect(capped.omitted).toBe(4);
+  });
+
+  test("the shipped budget is the one the panel documents (300 rows)", () => {
+    expect(HIDDEN_ROW_BUDGET).toBe(300);
+    const big = [group("huge", 10_000)];
+    const capped = capHiddenRows(big);
+    expect(capped.shown).toBe(HIDDEN_ROW_BUDGET);
+    expect(capped.omitted).toBe(10_000 + 1 - HIDDEN_ROW_BUDGET);
   });
 });
