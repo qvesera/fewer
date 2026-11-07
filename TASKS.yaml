@@ -6746,8 +6746,14 @@ tasks:
     note: "Widen Settings dialog 47rem->59rem to fit the 8-tab Pro set, unhide strip scrollbar, e2e covers guest+Pro. Reproduced scroll=820>client=654 at 47rem; both pass at 59rem. 1973+264 tests, e2e 78/78. PR #568."
     proof: ["14617ca", "#568"]
     effort: {commits: 1, files: 3, insertions: 32, deletions: 19}
-  spent_min: 19
-  session_count: 1
+  - start: "2026-11-07T18:19:34Z"
+    end: "2026-11-07T18:25:46Z"
+    measured: true
+    note: "Follow-up: Settings width now matches Import (sm:max-w-xl/36rem) instead of 59rem; tab strip wheel-scrolls horizontally (React onWheel — the settingsOpen effect never attached because it ran before Radix's portal mounted the strip) with scroll-smooth and a hidden scrollbar; e2e pins the 576px width and wheel reachability for guest + Pro."
+    proof: ["125dc87"]
+    effort: {commits: 1, files: 3, insertions: 74, deletions: 30}
+  spent_min: 25
+  session_count: 2
 - id: "T-239"
   title: "Stop force-mounting every card on open; paint the minimap as paths"
   status: "done"
