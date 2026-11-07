@@ -6942,14 +6942,14 @@ tasks:
   session_count: 1
 - id: "T-245"
   title: "Make canvas breadcrumbs pane-aware (per-leaf selection path)"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "ui"
   tier: null
   estimate_min: 90
   estimate_basis: "cli"
   issue: 578
-  pr: null
+  pr: 579
   internal: false
   milestone: null
   blocked_by: []
