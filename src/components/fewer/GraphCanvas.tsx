@@ -14,7 +14,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 
-import { CustomNode, KeyboardShortcuts } from ".";
+import { BreadcrumbBar, CustomNode, KeyboardShortcuts } from ".";
 import { GroupFrames } from "./GroupFrames";
 import { GroupPillNode } from "./GroupPillNode";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
@@ -498,6 +498,9 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       onPointerUp={onPointerUp}
       onPointerCancel={onPointerCancel}
       onContextMenu={(e) => e.preventDefault()}>
+      {/* Sits above ReactFlow: BreadcrumbBar carries its own absolute
+          left-3 top-3 anchoring (same as the pre-panel-split placement). */}
+      <BreadcrumbBar />
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}

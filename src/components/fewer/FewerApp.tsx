@@ -7,7 +7,6 @@ import {
   SearchPanel,
   ErrorBoundary,
   GraphCanvas,
-  BreadcrumbBar,
 } from ".";
 import { CanvasLiveRegion } from "./CanvasLiveRegion";
 import { useGraphStore } from "@/store/graphStore";
