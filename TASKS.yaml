@@ -6721,7 +6721,7 @@ tasks:
   session_count: 1
 - id: "T-238"
   title: "Settings tab strip clips tabs at Pro tier: 47rem sized for six tabs but non-guest desktop shows eight; strip…"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ux"
   tier: null
@@ -6826,7 +6826,7 @@ tasks:
   session_count: 2
 - id: "T-241"
   title: "Perf harness: deterministic fixtures, benches, CI budgets"
-  status: "review"
+  status: "done"
   type: "perf"
   area: "performance"
   tier: 1
@@ -6855,7 +6855,7 @@ tasks:
   session_count: 1
 - id: "T-242"
   title: "Defer context-menu content to open time (T-240 ceiling)"
-  status: "review"
+  status: "done"
   type: "perf"
   area: "performance"
   tier: 1
