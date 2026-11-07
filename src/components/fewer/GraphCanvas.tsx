@@ -499,8 +499,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       onPointerCancel={onPointerCancel}
       onContextMenu={(e) => e.preventDefault()}>
       {/* Sits above ReactFlow: BreadcrumbBar carries its own absolute
-          left-3 top-3 anchoring (same as the pre-panel-split placement). */}
-      <BreadcrumbBar />
+          left-3 top-3 anchoring (same as the pre-panel-split placement).
+          Pane-aware: reads THIS leaf's selection lens (T-245), so split views
+          each show their own path. */}
+      <BreadcrumbBar selectedIds={leafSelection} leafId={leafId} />
       <ReactFlow
         nodes={rfNodes} edges={rfEdges} nodeTypes={nodeTypes}
         onNodesChange={handleNodesChange as import("@xyflow/react").OnNodesChange}

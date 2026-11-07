@@ -128,7 +128,7 @@ docker run -p 3000:3000 fewer
 - **Sibling sort**: order children by Name, Size, Type, or Tag (asc/desc); applies recursively
 - **Tags** *(Pro)*: assign named, colored tags to folders and files. Tagged cards show a permanent highlight ring with each tag's color split evenly around the border; filter the canvas by tag from the search panel, manage tags in the sidebar, and assign via right-click → Tags
 - **Panel workspace** *(Pro)*: multi-view dock with split views and corner grips for side-by-side comparisons
-- **Breadcrumb bar**: selected card's full path
+- **Breadcrumb bar**: selected card's full path — one bar per pane, each following its own pane's selection
 
 </details>
 
