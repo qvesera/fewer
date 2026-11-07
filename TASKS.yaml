@@ -6913,14 +6913,14 @@ tasks:
   session_count: 1
 - id: "T-244"
   title: "Restore breadcrumb bar dropped in panel-split refactor"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "ui"
   tier: null
   estimate_min: 60
   estimate_basis: "cli"
   issue: 576
-  pr: null
+  pr: 577
   internal: false
   milestone: null
   blocked_by: []
