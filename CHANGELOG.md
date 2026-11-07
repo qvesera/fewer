@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-11-08
+
 ### Security
 
 - Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
