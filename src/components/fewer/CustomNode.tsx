@@ -213,14 +213,42 @@ function FolderContextMenu({
   nodeWebUrl?: string;
   children: React.ReactNode;
 }) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-56">
+        <FolderMenuContent
+          nodeId={nodeId}
+          nodeLabel={nodeLabel}
+          nodePath={nodePath}
+          nodeWebUrl={nodeWebUrl}
+        />
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/**
+ * The folder menu's items. Radix mounts ContextMenuContent's children only
+ * while the menu is open, so every graph read here — useGraphData, the
+ * edges.some parent/child checks, nodeByIdOf, the Visibility submenu's
+ * descendant walk — is deferred to open time instead of running on every
+ * store write (T-240's menu-ceiling fix). The wrapper above holds no store
+ * subscription, so it only re-renders when the card itself does.
+ */
+function FolderMenuContent({
+  nodeId,
+  nodeLabel,
+  nodePath,
+  nodeWebUrl,
+}: {
+  nodeId: string;
+  nodeLabel: string;
+  nodePath: string;
+  nodeWebUrl?: string;
+}) {
   const scope = useGraphViewScope();
   const { nodes, edges } = useGraphData();
-  // ponytail: this menu reads the WHOLE nodes/edges at render time (the
-  // Visibility submenu computes childIds/descendants eagerly), so the wrapper
-  // re-renders once per store write even after T-240 made the card's own
-  // selectors stable. Ceiling, not a defect: upgrade path is a content component
-  // that mounts only while the menu is open, moving every graph read behind
-  // the open state.
   const { selectedNodeIds } = useUiState();
   const { deleteNodes: deleteNode, setRenamingId, setClipboard, setSelectedNodeIds, duplicateNodeUnderParent } = useStoreActions();
   const dataSource = useGraphStore((s) => s.dataSource);
@@ -242,10 +270,8 @@ function FolderContextMenu({
   );
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-56">
-        <GroupedBatchSection nodeId={nodeId} />
+    <>
+      <GroupedBatchSection nodeId={nodeId} />
         {!isBatchSelection && (
         <>
         <ContextMenuSeparator />
@@ -572,8 +598,7 @@ function FolderContextMenu({
         </ContextMenuItem>
         </>
         )}
-      </ContextMenuContent>
-    </ContextMenu>
+    </>
   );
 }
 
@@ -676,6 +701,43 @@ function FileEntryContextMenu({
   nodePath?: string;
   children: React.ReactNode;
 }) {
+  return (
+    <ContextMenu>
+      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
+      <ContextMenuContent className="w-52">
+        <FileMenuContent
+          nodeId={nodeId}
+          nodeLabel={nodeLabel}
+          onDelete={onDelete}
+          showOpenFile={showOpenFile}
+          nodeWebUrl={nodeWebUrl}
+          renameSource={menuRenameSource}
+          nodePath={nodePath}
+        />
+      </ContextMenuContent>
+    </ContextMenu>
+  );
+}
+
+/** The file menu's items — mounts only while the menu is open (see
+ *  FolderMenuContent); the wrapper holds no store subscription. */
+function FileMenuContent({
+  nodeId,
+  nodeLabel,
+  onDelete,
+  showOpenFile,
+  nodeWebUrl,
+  renameSource: menuRenameSource = "canvas",
+  nodePath,
+}: {
+  nodeId: string;
+  nodeLabel: string;
+  onDelete: () => void;
+  showOpenFile?: boolean;
+  nodeWebUrl?: string;
+  renameSource?: "canvas" | "folder";
+  nodePath?: string;
+}) {
   const { nodes, edges } = useGraphData();
   const { selectedNodeIds } = useUiState();
   const { setRenamingId, setClipboard, duplicateNodeUnderParent, setSelectedNodeIds } = useStoreActions();
@@ -697,10 +759,8 @@ function FileEntryContextMenu({
   );
 
   return (
-    <ContextMenu>
-      <ContextMenuTrigger asChild>{children}</ContextMenuTrigger>
-      <ContextMenuContent className="w-52">
-        <GroupedBatchSection nodeId={nodeId} />
+    <>
+      <GroupedBatchSection nodeId={nodeId} />
         {!isBatchSelection && (
         <>
         <ContextMenuSeparator />
@@ -894,8 +954,7 @@ function FileEntryContextMenu({
         </ContextMenuItem>
         </>
         )}
-      </ContextMenuContent>
-    </ContextMenu>
+    </>
   );
 }
 

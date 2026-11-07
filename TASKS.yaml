@@ -6841,3 +6841,32 @@ tasks:
     effort: {commits: 1, files: 5, insertions: 397, deletions: 0}
   spent_min: 11
   session_count: 1
+- id: "T-242"
+  title: "Defer context-menu content to open time (T-240 ceiling)"
+  status: "review"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 566
+  pr: 567
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-07T13:41:09Z"
+  notes: ["2026-11-07T13:41:28Z · Extract Folder/File context-menu content into child components that mount only while open (Radix Portal), deferring eager graph reads to open time"]
+  sessions:
+  - start: "2026-11-07T13:45:34Z"
+    end: "2026-11-07T13:53:58Z"
+    measured: true
+    note: "Split Folder/File context menus into thin wrapper + content component mounted only on open; eager graph reads deferred to open time, closing T-240's ceiling. 1973+264 tests, full e2e 77 pass. PR #567."
+    proof: ["2c80e02", "#567"]
+    effort: {commits: 1, files: 2, insertions: 78, deletions: 18}
+  spent_min: 8
+  session_count: 1

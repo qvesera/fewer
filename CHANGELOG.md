@@ -47,6 +47,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Large graphs open far faster: the canvas no longer force-mounts every card on first paint (React Flow now culls to the viewport using seeded first-paint geometry), and the minimap is painted as three paths instead of one DOM node per card
 - Cards re-render only when their own children change: per-child rows/counts are derived with referentially-stable selectors, per-card height lookups no longer scan the whole node list (O(1) instead of O(N) per store write), and the canvas scope carries a content-stable hidden set instead of a rebuilt-per-write visible set
 - Perf harness lands with CI regression gates: deterministic fixtures (perfFixtures.ts), a perf:bench script, and perfBudgets.test.ts guarding the open path, child-row derivation (slot map), indexed height lookups, the path-painted minimap, and the hidden-cards row cap
+- Context menu content now mounts only while the menu is open, so an unrelated store write no longer re-renders every card's menu or eagerly recomputes parent/child checks and descendant walks (the last T-240 ceiling)
 
 ## [0.8.0] - 2026-10-28
 
