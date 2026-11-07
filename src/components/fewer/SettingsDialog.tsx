@@ -1635,12 +1635,13 @@ export function SettingsDialog() {
           of content, which scrolls (and clips) inside a 512px dialog. The
           sm:max-w override is required: DialogContent's base sm:max-w-lg (512px)
           would otherwise cap this width back down. */}
-      {/* 47rem (752px at the default scale): six tabs with icons measure ~585px
-          of content in the system face and ~630px once Geist is actually
-          applied (T-221), and every dimension here is rem so the whole dialog
-          scales with --ui-scale — a px width would shrink the strip's room as
-          the type grew (the tab-fit e2e pins scrollWidth <= clientWidth). */}
-      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[47rem] max-w-[calc(100%-2rem)] sm:max-w-[47rem] h-[36.875rem] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
+      {/* 59rem (944px at the default scale): the strip must fit the WIDEST tab
+          set — eight tabs on non-guest desktop (~820px of content; six were
+          ~630px and drove the old 47rem) — with the ~26px slack the six-tab set
+          had, so no tier clips. Every dimension is rem so the whole dialog
+          scales with --ui-scale alongside the labels (the tab-fit e2e pins
+          scrollWidth <= clientWidth for BOTH the guest and Pro sets, T-238). */}
+      <DialogContent dialogTitle="Settings" dialogIcon={<Settings className="h-3.5 w-3.5" />} className="w-[59rem] max-w-[calc(100%-2rem)] sm:max-w-[59rem] h-[36.875rem] max-h-[85vh] overflow-hidden flex flex-col gap-0 p-0 rounded-2xl border-border/60 bg-background/95 backdrop-blur-xl shadow-2xl">
         <DialogHeader className="shrink-0 p-6 pb-4 border-b border-border/40">
           <div className="flex items-center gap-3">
             <div className="flex h-9 w-9 items-center justify-center rounded-xl bg-primary/10 border border-primary/20 text-primary">
@@ -1657,7 +1658,7 @@ export function SettingsDialog() {
 
         <Tabs value={tab} onValueChange={setTab} className="flex min-h-0 flex-1 flex-col">
           <div className="px-6 pt-3 pb-2 border-b border-border/30 bg-muted/10">
-            <TabsList ref={listRef} className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+            <TabsList ref={listRef} className="w-full justify-start h-9 bg-transparent p-0 gap-1 overflow-x-auto">
               {tabs.map((id) => {
                 const { label, Icon } = TAB_META[id];
                 return (

@@ -77,19 +77,30 @@ test("the Settings dialog renders no text below 11px", async ({ page }) => {
 // The tab strip is one non-wrapping row: at the 12px floor five tabs measure
 // ~485px in the system face and ~630px once Geist is applied (T-221), which is
 // why the dialog is 47rem wide (DialogContent's base sm:max-w-lg caps it at 512
-// otherwise — the reason this is pinned).
-test("every Settings tab fits without scrolling the strip", async ({ page }) => {
-  await page.goto("/app");
-  await page.locator('[title="Settings"]').click();
-  await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
-  await page.waitForTimeout(500); // let the zoom-in-95 open animation settle
-  const fit = await page.evaluate(() => {
-    const list = document.querySelector('[role="tablist"]') as HTMLElement | null;
-    return list ? { scroll: list.scrollWidth, client: list.clientWidth } : null;
+// otherwise — the reason this is pinned). Pro/non-guest desktop shows EIGHT
+// tabs (~840px), so the strip must fit the widest set too (T-238): the test
+// runs both the six-tab guest set and the eight-tab Pro set, and pins the tab
+// count so the tier override can't silently test the wrong set.
+for (const [tier, expectedTabs] of [
+  ["guest", 6],
+  ["pro", 8],
+] as const) {
+  test(`every Settings tab fits without scrolling the strip (${tier}, ${expectedTabs} tabs)`, async ({ page }) => {
+    await page.goto(tier === "guest" ? "/app" : "/app?tier=pro");
+    await page.locator('[title="Settings"]').click();
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500); // let the zoom-in-95 open animation settle
+    const fit = await page.evaluate(() => {
+      const list = document.querySelector('[role="tablist"]') as HTMLElement | null;
+      return list
+        ? { scroll: list.scrollWidth, client: list.clientWidth, tabs: list.querySelectorAll('[role="tab"]').length }
+        : null;
+    });
+    expect(fit, "tab strip missing").not.toBeNull();
+    expect(fit!.tabs, `tier=${tier} should show ${expectedTabs} tabs`).toBe(expectedTabs);
+    expect(fit!.scroll, `tab strip scrolls — dialog too narrow (${tier})`).toBeLessThanOrEqual(fit!.client);
   });
-  expect(fit, "tab strip missing").not.toBeNull();
-  expect(fit!.scroll, "tab strip scrolls — dialog too narrow").toBeLessThanOrEqual(fit!.client);
-});
+}
 
 // T-216/T-215: the Interface Scale control lives in Accessibility and writes
 // --ui-scale on <html> (root font-size follows); Auto removes it so the
