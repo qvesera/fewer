@@ -40,6 +40,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clicking a search result now reveals it (and its hidden ancestors) even when it is hidden by the active view's Hide Files layer or another per-view hide layer, so the canvas zooms to it instead of nothing — search selection outranks every hide mechanism, and the result's hidden badge now reflects the view's effective hidden set.
 - Clear Canvas confirmation button label is readable again: the destructive button carried both text-white and a trailing text-muted-foreground, and cn()/tailwind-merge keeps the last colour class, so the label rendered muted grey on red (~2:1) instead of white (~5:1)
 - Plan-change email cron actually runs now: scripts/plan-change-notify.ts was never committed because scripts/* is gitignored (all three scheduled runs failed with 'Module not found'), so production rows only ever delivered via the webhook; the script is tracked with a .gitignore exception
+- Settings dialog no longer clips its tab strip at any tier: the dialog now matches the Import dialog's width (sm:max-w-xl, 36rem), so its strip — up to eight tabs ≈820px — is wider than the dialog by design and is reached by scrolling it horizontally (vertical wheel over the strip scrolls it sideways, gliding smoothly, with the scrollbar hidden); the e2e proves every far tab stays reachable for both the six-tab guest and eight-tab Pro sets
 
 ### Performance
 

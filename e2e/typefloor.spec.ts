@@ -74,22 +74,65 @@ test("the Settings dialog renders no text below 11px", async ({ page }) => {
   expectNoTinyText(await textUnderFloor(page));
 });
 
-// The tab strip is one non-wrapping row: at the 12px floor five tabs measure
-// ~485px in the system face and ~630px once Geist is applied (T-221), which is
-// why the dialog is 47rem wide (DialogContent's base sm:max-w-lg caps it at 512
-// otherwise — the reason this is pinned).
-test("every Settings tab fits without scrolling the strip", async ({ page }) => {
-  await page.goto("/app");
-  await page.locator('[title="Settings"]').click();
-  await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
-  await page.waitForTimeout(500); // let the zoom-in-95 open animation settle
-  const fit = await page.evaluate(() => {
-    const list = document.querySelector('[role="tablist"]') as HTMLElement | null;
-    return list ? { scroll: list.scrollWidth, client: list.clientWidth } : null;
+// The tab strip is one non-wrapping row, and the dialog is deliberately narrow:
+// it matches the Import dialog's width (sm:max-w-xl, 36rem), leaving the strip
+// ~526px of space. The strip is WIDER than that by design — six tabs ≈630px in
+// Geist and up to eight ≈820px (T-221/T-238) — so it overflows and the far tabs
+// are reached by scrolling horizontally (wheel, or the scrollbar). The test runs
+// both the six-tab guest set and the eight-tab Pro set, pins the tab count so
+// the tier override can't silently test the wrong set, and proves reachability:
+// the strip overflows, wheel over it advances the scroll offset, and the last
+// tab sits fully in view once scrolled to the end.
+for (const [tier, expectedTabs] of [
+  ["guest", 6],
+  ["pro", 8],
+] as const) {
+  test(`Settings tab strip wheel-scrolls to every tab (${tier}, ${expectedTabs} tabs)`, async ({ page }) => {
+    await page.goto(tier === "guest" ? "/app" : "/app?tier=pro");
+    await page.locator('[title="Settings"]').click();
+    await expect(page.getByRole("dialog")).toBeVisible({ timeout: 10000 });
+    await page.waitForTimeout(500); // let the zoom-in-95 open animation settle
+    const strip = page.locator('[role="tablist"]');
+    await expect(strip, "tab strip missing").toHaveCount(1);
+    const tabs = await strip.evaluate((el) => el.querySelectorAll('[role="tab"]').length);
+    expect(tabs, `tier=${tier} should show ${expectedTabs} tabs`).toBe(expectedTabs);
+
+    // The width must match the Import dialog: both pass sm:max-w-xl (36rem),
+    // which at the default 16px root renders 576px wide (Import relies on the
+    // base w-full + that same cap, so the two dialogs are identical here).
+    const dialogW = await page.getByRole("dialog").evaluate((el) => Math.round(el.getBoundingClientRect().width));
+    expect(dialogW, "Settings width should match the Import dialog (36rem/576px)").toBe(576);
+
+    // The dialog matches Import's width, so the strip (up to eight tabs ≈820px)
+    // is WIDER than the dialog by design — reaching the far tabs scrolls.
+    const overflows = await strip.evaluate((el) => el.scrollWidth > el.clientWidth);
+    expect(overflows, "strip should overflow the narrow dialog by design").toBe(true);
+
+    // Vertical wheel over the strip scrolls it HORIZONTALLY (the fix): start at
+    // the left edge — INSTANTLY, since scroll-smooth animates a plain assignment —
+    // wheel over the strip, then let the glide settle before reading the offset.
+    await strip.evaluate((el) => el.scrollTo({ left: 0, behavior: "instant" }));
+    const box = (await strip.boundingBox())!;
+    await page.mouse.move(box.x + box.width / 2, box.y + box.height / 2);
+    await page.mouse.wheel(0, 400);
+    await page.waitForTimeout(500); // scroll-smooth: let the wheel step glide
+    const scrolled = await strip.evaluate((el) => el.scrollLeft);
+    expect(scrolled, "wheel should scroll the strip horizontally").toBeGreaterThan(0);
+
+    // …and every tab is reachable: scrolled to the end (instantly), the last tab
+    // sits fully inside the strip's visible box.
+    await strip.evaluate((el) => el.scrollTo({ left: el.scrollWidth, behavior: "instant" }));
+    await page.waitForTimeout(100);
+    const reachable = await strip.evaluate((el) => {
+      const all = el.querySelectorAll<HTMLElement>('[role="tab"]');
+      const last = all[all.length - 1];
+      const s = el.getBoundingClientRect();
+      const l = last.getBoundingClientRect();
+      return l.right <= s.right + 1 && l.left >= s.left - 1;
+    });
+    expect(reachable, "last tab reachable by scrolling the strip").toBe(true);
   });
-  expect(fit, "tab strip missing").not.toBeNull();
-  expect(fit!.scroll, "tab strip scrolls — dialog too narrow").toBeLessThanOrEqual(fit!.client);
-});
+}
 
 // T-216/T-215: the Interface Scale control lives in Accessibility and writes
 // --ui-scale on <html> (root font-size follows); Auto removes it so the
