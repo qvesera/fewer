@@ -590,6 +590,14 @@ export const MENU_SHORTCUT_HINTS = {
 
 export type MenuShortcutId = keyof typeof MENU_SHORTCUT_HINTS;
 
+/**
+ * Bindings that only exist with EXACTLY ONE card selected — F2 renames one
+ * card, it does not open the batch-rename dialog. In a multi-selection menu the
+ * action still exists ("Rename…"), but its key does nothing, so the hint must
+ * not appear.
+ */
+const SINGLE_SELECTION_ONLY = new Set<MenuShortcutId>(["rename"]);
+
 /** Format a hint for the menu: `copy` + `"⌘"` → `"⌘+C"`, + `"Ctrl"` → `"Ctrl+C"`. */
 export function menuShortcutHint(id: MenuShortcutId, mod: string): string {
   return MENU_SHORTCUT_HINTS[id].replace("{mod}", mod);
@@ -597,11 +605,17 @@ export function menuShortcutHint(id: MenuShortcutId, mod: string): string {
 
 /**
  * Same, for menu actions whose id comes from a data table (`batchActions`):
- * returns `null` when the action has no binding, so the caller simply omits the
- * hint instead of inventing one.
+ * returns `null` when the action has no binding — or when `scope === "batch"`
+ * and the binding only exists for a single-card selection — so the caller
+ * simply omits the hint instead of inventing one.
  */
-export function tryMenuShortcutHint(id: string, mod: string): string | null {
+export function tryMenuShortcutHint(
+  id: string,
+  mod: string,
+  scope: "single" | "batch" = "single",
+): string | null {
   if (!(id in MENU_SHORTCUT_HINTS)) return null;
+  if (scope === "batch" && SINGLE_SELECTION_ONLY.has(id as MenuShortcutId)) return null;
   return menuShortcutHint(id as MenuShortcutId, mod);
 }
 

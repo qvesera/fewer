@@ -729,6 +729,11 @@ test("hints render for the platform and vanish where no binding exists", () => {
   expect(tryMenuShortcutHint("group", "Ctrl")).toBeNull();
   expect(tryMenuShortcutHint("move-to-folder", "Ctrl")).toBeNull();
   expect(tryMenuShortcutHint("hide", "Ctrl")).toBe("H");
+  // …and a single-card binding must not advertise itself on a multi-selection
+  // action: F2 renames ONE card, whereas batch "Rename…" opens the dialog.
+  expect(tryMenuShortcutHint("rename", "Ctrl")).toBe("F2");
+  expect(tryMenuShortcutHint("rename", "Ctrl", "batch")).toBeNull();
+  expect(tryMenuShortcutHint("copy", "Ctrl", "batch")).toBe("Ctrl+C");
 });
 
 // ─── Dialog blocking ───────────────────────────────────────────────────

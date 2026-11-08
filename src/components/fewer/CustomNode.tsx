@@ -584,9 +584,10 @@ function FolderMenuContent({
   );
 }
 
-/** Keyboard hint for a batch action id — nothing at all when it has no binding. */
+/** Keyboard hint for a batch action id — nothing when it has no binding in
+ *  a MULTI-selection context (F2 renames one card, not a batch dialog). */
 function BatchHint({ id, mod }: { id: string; mod: string }) {
-  const hint = tryMenuShortcutHint(id, mod);
+  const hint = tryMenuShortcutHint(id, mod, "batch");
   if (!hint) return null;
   return <ContextMenuShortcut aria-hidden="true">{hint}</ContextMenuShortcut>;
 }

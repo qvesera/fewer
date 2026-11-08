@@ -42,9 +42,10 @@ interface CanvasContextMenuProps {
   close: () => void;
 }
 
-/** Keyboard hint for a batch action id — nothing at all when it has no binding. */
+/** Keyboard hint for a batch action id — nothing when it has no binding in
+ *  a MULTI-selection context (F2 renames one card, not a batch dialog). */
 function DropdownHint({ id, mod }: { id: string; mod: string }) {
-  const hint = tryMenuShortcutHint(id, mod);
+  const hint = tryMenuShortcutHint(id, mod, "batch");
   if (!hint) return null;
   return <DropdownMenuShortcut aria-hidden="true">{hint}</DropdownMenuShortcut>;
 }

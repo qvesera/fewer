@@ -6971,7 +6971,7 @@ tasks:
   session_count: 1
 - id: "T-246"
   title: "Rework card, edge and canvas context menus: header identity, Details submenu, one shared design"
-  status: "review"
+  status: "in-progress"
   type: "refactor"
   area: "ui"
   tier: 2
@@ -7014,5 +7014,11 @@ tasks:
     note: "Batch menu reorganization: groupBatchActions returns edit/structure/visibility/select/delete clusters with a partition test, both renderers draw the same shape with separators, More Actions removed, docs+groups e2e updated (21/21, force-click documented)"
     proof: ["482875f", "#581"]
     effort: {commits: 1, files: 9, insertions: 267, deletions: 113}
+  - start: "2026-11-08T15:04:33Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 80
-  session_count: 4
+  session_count: 5
