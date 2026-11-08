@@ -7006,30 +7006,30 @@ tasks:
   session_count: 2
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "ui"
   tier: 2
   estimate_min: 90
   estimate_basis: "cli"
   issue: 582
-  pr: null
+  pr: 583
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-08T12:19:40Z"
   notes: ["2026-11-08T12:20:02Z · T-239 kept RF's colors but dropped the maskColor overlay, nodeBorderRadius and the neutral viewport stroke: chips render as 2px non-scaling outlines, selection shares the folder orange, and the clamped viewport rect hugs the frame at fit-zoom. Fix: pure viewportMaskPath() (unit-tested), dim outside-viewport, fill-only chips, cyan selectRing for selection + viewport outline, omit the outline when it covers the frame"]
   sessions:
   - start: "2026-11-08T12:25:26Z"
-    end: null
+    end: "2026-11-08T12:39:31Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Minimap: viewportMaskPath (unit-tested) restores the outside-viewport dim sheet, chips are fills without 2px outlines, selection + viewport use the selection accent; e2e drag test extended with the three invariants; docs + changelog updated"
+    proof: ["03bd9cb", "#583"]
+    effort: {commits: 1, files: 9, insertions: 179, deletions: 26}
+  spent_min: 14
   session_count: 1
