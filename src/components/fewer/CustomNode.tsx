@@ -1158,8 +1158,11 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   // re-sorted every mounted card. Now each selector returns either a primitive
   // or a referentially-stable derived array (cardChildRows), so a write
   // re-renders only the cards whose OWN children changed.
+  // A pill (user- or LOD-collapsed) renders no rows: skip the child sort
+  // entirely — the per-card work that used to run even though the list is
+  // thrown away (ported from desktop's zoom-lag pass, T-267).
   const childRows = useGraphStore(
-    (s) => (isFolder ? childRowsOf(id, s.nodes, s.edges) : EMPTY_ROWS),
+    (s) => (isFolder && !isCollapsed ? childRowsOf(id, s.nodes, s.edges) : EMPTY_ROWS),
   );
   const childCount = useGraphStore(
     (s) => (isFolder ? childCountOf(id, s.edges) : 0),
@@ -1196,11 +1199,11 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   // content-stable hidden SET (not the per-write visible set), so it's a plain
   // number that only changes when the hidden set or the children do.
   const hiddenChildCount = useMemo(() => {
-    if (!isFolder) return 0;
+    if (!isFolder || isCollapsed) return 0;
     let painted = 0;
     for (const c of childRows) if (!scope.hiddenIds.has(c.id)) painted++;
     return childCount - painted;
-  }, [childCount, childRows, isFolder, scope.hiddenIds]);
+  }, [childCount, childRows, isFolder, isCollapsed, scope.hiddenIds]);
   const children = childRows;
 
   const isRenaming = !!scope?.isActive && renamingId === id;
