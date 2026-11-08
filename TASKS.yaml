@@ -6971,14 +6971,14 @@ tasks:
   session_count: 1
 - id: "T-246"
   title: "Rework card, edge and canvas context menus: header identity, Details submenu, one shared design"
-  status: "in-progress"
+  status: "review"
   type: "refactor"
   area: "ui"
   tier: 2
   estimate_min: 180
   estimate_basis: "cli"
   issue: 580
-  pr: null
+  pr: 581
   internal: false
   milestone: null
   blocked_by: []
@@ -6997,10 +6997,10 @@ tasks:
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
   - start: "2026-11-08T12:02:05Z"
-    end: null
+    end: "2026-11-08T12:05:05Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 22
+    note: "Menus: identity header + Details submenu (folders+files), unified Radix surface for edge/pane/selection, edge Go to Parent/Child; 13 new unit cases, 3 menu e2e green, docs+README+changelog updated"
+    proof: ["2bce9f1", "#581"]
+    effort: {commits: 1, files: 14, insertions: 1049, deletions: 565}
+  spent_min: 25
   session_count: 2
