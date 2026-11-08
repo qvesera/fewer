@@ -9,6 +9,9 @@ import {
   readShortcutStateFields,
   shiftHOutcome,
   toStoreReader,
+  MENU_SHORTCUT_HINTS,
+  menuShortcutHint,
+  tryMenuShortcutHint,
   type ShortcutCtx,
   type StoreReader,
 } from "./keyboardShortcuts";
@@ -648,6 +651,84 @@ test("Ctrl+V paste toasts real clipboard content", () => {
   const { ctx, a } = makeCtx({ getState: () => toStoreReader({ clipboard: { mode: "copy", nodeIds: ["n1"] }, nodes: [{ id: "n1" }] }) });
   expect(fire(buildKeyboardRules(), ctx, { ctrlKey: true, key: "v" })).toBe(true);
   expect(a.toast).toBeDefined();
+});
+
+// ─── Menu shortcut hints ───────────────────────────────────────────
+// MENU_SHORTCUT_HINTS is what the context menus render beside an item. If the
+// binding behind an entry changes (or is removed), the menu would advertise a
+// dead key — so every entry is fired back through the dispatcher below, and the
+// two tables are asserted to stay in sync.
+
+const HINT_KEYS: Record<keyof typeof MENU_SHORTCUT_HINTS, Record<string, unknown>> = {
+  rename: { key: "F2" },
+  copy: { ctrlKey: true, key: "c" },
+  cut: { ctrlKey: true, key: "x" },
+  paste: { ctrlKey: true, key: "v" },
+  duplicate: { ctrlKey: true, key: "d" },
+  delete: { key: "Delete" },
+  hide: { key: "h" },
+  showAll: { key: "h", shiftKey: true },
+  unparent: { altKey: true, shiftKey: true, key: "p" },
+  addChild: { altKey: true, key: "n" },
+  selectAll: { ctrlKey: true, key: "a" },
+  organize: { altKey: true, key: "r" },
+  clearCanvas: { altKey: true, shiftKey: true, key: "n" },
+  openInExplorer: { altKey: true, key: "o" },
+  openFile: { key: "Enter" },
+};
+
+test("the hint table and its firing map are the same set", () => {
+  expect(Object.keys(HINT_KEYS).sort()).toEqual(Object.keys(MENU_SHORTCUT_HINTS).sort());
+});
+
+for (const id of Object.keys(HINT_KEYS) as (keyof typeof HINT_KEYS)[]) {
+  test(`menu hint "${id}" fires its binding`, () => {
+    const made = makeCtx();
+    // One selected folder + OS integration on: every guarded rule (copy/delete,
+    // Alt+O, Enter) sees the state its guard asks for.
+    made.ctx.getState = () =>
+      withActions(
+        toStoreReader({
+          selectedNodeIds: ["n1"],
+          // Paste only consumes the key when there is something to paste —
+          // the guard the hint has to satisfy too.
+          clipboard: { mode: "copy", nodeIds: ["n1"] },
+          nodes: [{ id: "n1", data: { type: "folder", label: "n1", path: "n1", depth: 0 } }] as never,
+        }),
+        made.a,
+      );
+    made.ctx.localFs = {
+      openInOs: true,
+      openFileInOs: true,
+      dragDropImport: false,
+      dropToExpand: false,
+      fsaDirectoryPicker: false,
+      // LOCAL_FS_FEATURES is `as const` false in the WEB build; Alt+O / Enter
+      // only fire where a native build flips these, so the harness plays one.
+    } as unknown as ShortcutCtx["localFs"];
+
+    const e = new MockKeyboardEvent("keydown", HINT_KEYS[id]) as any;
+    try {
+      handleKeyboardShortcut(e, buildKeyboardRules(), made.ctx);
+    } catch {
+      // A rule may match and then reach for app runtime this harness has no
+      // business providing (`window.dispatchEvent`, a full store reader).
+      // Every rule preventDefaults FIRST, so the consumed key — not the
+      // side effect — is what proves the hint is backed by a live binding.
+    }
+    expect(e.defaultPrevented).toBe(true);
+  });
+}
+
+test("hints render for the platform and vanish where no binding exists", () => {
+  expect(menuShortcutHint("copy", "⌘")).toBe("⌘+C");
+  expect(menuShortcutHint("copy", "Ctrl")).toBe("Ctrl+C");
+  expect(menuShortcutHint("unparent", "⌘")).toBe("Alt+Shift+P");
+  expect(menuShortcutHint("openFile", "Ctrl")).toBe("Enter");
+  // batchActions ids with no binding must NOT get an invented hint
+  expect(tryMenuShortcutHint("group", "Ctrl")).toBeNull();
+  expect(tryMenuShortcutHint("move-to-folder", "Ctrl")).toBeNull();
+  expect(tryMenuShortcutHint("hide", "Ctrl")).toBe("H");
 });
 
 // ─── Dialog blocking ───────────────────────────────────────────────────

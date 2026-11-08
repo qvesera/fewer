@@ -137,6 +137,19 @@ actions. Previously this lived under `Info` and held *only* those actions, so a
 folder imported from a repository or a URL opened an empty submenu; the rows mean
 it is never empty now.
 
+### Shortcut hints
+
+Every menu item that has a keyboard binding shows its key on the right —
+Unparent → `Alt+Shift+P`, Add Child Card → `Alt+N`, Select All → `Ctrl+A`,
+Organize → `Alt+R`, Clear Canvas → `Alt+Shift+N`, Open in File Explorer → `Alt+O`,
+Open File → `Enter`, Hide → `H`, Show All → `Shift+H` (and the usual
+`F2` / `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+D` / `Delete` cluster). The hints are
+drawn from the same table that implements the keys — `MENU_SHORTCUT_HINTS` in
+`keyboardShortcuts.ts`, which a test fires back through the dispatcher — so a menu
+cannot advertise a key that stopped working. Items with no binding show no hint,
+and the connection menu deliberately shows none: `Delete` only removes a
+*selected* connection, and a right-click does not select one.
+
 > **OS integration is switched off in the web build.** "Open in File Explorer"
 > and "Open File" go through server-side OS openers (`/api/open-folder`,
 > `/api/open-file`) that only exist on a locally-running server, and those routes

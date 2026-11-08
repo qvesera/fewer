@@ -18,6 +18,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Context menus open with a header naming what you right-clicked (card name + path, selection count and breakdown, Connection with both ends, Canvas with its card count) and every menu item now shows its shortcut
 - Details replaces the Info submenu on folders and files alike: type, path, size or contents, source, tags and symlink target first, then Open in provider / Download, Open File, Copy Name, Open in File Explorer, Refresh from Disk and the symlink actions
 - The edge menu gains Go to Parent and Go to Child, and the edge and canvas menus use the same Radix surface as the card menus (keyboard navigation included) instead of hand-rolled divs
+- Context menus show the keyboard shortcut of every item that has one — Unparent Alt+Shift+P, Add Child Card Alt+N, Select All Ctrl+A, Organize Alt+R, Clear Canvas Alt+Shift+N, Open in File Explorer Alt+O, Open File Enter, Hide H, Show All Shift+H — plus the same hints in the batch sections; hints are read from MENU_SHORTCUT_HINTS, which a test fires through the key dispatcher, and the connection menu stays keyless because Delete only acts on a selected connection
 
 ## [0.9.0] - 2026-11-08
 
