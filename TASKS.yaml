@@ -7053,7 +7053,7 @@ tasks:
   session_count: 3
 - id: "T-248"
   title: "Custom-theme contrast helper measures the palette, not the painted card — Fix makes text worse"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7078,5 +7078,11 @@ tasks:
     note: "Contrast measured as painted: canvasSurface/cardSurface composite body+ink at real opacities (gradients averaged), ensureContrastTinted lightens/darkens by surface with hue preserved and reports reached:false (Fix hides), badge tooltip names the surface; 7 new tests incl. the reported pair; docs+changelog; PR #585"
     proof: ["08794ce", "#585"]
     effort: {commits: 1, files: 7, insertions: 323, deletions: 54}
+  - start: "2026-11-08T19:28:52Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 4
-  session_count: 1
+  session_count: 2
