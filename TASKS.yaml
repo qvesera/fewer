@@ -7006,7 +7006,7 @@ tasks:
   session_count: 2
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7032,10 +7032,10 @@ tasks:
     proof: ["03bd9cb", "#583"]
     effort: {commits: 1, files: 9, insertions: 179, deletions: 26}
   - start: "2026-11-08T13:36:01Z"
-    end: null
+    end: "2026-11-08T13:36:59Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 14
+    note: "Follow-up: canvas polarity now comes from useDarkBackground (custom themes are no longer read as light) and the minimap dims with the theme's own --background token; new e2e guards panel + mask under a custom dark theme"
+    proof: ["02e0d28", "#583"]
+    effort: {commits: 1, files: 7, insertions: 91, deletions: 10}
+  spent_min: 15
   session_count: 2
