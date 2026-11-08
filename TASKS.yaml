@@ -6988,7 +6988,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-08T11:33:04Z"
-  notes: ["2026-11-08T11:33:09Z · Header identity (name/path), Details submenu with metadata rows (type/path/size/items/source/tags), same submenu on files, edge menu gains Go to Parent/Child, all four menus on one Radix surface"]
+  notes: ["2026-11-08T11:33:09Z · Header identity (name/path), Details submenu with metadata rows (type/path/size/items/source/tags), same submenu on files, edge menu gains Go to Parent/Child, all four menus on one Radix surface", "2026-11-08T12:20:02Z · Minimap visual regression split out to T-247 (same umbrella: canvas UI polish)"]
   sessions:
   - start: "2026-11-08T11:37:42Z"
     end: "2026-11-08T11:59:26Z"
@@ -7020,5 +7020,58 @@ tasks:
     note: "Batch hint honesty: F2 is single-selection only, so tryMenuShortcutHint gained a batch scope (rename suppressed there); both hint renderers pass it, pinned by test. Gates: tsc/lint/build green, 2010+267 unit pass, app e2e 4/4, groups e2e 21/21"
     proof: ["7b7c5f0", "#581"]
     effort: {commits: 1, files: 5, insertions: 36, deletions: 9}
-  spent_min: 83
-  session_count: 5
+  - start: "2026-11-08T18:05:56Z"
+    end: "2026-11-08T18:07:20Z"
+    measured: true
+    note: "no work: branch switched to fix/minimap-viewport-mask mid-session; the minimap fix belongs to T-247"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 84
+  session_count: 6
+- id: "T-247"
+  title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
+  status: "review"
+  type: "fix"
+  area: "ui"
+  tier: 2
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 582
+  pr: 583
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T12:19:40Z"
+  notes: ["2026-11-08T12:20:02Z · T-239 kept RF's colors but dropped the maskColor overlay, nodeBorderRadius and the neutral viewport stroke: chips render as 2px non-scaling outlines, selection shares the folder orange, and the clamped viewport rect hugs the frame at fit-zoom. Fix: pure viewportMaskPath() (unit-tested), dim outside-viewport, fill-only chips, cyan selectRing for selection + viewport outline, omit the outline when it covers the frame"]
+  sessions:
+  - start: "2026-11-08T12:25:26Z"
+    end: "2026-11-08T12:39:31Z"
+    measured: true
+    note: "Minimap: viewportMaskPath (unit-tested) restores the outside-viewport dim sheet, chips are fills without 2px outlines, selection + viewport use the selection accent; e2e drag test extended with the three invariants; docs + changelog updated"
+    proof: ["03bd9cb", "#583"]
+    effort: {commits: 1, files: 9, insertions: 179, deletions: 26}
+  - start: "2026-11-08T13:36:01Z"
+    end: "2026-11-08T13:36:59Z"
+    measured: true
+    note: "Follow-up: canvas polarity now comes from useDarkBackground (custom themes are no longer read as light) and the minimap dims with the theme's own --background token; new e2e guards panel + mask under a custom dark theme"
+    proof: ["02e0d28", "#583"]
+    effort: {commits: 1, files: 7, insertions: 91, deletions: 10}
+  - start: "2026-11-08T18:07:21Z"
+    end: "2026-11-08T18:10:01Z"
+    measured: true
+    note: "Minimap surface: RF's own #fff .react-flow__minimap background painted over the themed panel (found via elementFromPoint) — svg now paints transparent, panel's colour-mix shows through; e2e asserts svg background transparent + panel == color-mix(--background 80%)"
+    proof: ["60811a5", "#583"]
+    effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
+  - start: "2026-11-08T19:16:37Z"
+    end: "2026-11-08T19:26:06Z"
+    measured: true
+    note: "Merged origin/dev into this branch to clear PR #583's conflicts: CHANGELOG/e2e auto-merged, TASKS.yaml resolved as a union (T-246 gains dev's 3 hint/batch sessions + our empty session = 6 sessions/84m; T-247 row kept); gates green — tsc, lint 0 errors, 2014+267 tests, build"
+    proof: ["26150a3", "#583"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 27
+  session_count: 4
