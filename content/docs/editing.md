@@ -96,23 +96,46 @@ In Power User mode, right-click a folder for:
 | Copy / Cut / Paste    | Clipboard-aware        |
 | Duplicate             | Sibling "copy"         |
 | Unparent              | Make root-level        |
-| Delete                | Cascade                |
-| Show/Hide Children    | Power User mode        |
+| Select Children       | Selects the folder's direct children |
+| Collapse / Expand Folder | Power User mode; applies to this view |
+| Visibility → Show/Hide Children | Power User mode        |
+| Tags / Select by Tag  | Power User mode, Pro tier |
 | Add Child Card        | Power User mode        |
-| Open in File Explorer | Disabled in the web build |
-| Copy Path             | Desktop app only: copies the card's full path; hidden in the web app      |
-| Refresh from Disk     | Directory imports only; desktop app re-scans through the shell |
+| Add Parent Card       | Prompts for the new parent |
+| Details               | The folder's own facts (type, path, contents, source, tags, link) followed by Open in &lt;provider&gt;, Open in File Explorer, Refresh from Disk and the symlink actions — see below |
+| Delete                | Cascade                |
 
 ### Files
 
 | Action                 | Notes                                   |
 | ---------------------- | --------------------------------------- |
-| Rename                 | Updates extension/category              |
+| Rename                 | F2; updates extension/category          |
 | Copy / Cut / Duplicate | Clipboard-aware                         |
-| Copy Path              | Desktop app only: copies the card's full path |
-| Copy Name              | Copies filename to clipboard            |
+| Paste                  | Into the selected folder, or at the root |
+| Unparent               | Detach from its parent                  |
+| Add Parent Card        | Prompts for the new parent              |
+| Tags                   | Same submenu as folders                 |
+| Select → By Type / By Category / By Tag | Replaces the selection with matching files |
+| Details                | Type, path, size, source, tags, link — then Open in &lt;provider&gt; / Download, Open File, Copy Name and the symlink actions |
 | Delete                 | Single card                             |
-| Open File              | Disabled in the web build               |
+
+### The menu header and Details
+
+Every card menu opens with a header naming what you right-clicked — the card's
+name, with its path underneath — so the first thing you read is *which* card the
+actions apply to. Right-clicking one card of a multi-selection swaps it for the
+selection's own header: the count, then how it breaks down (`1 folder · 2
+files`).
+
+**Details** is the card's information panel, and it is the same submenu on folders
+and files. It always shows a row set — type, path, size or contents, source
+(where the graph came from), tags, and the link target when the card is a symlink
+— followed by whatever actions can reach that card: **Open in &lt;provider&gt;** for
+cloud and URL imports (**Download** for a crawled file index), **Open in File
+Explorer** and **Refresh from Disk** for directory imports, and the symlink
+actions. Previously this lived under `Info` and held *only* those actions, so a
+folder imported from a repository or a URL opened an empty submenu; the rows mean
+it is never empty now.
 
 > **OS integration is switched off in the web build.** "Open in File Explorer"
 > and "Open File" go through server-side OS openers (`/api/open-folder`,

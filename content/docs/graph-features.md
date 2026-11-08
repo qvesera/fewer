@@ -19,16 +19,29 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 
 ### Canvas Context Menu
 
-Right-click empty canvas space to open quick actions:
+Right-click empty canvas space to open quick actions. The menu opens with a
+header naming what you hit — **Canvas**, with the card count under it (and how
+many are hidden):
 
-- **Fit View**: zoom to show all cards
 - **Select All**: select every visible card
 - **Organize**: re-runs the tree layout to reflow the graph, in every view and not just the active one. The view re-fits to the whole graph afterwards, and a layout-direction change does the same
-- **Zoom In / Zoom Out**
-- **Delete Connection**: removes the last-clicked connection
-- **Parent selected cards (Alt+P)**: with 2+ cards selected, makes the last-selected folder the parent of the rest
-- **Show All**: reveal hidden cards (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
+- **Show All**: reveal hidden cards (Power User mode)
+- **Hide Files / Show Files** and **Hide Minimap / Show Minimap**: per-view toggles for the panel this canvas shows
+- **Clear Canvas**: empties the whole graph
+
+### Connection Context Menu
+
+Right-click a connection for a menu headed **Connection**, with both ends named
+(`src → index.ts`):
+
+- **Go to Parent**: selects and centres the card the arrow starts from
+- **Go to Child**: selects and centres the card it points at
+- **Delete Connection**: removes just that link, leaving both cards in place
+
+Right-clicking a single card of a multi-selection opens the selection menu
+instead (see [Multi-Select](#multi-select)), headed with the count and how it
+breaks down.
 
 ## Card Types
 

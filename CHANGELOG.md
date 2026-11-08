@@ -11,6 +11,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 - Restored the canvas breadcrumb bar: it was left unmounted by the panel-split refactor (03166bb) even though it still shipped in the bundle, so the selected card's path no longer showed anywhere.
 - Breadcrumb bars are pane-aware again: with split canvases each pane now shows its own selected card's path (and a crumb click writes that pane's selection) instead of every pane mirroring whichever pane was touched last.
+- The folder context menu's Info submenu opened empty for folders from repository or URL imports, the file menu had no equivalent at all, and Unparent / Select Children appeared twice in the folder menu
+
+### Changed
+
+- Context menus open with a header naming what you right-clicked (card name + path, selection count and breakdown, Connection with both ends, Canvas with its card count) and every menu item now shows its shortcut
+- Details replaces the Info submenu on folders and files alike: type, path, size or contents, source, tags and symlink target first, then Open in provider / Download, Open File, Copy Name, Open in File Explorer, Refresh from Disk and the symlink actions
+- The edge menu gains Go to Parent and Go to Child, and the edge and canvas menus use the same Radix surface as the card menus (keyboard navigation included) instead of hand-rolled divs
 
 ## [0.9.0] - 2026-11-08
 
