@@ -37,11 +37,13 @@ export function useCanvasThemeColors(
     const fileIcon = cssVar("--fewer-file-icon", "#e599f7");
     const bgDot = isDark ? "rgba(173, 181, 189, 0.18)" : "rgba(100, 116, 139, 0.2)";
     const selectRing = cssVar("--fewer-select-ring", "#22d3ee");
-    // The mask sits over the panel's own frosted background, so it fades toward
-    // the theme's tone rather than toward a card: black in dark, white in light
-    // — the same trick React Flow's default maskColor pulls off with a flat
-    // gray. Fixed rgba, not color-mix(): the desktop shell's WebKit lacks it.
-    const minimapMask = isDark ? "rgba(2, 6, 23, 0.5)" : "rgba(255, 255, 255, 0.55)";
+    // The minimap's dim sheet is the BACKGROUND ITSELF at a fixed opacity
+    // (fill-opacity is applied in GraphMinimap), so it follows every theme —
+    // light, dark, custom — without knowing a thing about polarity. A fixed
+    // black/white pair only ever knew about light/dark, which is why a dark
+    // custom theme got a white scrim. Var reference, not color-mix(): the
+    // desktop shell's WebKit lacks color-mix().
+    const minimapMask = cssVar("--background", isDark ? "#0b0b13" : "#ffffff");
     return { edge, folderBg, fileBg, folderIcon, fileIcon, bgDot, selectRing, minimapMask };
   }, [themeMode, isDark, customTheme]);
 }

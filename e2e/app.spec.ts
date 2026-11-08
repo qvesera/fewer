@@ -510,6 +510,61 @@ test("minimap drag pans the canvas after a post-mount direction change", async (
   await expect(minimap.locator("rect").first()).toHaveAttribute("stroke", selectRing);
 });
 
+// The minimap's surface follows the ACTIVE theme: the frosted panel and the dim
+// sheet are both `--background`-derived. It did not — the canvas keyed "dark" off
+// `themeMode === "dark"`, and custom themes strip both `light` and `dark` from
+// <html>, so every custom theme read as light: a dark purple theme got a white
+// scrim over its map (and a near-invisible panel border). #582 follow-up.
+test("minimap panel and dim sheet follow a custom dark theme", async ({ page }) => {
+  const customTheme = {
+    version: 1,
+    background: { color: "#301b4d", opacity: 1 },
+    defaultText: { color: "#f5d0fe", opacity: 1 },
+    subtleText: { color: "#c4b5fd", opacity: 1 },
+    folderBg: { color: "#7c3aed", opacity: 0.25 },
+    fileBg: { color: "#db2777", opacity: 0.25 },
+    folderIcon: { color: "#fbbf24", opacity: 1 },
+    fileIcon: { color: "#f472b6", opacity: 1 },
+    handle: { color: "#22d3ee", opacity: 1 },
+    edge: { color: "#a78bfa", opacity: 0.6 },
+    bgDot: { color: "#4c1d95", opacity: 1 },
+    selectRing: { color: "#22d3ee", opacity: 1 },
+  };
+  await page.addInitScript((theme) => {
+    localStorage.setItem("fewer-theme", "custom");
+    localStorage.setItem("fewer-custom-theme", JSON.stringify(theme));
+  }, customTheme);
+
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const minimap = page.locator(".react-flow__minimap");
+  await expect(minimap).toBeVisible({ timeout: 10000 });
+
+  const surfaces = await page.evaluate(() => {
+    // Resolve the token the way CSS does, so the comparison survives oklch/hex.
+    const probe = document.createElement("div");
+    probe.style.color = "var(--background)";
+    probe.style.background = "color-mix(in srgb, var(--background) 80%, transparent)";
+    document.body.appendChild(probe);
+    const background = getComputedStyle(probe).color;
+    const frosted = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const panel = document.querySelector<HTMLElement>(".react-flow__panel");
+    const mask = document.querySelector("svg.react-flow__minimap path[fill-rule=evenodd]");
+    return {
+      background,
+      frosted,
+      panel: panel ? getComputedStyle(panel).backgroundColor : null,
+      mask: mask ? getComputedStyle(mask as Element).fill : null,
+    };
+  });
+
+  expect(surfaces.mask).toBe(surfaces.background);
+  expect(surfaces.panel).toBe(surfaces.frosted);
+});
+
 // Splitting while a card is selected used to crash: the new leaf had no
 // selection of its own, so it painted the SHARED selection, reported it back,
 // and the two canvases traded `activeLeafId` — each flip re-pushing the other's

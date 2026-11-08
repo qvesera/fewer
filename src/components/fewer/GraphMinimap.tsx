@@ -55,7 +55,10 @@ interface GraphMinimapProps {
   fileColor: string;
   /** Selected chips and the viewport outline — distinct from both accents. */
   selectionColor: string;
-  /** Scrim over everything outside the viewport (React Flow's `maskColor`). */
+  /**
+   * Solid colour to dim with — pass the theme's `--background` token. Alpha is
+   * fixed in the component (`MASK_OPACITY`), so the value stays a plain colour.
+   */
   maskColor: string;
   /** Chip fill alpha. */
   chipOpacity?: number;
@@ -68,6 +71,12 @@ interface GraphMinimapProps {
 const FRAME_PADDING = 0.06;
 const ZOOM_MIN = 0.15;
 const ZOOM_MAX = 3;
+/**
+ * How much the background shows through the dim sheet: chips outside the
+ * viewport fade toward the panel's own background rather than disappearing.
+ * (React Flow's default `maskColor` sat at the same ~0.6 range.)
+ */
+const MASK_OPACITY = 0.55;
 
 export function GraphMinimap({
   nodes,
@@ -221,6 +230,7 @@ export function GraphMinimap({
           <path
             d={maskPath}
             fill={maskColor}
+            fillOpacity={MASK_OPACITY}
             fillRule="evenodd"
             pointerEvents="none"
           />

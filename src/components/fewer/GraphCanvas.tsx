@@ -61,6 +61,7 @@ import {
 import { makeTagLabelLookup } from "@/lib/fewer/tags";
 import { useCanvasZoomToNode } from "@/hooks/use-canvas-zoom-to-node";
 import { useCanvasMinimap } from "@/hooks/use-canvas-minimap";
+import { useDarkBackground } from "@/hooks/use-dark-background";
 import { useCanvasNodeDrag } from "@/hooks/use-canvas-node-drag";
 import { useCanvasNodeChangeHandler } from "@/hooks/use-canvas-node-change-handler";
 import { useCanvasBoxSelect } from "@/hooks/use-canvas-box-select";
@@ -165,7 +166,13 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     [viewSettingsMap, leafId, showFilesGlobal, edgeStyleGlobal, edgeAnimatedGlobal, edgeAnimatedSelectedOnlyGlobal, edgeStrokeStyleGlobal, edgeWidthGlobal, direction, hiddenIds, fileIds, groups],
   );
 
-  const isDark = themeModeGlobal === "dark";
+  // Surface polarity for the canvas chrome (theme colors, minimap panel/mask):
+  // `themeModeGlobal === "dark"` reads EVERY custom theme as light — custom
+  // themes strip both `light` and `dark` from <html> — so a dark custom theme
+  // got light-mode chrome (white dim sheet on the minimap, near-invisible
+  // panel border). `useDarkBackground` already resolves this for the dialogs
+  // and toasts; the canvas now asks the same source of truth.
+  const isDark = useDarkBackground();
 
   // ── Hook extractions ──
   useCanvasResize(containerRef, setCanvasSize);

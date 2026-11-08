@@ -7006,7 +7006,7 @@ tasks:
   session_count: 2
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7031,5 +7031,11 @@ tasks:
     note: "Minimap: viewportMaskPath (unit-tested) restores the outside-viewport dim sheet, chips are fills without 2px outlines, selection + viewport use the selection accent; e2e drag test extended with the three invariants; docs + changelog updated"
     proof: ["03bd9cb", "#583"]
     effort: {commits: 1, files: 9, insertions: 179, deletions: 26}
+  - start: "2026-11-08T13:36:01Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 14
-  session_count: 1
+  session_count: 2
