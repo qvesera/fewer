@@ -7030,7 +7030,7 @@ tasks:
   session_count: 6
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7068,10 +7068,10 @@ tasks:
     proof: ["60811a5", "#583"]
     effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
   - start: "2026-11-08T19:16:37Z"
-    end: null
+    end: "2026-11-08T19:26:06Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 18
+    note: "Merged origin/dev into this branch to clear PR #583's conflicts: CHANGELOG/e2e auto-merged, TASKS.yaml resolved as a union (T-246 gains dev's 3 hint/batch sessions + our empty session = 6 sessions/84m; T-247 row kept); gates green — tsc, lint 0 errors, 2014+267 tests, build"
+    proof: ["26150a3", "#583"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 27
   session_count: 4
