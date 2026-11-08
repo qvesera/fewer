@@ -1151,7 +1151,13 @@ function CustomNodeImpl({
   const layoutDirection = useGraphViewDirection();
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
-const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.collapsedFolderIds.includes(id));
+  // LOD collapse (T-250): every folder renders the one-line pill while the view
+  // is collapsed — read from the scope, NOT from a per-card zoom subscription:
+  // GraphCanvas defers the flip past the zoom animation, so a card re-renders
+  // only when the settled flip lands (never mid-animation).
+  const lodCollapsed = !!scope.lodCollapsed;
+  const userCollapsed = data.collapsed === true || scope.resolved.collapsedFolderIds.includes(id);
+  const isCollapsed = isFolder && (userCollapsed || lodCollapsed);
 
   // T-240: narrow, value-stable selectors. The card used to subscribe to the
   // store's WHOLE `nodes` and `edges` arrays — any store write re-rendered and
@@ -1276,6 +1282,12 @@ if (isCollapsed) {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                if (lodCollapsed && !userCollapsed) {
+                  // LOD pill: there is no user collapse to undo — "expand" means
+                  // zoom in past the threshold, where the rows come back.
+                  useGraphStore.getState().setZoomToNodeIds([id]);
+                  return;
+                }
                 useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, id);
               }}
               onPointerDown={(e) => e.stopPropagation()}
