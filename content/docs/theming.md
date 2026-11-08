@@ -55,6 +55,12 @@ Colors are grouped into three sections:
 
 Each color has an independent opacity slider with live preview swatch. The editor uses a full `HexAlphaColorPicker` with gradient panel, hue strip, and alpha channel.
 
+### Contrast badges and Fix
+
+Some slots show a WCAG ratio badge — 4.5:1 for text, 3:1 for icons, borders, handles and rings (WCAG 1.4.11). The number is measured **on the surface as painted**, never on the raw swatch: a card body is a tint (12–18% opacity) over the canvas, so "Folder Text" is judged against the folder card you actually see, and edges/handles/rings against the canvas itself. The badge's tooltip names the exact colour it measured against, so a low number always means a real on-screen problem.
+
+**Fix** appears only while a slot is below target. It moves lightness alone — hue and saturation are preserved — in the direction the surface needs (a dark card gets lighter ink, a light one gets darker), and the edit lands in the per-section undo stack. When no such edit inside a small budget can reach the target, Fix is hidden rather than applying a colour that would not have landed.
+
 ### Draggable & Minimizable
 
 The editor is a movable panel locked within the browser window. Click the minimize (−) button to collapse it into a small draggable dock pill that snaps to any canvas edge (top/bottom/left/right). The pill renders vertically on side edges. Click the pill to restore.

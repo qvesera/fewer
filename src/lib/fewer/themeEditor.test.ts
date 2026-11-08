@@ -1,6 +1,8 @@
 import { describe, expect, it } from "bun:test";
 import {
   slotContrast,
+  fixSlotContrast,
+  cardSurface,
   DIALOG_WIDTH,
   TOP_OFFSET,
   THEME_EDITOR_SECTIONS,
@@ -23,6 +25,7 @@ import {
   popSectionUndo,
 } from "./themeEditor";
 import { THEME_COLOR_META, type CustomTheme } from "./types";
+import { hexToRgb } from "./themeColors";
 
 // Canvas bounds used across the dock/clamp tests.
 const B = { left: 100, top: 80, width: 800, height: 500 };
@@ -481,4 +484,54 @@ it("slotContrast measures a text slot against its own surface", () => {
   // Slots with no meaningful counterpart report nothing (no chip rendered).
   expect(slotContrast(makeTheme({}), "background")).toBeNull();
   expect(slotContrast(makeTheme({}), "itemHover")).toBeNull();
+});
+
+// ─── contrast as PAINTED (T-248) ─────────────────────────────────────────
+// A card body is a tint over the canvas, never the opaque accent swatch. The
+// old model measured the swatch: it called light text on a dark card ~1.2:1
+// and "Fix" darkened it into the very ink you could no longer read.
+
+it("slotContrast measures the card as painted, not the opaque swatch", () => {
+  const theme = makeTheme({
+    background: { color: "#0a0a0b", opacity: 1 },
+    folderBg: { color: "#22d3ee", opacity: 0.15 },
+    folderText: { color: "#67e8f9", opacity: 1 },
+  });
+  const measured = slotContrast(theme, "folderText")!;
+  // Against the opaque accent this text reads ~1.2:1; on the card it is fine.
+  expect(measured.ratio).toBeGreaterThan(4.5);
+  expect(measured.surface).not.toBe("#22d3ee");
+  // Nothing to repair for text that is already legible where it is drawn.
+  expect(fixSlotContrast(theme, "folderText")!.color).toBe("#67e8f9");
+});
+
+it("fixSlotContrast repairs real failures by lightening away from the card", () => {
+  const theme = makeTheme({
+    background: { color: "#0a0a0b", opacity: 1 },
+    folderBg: { color: "#22d3ee", opacity: 0.15 },
+    folderText: { color: "#1e293b", opacity: 1 }, // dark slate on a dark card
+  });
+  const low = slotContrast(theme, "folderText")!;
+  expect(low.ratio).toBeLessThan(4.5);
+
+  const fix = fixSlotContrast(theme, "folderText")!;
+  expect(fix.reached).toBe(true);
+  expect(fix.ratio).toBeGreaterThanOrEqual(4.5);
+  const rgb = hexToRgb(fix.color)!;
+  const before = hexToRgb("#1e293b")!;
+  expect(rgb.r + rgb.g + rgb.b).toBeGreaterThan(before.r + before.g + before.b); // lightened
+});
+
+it("cardSurface averages a gradient body and composites over the canvas", () => {
+  const flat = makeTheme({
+    background: { color: "#000000", opacity: 1 },
+    fileBg: { color: "#000000", opacity: 0.5 },
+  });
+  expect(cardSurface(flat, "fileBg")).toBe("#000000");
+
+  const gradient = makeTheme({
+    background: { color: "#000000", opacity: 1 },
+    fileBg: { color: "#000000", opacity: 1, gradientTo: "#ffffff" },
+  });
+  expect(cardSurface(gradient, "fileBg")).toBe("#808080"); // endpoints averaged
 });
