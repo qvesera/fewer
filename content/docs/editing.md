@@ -43,23 +43,24 @@ Right-click a card that has a parent → **Unparent** to detach it from its pare
 
 ## Batch Actions
 
-Select multiple cards (Shift+click, Shift+arrows, or Ctrl+A), then right-click any selected card. A **Batch actions** section appears at the top of the context menu:
+Select multiple cards (Shift+click, Shift+arrows, or Ctrl+A), then right-click any selected card. The menu opens with the same header as a single-card menu — the count, plus its folder/file breakdown — and the actions are grouped the way the single-card menu groups its own: **Edit**, then **Structure**, then **Visibility ▸** next to **Tags ▸** and **Select ▸**, with **Delete** last behind its own separator. The canvas selection menu (right-click the background with a selection) draws the same groups.
 
-| Action          | Notes                                                                                                                                                                                |
-| --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Rename…         | Opens a batch-rename dialog: find/replace (with `*` wildcard support), prefix/suffix, and optional numbering (name 1, name 2, …) with a live preview. File extensions are preserved. Duplicate names are skipped |
-| Copy            | Copies every selected card (with subtrees) to the clipboard                                                                                                                          |
-| Cut             | Cuts the selection to the clipboard and removes the originals; paste to place them                                                                                                   |
-| Duplicate       | Duplicates each selected card under its same parent                                                                                                                                  |
-| Hide            | Hides the whole selection (and their descendant cards); press Shift+H to restore. Routes to the active leaf's hide layer when leaves are enabled                                        |
-| Show            | Reveals selected cards that are currently hidden                                                                                                                                     |
-| Collapse Folders| Collapses every selected folder                                                                                                                                                      |
-| Expand Folders  | Expands every selected folder                                                                                                                                                        |
-| Tags            | The same **Tags** submenu a single card's menu has: check/uncheck tags across the whole selection, or create one for all of them (Pro)                                                |
-| Copy Paths      | Desktop app only: copies each selected card's full path to the clipboard, one per line                                                                                                 |
-| Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step; each item keeps its sub-items                                                           |
-| Unparent        | Detaches the top-most selected cards from their parents (cards whose parent is also selected keep their in-selection connection)                                                           |
-| Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                  |
+| Cluster | Action          | Notes                                                                                                                                                                                |
+| ------- | --------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Edit    | Rename…         | Opens a batch-rename dialog: find/replace (with `*` wildcard support), prefix/suffix, and optional numbering (name 1, name 2, …) with a live preview. File extensions are preserved. Duplicate names are skipped |
+| Edit    | Copy            | Copies every selected card (with subtrees) to the clipboard                                                                                                                          |
+| Edit    | Cut             | Cuts the selection to the clipboard and removes the originals; paste to place them                                                                                                   |
+| Edit    | Duplicate       | Duplicates each selected card under its same parent                                                                                                                                  |
+| Edit    | Copy Paths      | Desktop app only: copies each selected card's full path to the clipboard, one per line                                                                                                 |
+| Structure | Move to Folder… | Opens a folder picker and reparents all selected cards under the chosen folder in one step; each item keeps its sub-items                                                           |
+| Structure | Unparent        | Detaches the top-most selected cards from their parents (cards whose parent is also selected keep their in-selection connection) — `Alt+Shift+P`                                        |
+| Structure | Group N Items   | Wraps the selection in a group frame (see [Groups](#groups))                                                                                                                        |
+| Visibility ▸ | Hide          | Hides the whole selection (and their descendant cards); `H` restores with Shift+H. Routes to the active leaf's hide layer when leaves are enabled                                     |
+| Visibility ▸ | Show          | Reveals selected cards that are currently hidden                                                                                                                                      |
+| Visibility ▸ | Collapse Folders | Collapses every selected folder                                                                                                                                                     |
+| Visibility ▸ | Expand Folders | Expands every selected folder                                                                                                                                                         |
+| Tags ▸   | Tags            | The same **Tags** submenu a single card's menu has: check/uncheck tags across the whole selection, or create one for all of them (Pro)                                                |
+| —        | Delete N Items  | Removes the whole selection; folder deletes cascade                                                                                                                                   |
 
 Every batch action is one undoable history entry: Ctrl+Z reverts the whole batch at once.
 
@@ -96,23 +97,59 @@ In Power User mode, right-click a folder for:
 | Copy / Cut / Paste    | Clipboard-aware        |
 | Duplicate             | Sibling "copy"         |
 | Unparent              | Make root-level        |
-| Delete                | Cascade                |
-| Show/Hide Children    | Power User mode        |
+| Select Children       | Selects the folder's direct children |
+| Collapse / Expand Folder | Power User mode; applies to this view |
+| Visibility → Show/Hide Children | Power User mode        |
+| Tags / Select by Tag  | Power User mode, Pro tier |
 | Add Child Card        | Power User mode        |
-| Open in File Explorer | Disabled in the web build |
-| Copy Path             | Desktop app only: copies the card's full path; hidden in the web app      |
-| Refresh from Disk     | Directory imports only; desktop app re-scans through the shell |
+| Add Parent Card       | Prompts for the new parent |
+| Details               | The folder's own facts (type, path, contents, source, tags, link) followed by Open in &lt;provider&gt;, Open in File Explorer, Refresh from Disk and the symlink actions — see below |
+| Delete                | Cascade                |
 
 ### Files
 
 | Action                 | Notes                                   |
 | ---------------------- | --------------------------------------- |
-| Rename                 | Updates extension/category              |
+| Rename                 | F2; updates extension/category          |
 | Copy / Cut / Duplicate | Clipboard-aware                         |
-| Copy Path              | Desktop app only: copies the card's full path |
-| Copy Name              | Copies filename to clipboard            |
+| Paste                  | Into the selected folder, or at the root |
+| Unparent               | Detach from its parent                  |
+| Add Parent Card        | Prompts for the new parent              |
+| Tags                   | Same submenu as folders                 |
+| Select → By Type / By Category / By Tag | Replaces the selection with matching files |
+| Details                | Type, path, size, source, tags, link — then Open in &lt;provider&gt; / Download, Open File, Copy Name and the symlink actions |
 | Delete                 | Single card                             |
-| Open File              | Disabled in the web build               |
+
+### The menu header and Details
+
+Every card menu opens with a header naming what you right-clicked — the card's
+name, with its path underneath — so the first thing you read is *which* card the
+actions apply to. Right-clicking one card of a multi-selection swaps it for the
+selection's own header: the count, then how it breaks down (`1 folder · 2
+files`).
+
+**Details** is the card's information panel, and it is the same submenu on folders
+and files. It always shows a row set — type, path, size or contents, source
+(where the graph came from), tags, and the link target when the card is a symlink
+— followed by whatever actions can reach that card: **Open in &lt;provider&gt;** for
+cloud and URL imports (**Download** for a crawled file index), **Open in File
+Explorer** and **Refresh from Disk** for directory imports, and the symlink
+actions. Previously this lived under `Info` and held *only* those actions, so a
+folder imported from a repository or a URL opened an empty submenu; the rows mean
+it is never empty now.
+
+### Shortcut hints
+
+Every menu item that has a keyboard binding shows its key on the right —
+Unparent → `Alt+Shift+P`, Add Child Card → `Alt+N`, Select All → `Ctrl+A`,
+Organize → `Alt+R`, Clear Canvas → `Alt+Shift+N`, Open in File Explorer → `Alt+O`,
+Open File → `Enter`, Hide → `H`, Show All → `Shift+H` (and the usual
+`F2` / `Ctrl+C` / `Ctrl+X` / `Ctrl+V` / `Ctrl+D` / `Delete` cluster). The hints are
+drawn from the same table that implements the keys — `MENU_SHORTCUT_HINTS` in
+`keyboardShortcuts.ts`, which a test fires back through the dispatcher — so a menu
+cannot advertise a key that stopped working. Items with no binding show no hint,
+and the connection menu deliberately shows none: `Delete` only removes a
+*selected* connection, and a right-click does not select one.
 
 > **OS integration is switched off in the web build.** "Open in File Explorer"
 > and "Open File" go through server-side OS openers (`/api/open-folder`,
@@ -125,8 +162,8 @@ In Power User mode, right-click a folder for:
 
 ## Groups
 
-Select two or more cards, right-click → **More Actions → Group N Items** (the
-label carries the selection count) to draw a gray frame around them. The same
+Select two or more cards, right-click → **Group N Items** (in the Structure
+cluster — the label carries the selection count) to draw a gray frame around them. The same
 action lives in the card context menus' batch list, and it is identical in the
 web app and the desktop app. A group is an annotation layer, not a folder: it
 never changes the tree, and layout, search, export and undo treat the cards

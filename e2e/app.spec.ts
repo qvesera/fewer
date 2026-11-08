@@ -233,9 +233,15 @@ test("node context menu offers cut, duplicate, and delete", async ({ page }) => 
   const box = await srcHeader(page).first().boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
 
-  await expect(page.getByText("Duplicate", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Delete", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Cut", { exact: true }).first()).toBeVisible();
+  // Items carry a shortcut hint (aria-hidden, so it is not part of the
+  // accessible name) — match on the leading action name.
+  await expect(page.getByRole("menuitem", { name: /^Duplicate/ }).first()).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /^Delete/ }).first()).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /^Cut/ }).first()).toBeVisible();
+  // Shortcut hints render as their own text but stay OUT of the accessible name
+  // (aria-hidden), and a key-having item actually shows its key.
+  await expect(page.getByRole("menuitem", { name: "Unparent", exact: true })).toBeVisible();
+  await expect(page.getByText("Alt+Shift+P").first()).toBeVisible();
 });
 
 // Regression: the folder context menu renders in a portal that is still a

@@ -6949,7 +6949,7 @@ tasks:
   estimate_min: 90
   estimate_basis: "cli"
   issue: 578
-  pr: 579
+  pr: 581
   internal: false
   milestone: null
   blocked_by: []
@@ -6969,3 +6969,56 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 181, deletions: 9}
   spent_min: 10
   session_count: 1
+- id: "T-246"
+  title: "Rework card, edge and canvas context menus: header identity, Details submenu, one shared design"
+  status: "review"
+  type: "refactor"
+  area: "ui"
+  tier: 2
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 580
+  pr: 581
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T11:33:04Z"
+  notes: ["2026-11-08T11:33:09Z · Header identity (name/path), Details submenu with metadata rows (type/path/size/items/source/tags), same submenu on files, edge menu gains Go to Parent/Child, all four menus on one Radix surface"]
+  sessions:
+  - start: "2026-11-08T11:37:42Z"
+    end: "2026-11-08T11:59:26Z"
+    measured: true
+    note: "Menus: header identity, Details submenu on folders+files, unified Radix surface for edge/pane/selection menus, edge Go to Parent/Child; e2e verified (3/3) against standalone build"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-11-08T12:02:05Z"
+    end: "2026-11-08T12:05:05Z"
+    measured: true
+    note: "Menus: identity header + Details submenu (folders+files), unified Radix surface for edge/pane/selection, edge Go to Parent/Child; 13 new unit cases, 3 menu e2e green, docs+README+changelog updated"
+    proof: ["2bce9f1", "#581"]
+    effort: {commits: 1, files: 14, insertions: 1049, deletions: 565}
+  - start: "2026-11-08T13:48:39Z"
+    end: "2026-11-08T14:08:26Z"
+    measured: true
+    note: "Shortcut hints: MENU_SHORTCUT_HINTS table beside the bindings, hints on Unparent/Add Child/Open in Explorer/Open File/Select All/Organize/Show All/Clear Canvas + batch items, 13 dispatcher tests, e2e name-cleanliness check; connection menu stays keyless (measured: right-click does not select the edge)"
+    proof: ["f342330", "#581"]
+    effort: {commits: 1, files: 9, insertions: 223, deletions: 16}
+  - start: "2026-11-08T14:20:34Z"
+    end: "2026-11-08T14:55:26Z"
+    measured: true
+    note: "Batch menu reorganization: groupBatchActions returns edit/structure/visibility/select/delete clusters with a partition test, both renderers draw the same shape with separators, More Actions removed, docs+groups e2e updated (21/21, force-click documented)"
+    proof: ["482875f", "#581"]
+    effort: {commits: 1, files: 9, insertions: 267, deletions: 113}
+  - start: "2026-11-08T15:04:33Z"
+    end: "2026-11-08T15:07:11Z"
+    measured: true
+    note: "Batch hint honesty: F2 is single-selection only, so tryMenuShortcutHint gained a batch scope (rename suppressed there); both hint renderers pass it, pinned by test. Gates: tsc/lint/build green, 2010+267 unit pass, app e2e 4/4, groups e2e 21/21"
+    proof: ["7b7c5f0", "#581"]
+    effort: {commits: 1, files: 5, insertions: 36, deletions: 9}
+  spent_min: 83
+  session_count: 5

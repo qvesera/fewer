@@ -3,7 +3,11 @@ import { useGraphStore } from "@/store/graphStore";
 import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { plural } from "@/lib/fewer/plural";
 import { selectByTag } from "@/lib/fewer/batchSelect";
+import { canvasMenuHeader, edgeMenuHeader, selectionCounts, selectionMenuHeader } from "@/lib/fewer/menuInfo";
+import { menuShortcutHint, tryMenuShortcutHint } from "@/lib/fewer/keyboardShortcuts";
+import { isMac } from "@/lib/fewer/platform";
 import { TagMenu } from "./TagMenu";
+import { MenuHeader } from "./MenuChrome";
 import type { FewerNode } from "@/lib/fewer/types";
 import type { ResolvedViewSettings } from "@/lib/fewer/viewState";
 import { can } from "@/lib/fewer/tiers";
@@ -13,10 +17,10 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuSeparator,
-  DropdownMenuLabel,
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
@@ -38,6 +42,55 @@ interface CanvasContextMenuProps {
   close: () => void;
 }
 
+/** Keyboard hint for a batch action id — nothing when it has no binding in
+ *  a MULTI-selection context (F2 renames one card, not a batch dialog). */
+function DropdownHint({ id, mod }: { id: string; mod: string }) {
+  const hint = tryMenuShortcutHint(id, mod, "batch");
+  if (!hint) return null;
+  return <DropdownMenuShortcut aria-hidden="true">{hint}</DropdownMenuShortcut>;
+}
+
+/**
+ * The canvas menus are opened from the pointer position rather than from a
+ * persistent trigger, so the Radix trigger is a 1px marker parked at the click —
+ * the content then anchors itself to it (flip/shift included for free).
+ *
+ * All three kinds share this shell and the same chrome as the card menus
+ * (`MenuHeader`, `MenuInfoRows`), so an edge, the background and a card can no
+ * longer look like three different products. They also inherit Radix's keyboard
+ * navigation, which the hand-rolled divs these replaced never had.
+ */
+function PositionedMenu({
+  menu,
+  close,
+  children,
+}: {
+  menu: CanvasMenuPosition;
+  close: () => void;
+  children: ReactNode;
+}) {
+  return (
+    <>
+      <div
+        className="fixed inset-0 z-40"
+        onClick={close}
+        onContextMenu={(e) => {
+          e.preventDefault();
+          close();
+        }}
+      />
+      <DropdownMenu open onOpenChange={(o) => { if (!o) close(); }}>
+        <DropdownMenuTrigger asChild>
+          <div className="fixed z-50 h-px w-px" style={{ left: menu.x, top: menu.y }} />
+        </DropdownMenuTrigger>
+        <DropdownMenuContent className="min-w-[220px] animate-in fade-in zoom-in-95 duration-150">
+          {children}
+        </DropdownMenuContent>
+      </DropdownMenu>
+    </>
+  );
+}
+
 /**
  * Context-menu renderer for the 3 menu kinds: edge, selection (multi-node),
  * and pane (background). Moved out of CanvasInner so the component body
@@ -55,33 +108,44 @@ export function CanvasContextMenu({
   close,
 }: CanvasContextMenuProps): ReactNode {
   const { toast } = useToast();
-
-  // ── Edge right-click: minimal menu ──
+  const mod = isMac() ? "⌘" : "Ctrl";
+  // ── Edge right-click ──
+  // No `Del` hint on "Delete Connection": the Delete rule only acts on RF-
+  // SELECTED edges, and a right-click does not select an edge (measured: 0
+  // selected, and Delete with this menu open removes nothing). Advertises what
+  // the key does — not what the item does — so the two stay honest.
   if (menu.kind === "edge" && lastClickedEdgeId) {
     const eid = lastClickedEdgeId;
+    const edge = useGraphStore.getState().edges.find((e) => e.id === eid);
+    // Reveal + centre an endpoint. An edge can only paint while both ends are in
+    // the graph, so no visibility fix-up is needed here.
+    const goTo = (nodeId: string) => {
+      useGraphStore.getState().setSelectedNodeIds([nodeId]);
+      useGraphStore.getState().setZoomToNode(nodeId);
+      close();
+    };
     return (
-      <>
-        <div
-          className="fixed inset-0 z-40"
-          onClick={close}
-          onContextMenu={(e) => { e.preventDefault(); close(); }}
-        />
-        <div
-          className="gm-float fixed z-50 min-w-[160px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150"
-          style={{ left: menu.x, top: menu.y }}
+      <PositionedMenu menu={menu} close={close}>
+        <MenuHeader header={edge ? edgeMenuHeader(edge, allNodes) : { title: "Connection" }} />
+        <DropdownMenuSeparator />
+        {edge && allNodes.some((n) => n.id === edge.source) && (
+          <DropdownMenuItem onSelect={() => goTo(edge.source)}>Go to Parent</DropdownMenuItem>
+        )}
+        {edge && allNodes.some((n) => n.id === edge.target) && (
+          <DropdownMenuItem onSelect={() => goTo(edge.target)}>Go to Child</DropdownMenuItem>
+        )}
+        <DropdownMenuSeparator />
+        <DropdownMenuItem
+          onSelect={() => {
+            useGraphStore.getState().deleteEdges([eid]);
+            toast({ title: "Connection deleted", description: "1 connection removed" });
+            close();
+          }}
+          className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
         >
-          <button
-            onClick={() => {
-              useGraphStore.getState().deleteEdges([eid]);
-              toast({ title: "Connection deleted", description: "1 connection removed" });
-              close();
-            }}
-            className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98]"
-          >
-            Delete Connection
-          </button>
-        </div>
-      </>
+          Delete Connection
+        </DropdownMenuItem>
+      </PositionedMenu>
     );
   }
 
@@ -89,30 +153,58 @@ export function CanvasContextMenu({
   const isSelectionMenu = menu.kind === "selection" && ids.length >= 2;
 
   if (isSelectionMenu) {
-    const { top, more, select, delete: del } = groupBatchActions({
+    const { edit, structure, visibility, select, delete: del } = groupBatchActions({
       toast: (t) => toast(t as any),
       selectedIds: ids,
     });
     return (
-      <>
-        <div
-          className="fixed inset-0 z-40"
-          onClick={close}
-          onContextMenu={(e) => { e.preventDefault(); close(); }}
-        />
-        <DropdownMenu open onOpenChange={(o) => { if (!o) close(); }}>
-          <DropdownMenuTrigger asChild>
-            <div
-              className="fixed z-50 h-px w-px"
-              style={{ left: menu.x, top: menu.y }}
-            />
-          </DropdownMenuTrigger>
-          <DropdownMenuContent className="gm-float min-w-[200px] animate-in fade-in zoom-in-95 duration-150">
-            <DropdownMenuLabel>
-              {ids.length} items selected
-            </DropdownMenuLabel>
-            <DropdownMenuSeparator />
-            {top.map((a) => (
+      <PositionedMenu menu={menu} close={close}>
+        <MenuHeader header={selectionMenuHeader(selectionCounts(allNodes, ids))} />
+        <DropdownMenuSeparator />
+        {/* Edit — the data operations. */}
+        {edit.map((a) => (
+          <DropdownMenuItem
+            key={a.id}
+            onSelect={() => { a.run(); close(); }}
+          >
+            {a.label}
+            <DropdownHint id={a.id} mod={mod} />
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        {/* Structure — reparenting + grouping, promoted out of the old
+            "More Actions" drawer. Group ships here and in the node context
+            menus' batch section identically (web and shell). */}
+        {structure.map((a) => (
+          <DropdownMenuItem
+            key={a.id}
+            onSelect={() => { a.run(); close(); }}
+          >
+            {a.label}
+            <DropdownHint id={a.id} mod={mod} />
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        {/* View / Meta — the same submenu row as the card menus. */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Visibility</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            {visibility.map((a) => (
+              <DropdownMenuItem
+                key={a.id}
+                onSelect={() => { a.run(); close(); }}
+              >
+                {a.label}
+                <DropdownHint id={a.id} mod={mod} />
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        {can("tags", useGraphStore.getState().tier) && <TagMenu ids={ids} />}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            {select.map((a) => (
               <DropdownMenuItem
                 key={a.id}
                 onSelect={() => { a.run(); close(); }}
@@ -120,194 +212,147 @@ export function CanvasContextMenu({
                 {a.label}
               </DropdownMenuItem>
             ))}
-            {can("tags", useGraphStore.getState().tier) && <TagMenu ids={ids} />}
-            {more.length > 0 && (
-              <DropdownMenuSub>
-                <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
-                <DropdownMenuSubContent className="w-48">
-                  {more.map((a) => (
-                    <DropdownMenuItem
-                      key={a.id}
-                      onSelect={() => { a.run(); close(); }}
-                    >
-                      {a.label}
-                    </DropdownMenuItem>
-                  ))}
-                </DropdownMenuSubContent>
-              </DropdownMenuSub>
-            )}
-            <DropdownMenuSub>
-              <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
-              <DropdownMenuSubContent className="w-48">
-                {select.map((a) => (
-                  <DropdownMenuItem
-                    key={a.id}
-                    onSelect={() => { a.run(); close(); }}
-                  >
-                    {a.label}
-                  </DropdownMenuItem>
-                ))}
-                {can("tags", useGraphStore.getState().tier) && (() => {
-                  const store = useGraphStore.getState();
-                  const allTags = store.tags;
-                  return (
-                    <DropdownMenuSub>
-                      <DropdownMenuSubTrigger>By Tag</DropdownMenuSubTrigger>
-                      <DropdownMenuSubContent className="w-48">
-                        {allTags.length === 0 ? (
-                          <div className="px-2 py-1.5 text-xs text-muted-foreground">
-                            No tags yet
-                          </div>
-                        ) : allTags.map((tag) => (
-                          <DropdownMenuItem
-                            key={tag.id}
-                            onSelect={() => {
-                              selectByTag(allNodes, tag.id);
-                              toast({ title: "Selected by tag", description: `${plural(selectByTag(allNodes, tag.id).length, "card")} tagged "${tag.label}"` });
-                              close();
-                            }}
-                          >
-                            <span
-                              className="inline-block h-2 w-2 rounded-full mr-1.5"
-                              style={{ background: tag.color }}
-                            />
-                            {tag.label}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuSubContent>
-                    </DropdownMenuSub>
-                  );
-                })()}
-              </DropdownMenuSubContent>
-            </DropdownMenuSub>
-            {/* Grouping ships as a shared batch action (batchActions.ts), so it
-                appears here — under More Actions — AND in the node context
-                menus' batch section, identically on web and in the shell. */}
-            {del && (
-              <>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onSelect={() => { del.run(); close(); }}
-                  className="text-destructive focus:bg-red-500/10"
-                >
-                  {del.label}
-                </DropdownMenuItem>
-              </>
-            )}
-          </DropdownMenuContent>
-        </DropdownMenu>
-      </>
+            {can("tags", useGraphStore.getState().tier) && (() => {
+              const store = useGraphStore.getState();
+              const allTags = store.tags;
+              return (
+                <DropdownMenuSub>
+                  <DropdownMenuSubTrigger>By Tag</DropdownMenuSubTrigger>
+                  <DropdownMenuSubContent className="w-48">
+                    {allTags.length === 0 ? (
+                      <div className="px-2 py-1.5 text-xs text-muted-foreground">
+                        No tags yet
+                      </div>
+                    ) : allTags.map((tag) => (
+                      <DropdownMenuItem
+                        key={tag.id}
+                        onSelect={() => {
+                          selectByTag(allNodes, tag.id);
+                          toast({ title: "Selected by tag", description: `${plural(selectByTag(allNodes, tag.id).length, "card")} tagged "${tag.label}"` });
+                          close();
+                        }}
+                      >
+                        <span
+                          className="inline-block h-2 w-2 rounded-full mr-1.5"
+                          style={{ background: tag.color }}
+                        />
+                        {tag.label}
+                      </DropdownMenuItem>
+                    ))}
+                  </DropdownMenuSubContent>
+                </DropdownMenuSub>
+              );
+            })()}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
+        <DropdownMenuSeparator />
+        {del && (
+          <DropdownMenuItem
+            onSelect={() => { del.run(); close(); }}
+            className="text-destructive focus:bg-red-500/10"
+          >
+            {del.label}
+            <DropdownHint id={del.id} mod={mod} />
+          </DropdownMenuItem>
+        )}
+      </PositionedMenu>
     );
   }
 
   // ── Pane right-click ──
   return (
-    <>
-      <div
-        className="fixed inset-0 z-40"
-        onClick={close}
-        onContextMenu={(e) => { e.preventDefault(); close(); }}
-      />
-      <div
-        className="gm-float fixed z-50 min-w-[200px] rounded-2xl p-1.5 animate-in fade-in zoom-in-95 duration-150"
-        style={{ left: menu.x, top: menu.y }}
+    <PositionedMenu menu={menu} close={close}>
+      <MenuHeader header={canvasMenuHeader({ nodeCount: allNodes.length, hiddenCount })} />
+      <DropdownMenuSeparator />
+      <DropdownMenuItem onSelect={() => { selectAll(); close(); }}>
+        Select All
+        <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("selectAll", mod)}</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onSelect={() => {
+          useGraphStore.getState().organizeAll();
+          toast({ title: "Graph organized" });
+          close();
+        }}
       >
-        <div className="px-2 py-1 text-2xs text-muted-foreground">
-          View
-        </div>
-        <div className="my-1 h-px bg-border/40" />
-        <button
-          onClick={() => { selectAll(); close(); }}
-          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.96]"
-        >
-          Select All
-        </button>
-        <button
-          onClick={() => {
-            useGraphStore.getState().organizeAll();
-            toast({ title: "Graph organized" });
-            close();
-          }}
-          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
-        >
-          Organize
-        </button>
-        {canvasAddChildEnabled && (
-          <>
-            <button
-              onClick={() => {
-                const clip = useGraphStore.getState().clipboard;
-                if (clip && clip.nodeIds.length > 0) {
-                  useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition);
-                  useGraphStore.getState().pasteFromClipboard();
-                  toast({
-                    title: "Pasted",
-                    description: `${plural(clip.nodeIds.length, "item")} pasted`,
-                  });
-                }
-                close();
-              }}
-              disabled={!useGraphStore.getState().clipboard}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Paste
-            </button>
-            <button
-              onClick={() => {
-                if (leafId) useGraphStore.getState().revealAllForLeaf(leafId);
-                else useGraphStore.getState().showAll();
+        Organize
+        <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("organize", mod)}</DropdownMenuShortcut>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      {canvasAddChildEnabled && (
+        <>
+          <DropdownMenuItem
+            disabled={!useGraphStore.getState().clipboard}
+            onSelect={() => {
+              const clip = useGraphStore.getState().clipboard;
+              if (clip && clip.nodeIds.length > 0) {
+                useGraphStore.getState().setPastePosition(useGraphStore.getState().mousePosition);
+                useGraphStore.getState().pasteFromClipboard();
                 toast({
-                  title: "Unhid all cards",
-                  description: `${plural(hiddenCount, "card")} restored`,
+                  title: "Pasted",
+                  description: `${plural(clip.nodeIds.length, "item")} pasted`,
                 });
-                close();
-              }}
-              disabled={hiddenCount === 0}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-foreground transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Show All
-            </button>
-          </>
-        )}
-        <div className="my-1 h-px bg-border/40" />
-        {leafId && (
-          <>
-            <button
-              onClick={() => {
-                useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles);
-                close();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
-            >
-              {vs.showFiles ? "Hide Files" : "Show Files"}
-            </button>
-            <button
-              onClick={() => {
-                useGraphStore.getState().toggleMinimapForLeaf(leafId);
-                close();
-              }}
-              className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm transition-colors hover:bg-muted/60 active:scale-[0.98]"
-            >
-              {vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}
-            </button>
-          </>
-        )}
-        <div className="my-1 h-px bg-border/40" />
-        <button
-          onClick={() => {
-            useGraphStore.getState().reset();
-            toast({
-              title: "Canvas cleared",
-              description: `${plural(allNodes.length, "card")} removed`,
-            });
-            close();
-          }}
-          disabled={allNodes.length === 0}
-          className="flex w-full cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 text-sm text-red-500 transition-colors hover:bg-muted/60 active:scale-[0.98] disabled:cursor-not-allowed disabled:opacity-40"
-        >
-          Clear Canvas
-        </button>
-      </div>
-    </>
+              }
+              close();
+            }}
+          >
+            Paste
+            <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("paste", mod)}</DropdownMenuShortcut>
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            disabled={hiddenCount === 0}
+            onSelect={() => {
+              if (leafId) useGraphStore.getState().revealAllForLeaf(leafId);
+              else useGraphStore.getState().showAll();
+              toast({
+                title: "Unhid all cards",
+                description: `${plural(hiddenCount, "card")} restored`,
+              });
+              close();
+            }}
+          >
+            Show All
+            <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("showAll", mod)}</DropdownMenuShortcut>
+          </DropdownMenuItem>
+        </>
+      )}
+      {leafId && (
+        <>
+          <DropdownMenuSeparator />
+          <DropdownMenuItem
+            onSelect={() => {
+              useGraphStore.getState().setFilesBulkForLeaf(leafId, vs.showFiles);
+              close();
+            }}
+          >
+            {vs.showFiles ? "Hide Files" : "Show Files"}
+          </DropdownMenuItem>
+          <DropdownMenuItem
+            onSelect={() => {
+              useGraphStore.getState().toggleMinimapForLeaf(leafId);
+              close();
+            }}
+          >
+            {vs.minimapHidden ? "Show Minimap" : "Hide Minimap"}
+          </DropdownMenuItem>
+        </>
+      )}
+      <DropdownMenuSeparator />
+      <DropdownMenuItem
+        disabled={allNodes.length === 0}
+        onSelect={() => {
+          useGraphStore.getState().reset();
+          toast({
+            title: "Canvas cleared",
+            description: `${plural(allNodes.length, "card")} removed`,
+          });
+          close();
+        }}
+        className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
+      >
+        Clear Canvas
+        <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("clearCanvas", mod)}</DropdownMenuShortcut>
+      </DropdownMenuItem>
+    </PositionedMenu>
   );
 }

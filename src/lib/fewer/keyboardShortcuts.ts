@@ -550,6 +550,75 @@ export function buildKeyboardRules(): ShortcutRule[] {
   ];
 }
 
+// ─── Menu hints ───────────────────────────────────────────────────────────────
+
+/**
+ * The display text for every binding a context menu may show next to its item.
+ * Lives here, next to the rules that implement them, so a hint can never drift
+ * away from its key: `keyboardShortcuts.test.ts` fires every entry of this table
+ * back through the dispatcher and fails when the binding stops matching.
+ *
+ * `{mod}` is substituted by `menuShortcutHint` with the platform modifier
+ * (⌘ / Ctrl) — the same split ShortcutsDialog renders.
+ *
+ * Deliberately absent:
+ *  - actions with no key at all (Collapse Folder, Select Children, Visibility,
+ *    Tags, Move to Folder…, group, batch rename)
+ *  - **Alt+P**, which parents the *current selection* to the last-selected
+ *    folder — a different action from the menu's "Add Parent Card", which
+ *    creates a NEW parent card. Advertising it there would lie.
+ */
+export const MENU_SHORTCUT_HINTS = {
+  rename: "F2",
+  copy: "{mod}+C",
+  cut: "{mod}+X",
+  paste: "{mod}+V",
+  duplicate: "{mod}+D",
+  delete: "Del",
+  hide: "H",
+  /** Shift+H is the pane's "Show All" (reveal everything); batch "Show" only
+   *  reveals the SELECTED hidden cards, so that id deliberately matches nothing. */
+  showAll: "Shift+H",
+  unparent: "Alt+Shift+P",
+  addChild: "Alt+N",
+  selectAll: "{mod}+A",
+  organize: "Alt+R",
+  clearCanvas: "Alt+Shift+N",
+  openInExplorer: "Alt+O",
+  openFile: "Enter",
+} as const;
+
+export type MenuShortcutId = keyof typeof MENU_SHORTCUT_HINTS;
+
+/**
+ * Bindings that only exist with EXACTLY ONE card selected — F2 renames one
+ * card, it does not open the batch-rename dialog. In a multi-selection menu the
+ * action still exists ("Rename…"), but its key does nothing, so the hint must
+ * not appear.
+ */
+const SINGLE_SELECTION_ONLY = new Set<MenuShortcutId>(["rename"]);
+
+/** Format a hint for the menu: `copy` + `"⌘"` → `"⌘+C"`, + `"Ctrl"` → `"Ctrl+C"`. */
+export function menuShortcutHint(id: MenuShortcutId, mod: string): string {
+  return MENU_SHORTCUT_HINTS[id].replace("{mod}", mod);
+}
+
+/**
+ * Same, for menu actions whose id comes from a data table (`batchActions`):
+ * returns `null` when the action has no binding — or when `scope === "batch"`
+ * and the binding only exists for a single-card selection — so the caller
+ * simply omits the hint instead of inventing one.
+ */
+export function tryMenuShortcutHint(
+  id: string,
+  mod: string,
+  scope: "single" | "batch" = "single",
+): string | null {
+  if (!(id in MENU_SHORTCUT_HINTS)) return null;
+  if (scope === "batch" && SINGLE_SELECTION_ONLY.has(id as MenuShortcutId)) return null;
+  return menuShortcutHint(id as MenuShortcutId, mod);
+}
+
 // ─── Dispatcher ───────────────────────────────────────────────────
 
 export function handleKeyboardShortcut(
