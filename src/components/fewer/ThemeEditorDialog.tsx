@@ -6,7 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { RotateCcw, Palette, Save, X, GripVertical, Minus, Trash2, Loader2, Check, Pencil, Undo2, Globe } from "lucide-react";
-import { toCssColor, toCssValue, suggestGradientEnd, ensureContrast } from "@/lib/fewer/themeColors";
+import { toCssColor, toCssValue, suggestGradientEnd } from "@/lib/fewer/themeColors";
 import { type CustomTheme, type CustomThemeColor, type SavedTheme } from "@/lib/fewer/types";
 import { cn } from "@/lib/utils";
 import type { ThemesBackend } from "@/lib/fewer/themesData";
@@ -35,14 +35,18 @@ import {
   popSectionUndo,
   sectionUndoDepth,
   slotContrast,
+  fixSlotContrast,
   type PaletteKey,
 } from "@/lib/fewer/themeEditor";
 
 /**
  * Live WCAG ratio for a slot that has a meaningful counterpart (T-215), plus a
- * one-click **Fix** while it is below target — ensureContrast takes the
- * smallest edit toward white or black that clears the pair's threshold, and the
- * edit goes through handleChange, so it lands in the per-section undo stack.
+ * one-click **Fix** while it is below target. Both the measurement and the fix
+ * run on the surface AS PAINTED — a card body is a 0.12–0.18 tint over the
+ * canvas, not the opaque accent swatch — so a low badge always means a real
+ * on-screen problem, and Fix edits only lightness (hue preserved) in the
+ * direction away from that surface. `reached: false` hides Fix: better no button
+ * than one that pretends to have landed.
  */
 function ContrastControls({
   theme,
@@ -56,10 +60,11 @@ function ContrastControls({
   const measured = slotContrast(theme, slotKey);
   if (!measured) return null;
   const pass = measured.ratio >= measured.target;
+  const fix = pass ? null : fixSlotContrast(theme, slotKey);
   return (
     <>
       <span
-        title={`Contrast ${measured.ratio.toFixed(2)}:1 against ${measured.against} — WCAG target ${measured.target}:1`}
+        title={`Contrast ${measured.ratio.toFixed(2)}:1 — measured on the surface as painted (${measured.surface}), not the raw swatch. WCAG target ${measured.target}:1`}
         className={cn(
           "shrink-0 rounded-sm border px-1 py-px text-2xs font-semibold tabular-nums",
           pass
@@ -69,13 +74,11 @@ function ContrastControls({
       >
         {measured.ratio.toFixed(1)}:1
       </span>
-      {!pass && (
+      {!pass && fix?.reached && (
         <button
           type="button"
-          onClick={() =>
-            onFix(ensureContrast(theme[slotKey].color, theme[measured.against].color, measured.target))
-          }
-          title={`Adjust this colour to ${measured.target}:1 against ${measured.against}`}
+          onClick={() => onFix(fix.color)}
+          title={`Adjust this colour to ${measured.target}:1 as painted (${measured.surface}) — lightness only, hue preserved`}
           className="shrink-0 rounded-sm border border-amber-500/50 bg-amber-500/15 px-1.5 py-0.5 text-2xs font-semibold text-amber-700 transition-colors hover:bg-amber-500/30 dark:text-amber-400"
         >
           Fix

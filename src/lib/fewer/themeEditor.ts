@@ -1,5 +1,5 @@
 import { THEME_COLOR_META, type ThemeColorMeta, type CustomTheme, type CustomThemeColor } from "./types";
-import { contrastRatio } from "./themeColors";
+import { compositeColor, contrastRatio, ensureContrastTinted, mixHex } from "./themeColors";
 
 /**
  * Pure logic for the floating theme editor dialog (positioning, docking,
@@ -277,43 +277,92 @@ export type PaletteKey = Exclude<
 >;
 
 /**
- * Which surface each slot's contrast is judged against, and the WCAG target for
- * that kind: 4.5:1 for text, 3:1 for non-text UI (icons, borders, handles,
- * rings — WCAG 1.4.11). Contrast is symmetric and each pair appears once, so
- * the background/text pairs are only listed from the text side.
+ * Which surface each slot's contrast is judged against, the WCAG target for
+ * that kind (4.5:1 text, 3:1 non-text UI — WCAG 1.4.11), and HOW that surface
+ * is painted:
  *
- * Slots with no entry (background, itemHover, the gradient styling) have no
- * single meaningful counterpart and show no chip.
+ *  - `canvas`: the theme background itself (edges, handles, rings, page text).
+ *  - `card`: a card BODY — which is a TINT (0.12–0.18 opacity) over the canvas,
+ *    never the opaque accent swatch. Measuring text against the raw accent is
+ *    what made the old helper invert: it reported ~1.2:1 for light text on a
+ *    dark card and "Fix" darkened it into invisibility.
+ *
+ * Contrast is symmetric and each pair appears once, so background/text pairs
+ * are only listed from the text side. Slots with no entry (background,
+ * itemHover, gradient styling) have no single meaningful counterpart and show
+ * no chip.
  */
 export const CONTRAST_PAIRS: Partial<
-  Record<PaletteKey, { against: PaletteKey; target: number }>
+  Record<PaletteKey, { against: PaletteKey; target: number; surface: "card" | "canvas" }>
 > = {
-  defaultText: { against: "background", target: 4.5 },
-  subtleText: { against: "background", target: 4.5 },
-  folderText: { against: "folderBg", target: 4.5 },
-  folderSubtleText: { against: "folderBg", target: 4.5 },
-  fileText: { against: "fileBg", target: 4.5 },
-  fileSubtleText: { against: "fileBg", target: 4.5 },
-  folderIcon: { against: "folderBg", target: 3 },
-  fileIcon: { against: "fileBg", target: 3 },
-  folderBorder: { against: "folderBg", target: 3 },
-  fileBorder: { against: "fileBg", target: 3 },
-  edge: { against: "background", target: 3 },
-  handle: { against: "background", target: 3 },
-  selectRing: { against: "background", target: 3 },
+  defaultText: { against: "background", target: 4.5, surface: "canvas" },
+  subtleText: { against: "background", target: 4.5, surface: "canvas" },
+  folderText: { against: "folderBg", target: 4.5, surface: "card" },
+  folderSubtleText: { against: "folderBg", target: 4.5, surface: "card" },
+  fileText: { against: "fileBg", target: 4.5, surface: "card" },
+  fileSubtleText: { against: "fileBg", target: 4.5, surface: "card" },
+  folderIcon: { against: "folderBg", target: 3, surface: "card" },
+  fileIcon: { against: "fileBg", target: 3, surface: "card" },
+  folderBorder: { against: "folderBg", target: 3, surface: "card" },
+  fileBorder: { against: "fileBg", target: 3, surface: "card" },
+  edge: { against: "background", target: 3, surface: "canvas" },
+  handle: { against: "background", target: 3, surface: "canvas" },
+  selectRing: { against: "background", target: 3, surface: "canvas" },
 };
 
-/** Live contrast of one slot against its counterpart — null for slots that
- *  have no pairing, or when either colour fails to parse. */
-export function slotContrast(
-  theme: CustomTheme,
-  key: PaletteKey,
-): { ratio: number; against: PaletteKey; target: number } | null {
+/** The canvas as painted: the background at its own opacity over an opaque
+ *  backdrop (black — the conservative choice when the background is itself
+ *  translucent: it can only make the measured contrast look worse, never
+ *  better than what is on screen). */
+export function canvasSurface(theme: CustomTheme): string {
+  return compositeColor(theme.background.color, theme.background.opacity, "#000000");
+}
+
+/** A card body as painted: its tint (gradient averaged when one is on) over the
+ *  canvas. This — not the accent swatch — is what text, icons and borders sit on. */
+export function cardSurface(theme: CustomTheme, bodyKey: PaletteKey): string {
+  const body = theme[bodyKey];
+  const tint = isGradientOn(body) ? mixHex(body.color, body.gradientTo!, 0.5) : body.color;
+  return compositeColor(tint, body.opacity, canvasSurface(theme));
+}
+
+export interface SlotContrast {
+  ratio: number;
+  against: PaletteKey;
+  target: number;
+  /** The surface the ratio was measured on, as painted (hex) — for the UI to
+   *  name, so a low number can never again be read as "the card is broken". */
+  surface: string;
+}
+
+/** Live contrast of one slot against its counterpart AS PAINTED — null for
+ *  slots that have no pairing, or when either colour fails to parse. */
+export function slotContrast(theme: CustomTheme, key: PaletteKey): SlotContrast | null {
   const pair = CONTRAST_PAIRS[key];
   if (!pair) return null;
-  const ratio = contrastRatio(theme[key].color, theme[pair.against].color);
+  const surface = pair.surface === "card" ? cardSurface(theme, pair.against) : canvasSurface(theme);
+  const slot = theme[key];
+  const ink = compositeColor(slot.color, slot.opacity, surface);
+  const ratio = contrastRatio(ink, surface);
   if (ratio === null) return null;
-  return { ratio, against: pair.against, target: pair.target };
+  return { ratio, against: pair.against, target: pair.target, surface };
+}
+
+/**
+ * The one-click repair for a slot below target: the smallest hue-preserving
+ * edit to the slot's own colour that clears the pair's target **as painted**
+ * (the candidate is composited over the same surface `slotContrast` measured).
+ * `reached` is false when nothing inside the budget clears it — the UI hides
+ * Fix rather than applying a change that does not land.
+ */
+export function fixSlotContrast(
+  theme: CustomTheme,
+  key: PaletteKey,
+): { color: string; ratio: number; reached: boolean } | null {
+  const measured = slotContrast(theme, key);
+  if (!measured) return null;
+  const slot = theme[key];
+  return ensureContrastTinted(slot.color, slot.opacity, measured.surface, measured.target);
 }
 
 export const THEME_EDITOR_SECTIONS: { title: string; keys: ThemeColorMeta[] }[] = [
