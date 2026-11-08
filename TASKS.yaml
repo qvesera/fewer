@@ -7012,7 +7012,7 @@ tasks:
   session_count: 3
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
-  status: "review"
+  status: "in-progress"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7049,5 +7049,11 @@ tasks:
     note: "Minimap surface: RF's own #fff .react-flow__minimap background painted over the themed panel (found via elementFromPoint) — svg now paints transparent, panel's colour-mix shows through; e2e asserts svg background transparent + panel == color-mix(--background 80%)"
     proof: ["60811a5", "#583"]
     effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
+  - start: "2026-11-08T19:16:37Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
   spent_min: 18
-  session_count: 3
+  session_count: 4
