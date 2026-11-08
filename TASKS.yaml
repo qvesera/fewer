@@ -7002,8 +7002,14 @@ tasks:
     note: "Menus: identity header + Details submenu (folders+files), unified Radix surface for edge/pane/selection, edge Go to Parent/Child; 13 new unit cases, 3 menu e2e green, docs+README+changelog updated"
     proof: ["2bce9f1", "#581"]
     effort: {commits: 1, files: 14, insertions: 1049, deletions: 565}
-  spent_min: 25
-  session_count: 2
+  - start: "2026-11-08T18:05:56Z"
+    end: "2026-11-08T18:07:20Z"
+    measured: true
+    note: "no work: branch switched to fix/minimap-viewport-mask mid-session; the minimap fix belongs to T-247"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 26
+  session_count: 3
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
   status: "review"
@@ -7037,5 +7043,11 @@ tasks:
     note: "Follow-up: canvas polarity now comes from useDarkBackground (custom themes are no longer read as light) and the minimap dims with the theme's own --background token; new e2e guards panel + mask under a custom dark theme"
     proof: ["02e0d28", "#583"]
     effort: {commits: 1, files: 7, insertions: 91, deletions: 10}
-  spent_min: 15
-  session_count: 2
+  - start: "2026-11-08T18:07:21Z"
+    end: "2026-11-08T18:10:01Z"
+    measured: true
+    note: "Minimap surface: RF's own #fff .react-flow__minimap background painted over the themed panel (found via elementFromPoint) — svg now paints transparent, panel's colour-mix shows through; e2e asserts svg background transparent + panel == color-mix(--background 80%)"
+    proof: ["60811a5", "#583"]
+    effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
+  spent_min: 18
+  session_count: 3
