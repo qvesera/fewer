@@ -6971,7 +6971,7 @@ tasks:
   session_count: 1
 - id: "T-246"
   title: "Rework card, edge and canvas context menus: header identity, Details submenu, one shared design"
-  status: "in-progress"
+  status: "review"
   type: "refactor"
   area: "ui"
   tier: 2
@@ -7003,10 +7003,10 @@ tasks:
     proof: ["2bce9f1", "#581"]
     effort: {commits: 1, files: 14, insertions: 1049, deletions: 565}
   - start: "2026-11-08T13:48:39Z"
-    end: null
+    end: "2026-11-08T14:08:26Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 25
+    note: "Shortcut hints: MENU_SHORTCUT_HINTS table beside the bindings, hints on Unparent/Add Child/Open in Explorer/Open File/Select All/Organize/Show All/Clear Canvas + batch items, 13 dispatcher tests, e2e name-cleanliness check; connection menu stays keyless (measured: right-click does not select the edge)"
+    proof: ["f342330", "#581"]
+    effort: {commits: 1, files: 9, insertions: 223, deletions: 16}
+  spent_min: 45
   session_count: 3
