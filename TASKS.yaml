@@ -7077,7 +7077,7 @@ tasks:
   session_count: 4
 - id: "T-248"
   title: "Custom-theme contrast helper measures the palette, not the painted card — Fix makes text worse"
-  status: "in-progress"
+  status: "review"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7103,10 +7103,10 @@ tasks:
     proof: ["08794ce", "#585"]
     effort: {commits: 1, files: 7, insertions: 323, deletions: 54}
   - start: "2026-11-08T19:28:52Z"
-    end: null
+    end: "2026-11-08T19:40:22Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 4
+    note: "Merged origin/fix/minimap-viewport-mask (which now carries dev) into this branch to clear PR #585's conflicts: CHANGELOG auto-merged, TASKS.yaml resolved as a union (T-247 keeps its 4 sessions/27m from the base, T-248 row kept); gates green — tsc, lint 0 errors, 2021+267 tests, build"
+    proof: ["fadf280", "#585"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 16
   session_count: 2
