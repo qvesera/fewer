@@ -7077,14 +7077,14 @@ tasks:
   session_count: 4
 - id: "T-249"
   title: "Auto-refresh the repowise index on push (pre-push hook)"
-  status: "triaged"
+  status: "review"
   type: "infra"
   area: "infra"
   tier: 0
   estimate_min: 45
   estimate_basis: "cli"
   issue: 586
-  pr: null
+  pr: 587
   internal: false
   milestone: null
   blocked_by: []
