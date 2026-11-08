@@ -5,6 +5,15 @@ description: Complete reference for all keyboard shortcuts in Fewer. Navigation,
 
 Fewer is primarily a keyboard driven application. Most of the common operations can be triggered using keyboard shortcuts. Here is a comprehensive list of all available shortcuts:
 
+> **The context menus show these keys inline.** Any menu item with a binding
+> carries it on the right — Unparent → **Alt+Shift+P**, Add Child Card → **Alt+N**,
+> Select All → **Ctrl+A**, Organize → **Alt+R**, Clear Canvas → **Alt+Shift+N**,
+> Open in File Explorer → **Alt+O**, Open File → **Enter**, Hide → **H**, Show All
+> → **Shift+H**. Items with no binding (Tags, Collapse Folder, Select Children,
+> Move to Folder…) show none, and the connection menu shows no key because
+> Delete only acts on a *selected* connection while a right-click does not select
+> one.
+
 ## Navigation
 
 | Key       | Action                                       |
