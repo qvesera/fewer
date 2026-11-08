@@ -78,14 +78,18 @@ async function createGroupFromCards(page: Page, a: ReturnType<typeof page.locato
   await b.click({ modifiers: ["Shift"] });
   await expect(page.locator(".react-flow__node.selected")).toHaveCount(2);
 
-  // Right-click a selected card → selection menu → More Actions → Group.
-  // Coordinate click at the header, the way app.spec.ts opens card menus: a
-  // locator click retries forever when any child row overlaps the centre, and
-  // holding Shift changes how React Flow routes the right-click.
+  // Right-click a selected card → selection menu → Group (top-level, in the
+  // Structure cluster). Coordinate click at the header, the way app.spec.ts
+  // opens card menus: a locator click retries forever when any child row
+  // overlaps the centre, and holding Shift changes how React Flow routes the
+  // right-click.
   const bBox = (await b.boundingBox())!;
   await page.mouse.click(bBox.x + bBox.width / 2, bBox.y + 10, { button: "right" });
-  await page.getByRole("menuitem", { name: "More Actions" }).hover();
-  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click();
+  // force: Group now sits above the Visibility/Tags/Select submenu row — an
+  // approach that crosses those triggers opens submenus, which flip the menu
+  // content under Playwright's stability check so the hover retries forever
+  // (app.spec's menu clicks force-click for the same reason).
+  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click({ force: true });
 
   const frame = page.locator("[data-group-id]").first();
   await expect(frame).toBeVisible({ timeout: 10000 });
@@ -805,8 +809,9 @@ async function createGroupFrom(page: Page, indices: number[]) {
   }
   const box = (await chosen[0].boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + 10, { button: "right" });
-  await page.getByRole("menuitem", { name: "More Actions" }).hover();
-  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click();
+  // force: see the note in createGroupFromCards — crossing the submenu row on
+  // the way to this item opens submenus and never lets the click settle.
+  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click({ force: true });
   const frames = page.locator("[data-group-id]");
   await expect(frames.first()).toBeVisible({ timeout: 10000 });
   const gid = await frames.last().getAttribute("data-group-id");

@@ -592,9 +592,11 @@ function BatchHint({ id, mod }: { id: string; mod: string }) {
 }
 
 /**
- * Batch action section rendered at the top of both node context menus when the
- * right-clicked node is part of a multi-node selection. Groups actions into
- * compact top-level items + submenus for the rest.
+ * Batch action section at the top of both node context menus when the
+ * right-clicked node is part of a multi-node selection. It draws the same
+ * clusters the canvas selection menu draws from `groupBatchActions()` — Edit →
+ * Structure → Visibility ▸ / Tags ▸ / Select ▸ → Delete — so the two menus
+ * read as one menu (T-246 rework of the old top/more split).
  */
 function GroupedBatchSection({ nodeId }: { nodeId: string }) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
@@ -604,11 +606,15 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
   const mod = isMac() ? "⌘" : "Ctrl";
   if (!isBatch) return null;
 
-  const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: selectedNodeIds });
+  const { edit, structure, visibility, select, delete: del } = groupBatchActions({
+    toast,
+    selectedIds: selectedNodeIds,
+  });
 
   return (
     <>
-      {top.map((action) => (
+      {/* Edit — the data operations. */}
+      {edit.map((action) => (
         <ContextMenuItem
           key={action.id}
           onSelect={() => action.run()}
@@ -618,26 +624,39 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
           <BatchHint id={action.id} mod={mod} />
         </ContextMenuItem>
       ))}
+      <ContextMenuSeparator />
+      {/* Structure — reparenting and grouping, promoted out of the old
+          "More Actions" drawer where Move to Folder… and Unparent hid. */}
+      {structure.map((action) => (
+        <ContextMenuItem
+          key={action.id}
+          onSelect={() => action.run()}
+          className="cursor-pointer"
+        >
+          {action.label}
+          <BatchHint id={action.id} mod={mod} />
+        </ContextMenuItem>
+      ))}
+      <ContextMenuSeparator />
+      {/* View / Meta — the same submenu row as the single-card menu. */}
+      <ContextMenuSub>
+        <ContextMenuSubTrigger className="cursor-pointer">
+          Visibility
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="w-48">
+          {visibility.map((action) => (
+            <ContextMenuItem
+              key={action.id}
+              onSelect={() => action.run()}
+              className="cursor-pointer"
+            >
+              {action.label}
+              <BatchHint id={action.id} mod={mod} />
+            </ContextMenuItem>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
       {can("tags", tier) && <TagMenu ids={selectedNodeIds} />}
-      {more.length > 0 && (
-        <ContextMenuSub>
-          <ContextMenuSubTrigger className="cursor-pointer">
-            More Actions
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-48">
-            {more.map((action) => (
-              <ContextMenuItem
-                key={action.id}
-                onSelect={() => action.run()}
-                className="cursor-pointer"
-              >
-                {action.label}
-                <BatchHint id={action.id} mod={mod} />
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-      )}
       <ContextMenuSub>
         <ContextMenuSubTrigger className="cursor-pointer">
           Select
@@ -655,17 +674,15 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
           {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
         </ContextMenuSubContent>
       </ContextMenuSub>
+      <ContextMenuSeparator />
       {del && (
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() => del.run()}
-            className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-          >
-            {del.label}
-            <BatchHint id={del.id} mod={mod} />
-          </ContextMenuItem>
-        </>
+        <ContextMenuItem
+          onSelect={() => del.run()}
+          className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+        >
+          {del.label}
+          <BatchHint id={del.id} mod={mod} />
+        </ContextMenuItem>
       )}
     </>
   );

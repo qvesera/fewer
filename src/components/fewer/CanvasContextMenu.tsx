@@ -152,7 +152,7 @@ export function CanvasContextMenu({
   const isSelectionMenu = menu.kind === "selection" && ids.length >= 2;
 
   if (isSelectionMenu) {
-    const { top, more, select, delete: del } = groupBatchActions({
+    const { edit, structure, visibility, select, delete: del } = groupBatchActions({
       toast: (t) => toast(t as any),
       selectedIds: ids,
     });
@@ -160,7 +160,8 @@ export function CanvasContextMenu({
       <PositionedMenu menu={menu} close={close}>
         <MenuHeader header={selectionMenuHeader(selectionCounts(allNodes, ids))} />
         <DropdownMenuSeparator />
-        {top.map((a) => (
+        {/* Edit — the data operations. */}
+        {edit.map((a) => (
           <DropdownMenuItem
             key={a.id}
             onSelect={() => { a.run(); close(); }}
@@ -169,23 +170,36 @@ export function CanvasContextMenu({
             <DropdownHint id={a.id} mod={mod} />
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        {/* Structure — reparenting + grouping, promoted out of the old
+            "More Actions" drawer. Group ships here and in the node context
+            menus' batch section identically (web and shell). */}
+        {structure.map((a) => (
+          <DropdownMenuItem
+            key={a.id}
+            onSelect={() => { a.run(); close(); }}
+          >
+            {a.label}
+            <DropdownHint id={a.id} mod={mod} />
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        {/* View / Meta — the same submenu row as the card menus. */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Visibility</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            {visibility.map((a) => (
+              <DropdownMenuItem
+                key={a.id}
+                onSelect={() => { a.run(); close(); }}
+              >
+                {a.label}
+                <DropdownHint id={a.id} mod={mod} />
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         {can("tags", useGraphStore.getState().tier) && <TagMenu ids={ids} />}
-        {more.length > 0 && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-48">
-              {more.map((a) => (
-                <DropdownMenuItem
-                  key={a.id}
-                  onSelect={() => { a.run(); close(); }}
-                >
-                  {a.label}
-                  <DropdownHint id={a.id} mod={mod} />
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-48">
@@ -230,20 +244,15 @@ export function CanvasContextMenu({
             })()}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        {/* Grouping ships as a shared batch action (batchActions.ts), so it
-            appears here — under More Actions — AND in the node context
-            menus' batch section, identically on web and in the shell. */}
+        <DropdownMenuSeparator />
         {del && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => { del.run(); close(); }}
-              className="text-destructive focus:bg-red-500/10"
-            >
-              {del.label}
-              <DropdownHint id={del.id} mod={mod} />
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem
+            onSelect={() => { del.run(); close(); }}
+            className="text-destructive focus:bg-red-500/10"
+          >
+            {del.label}
+            <DropdownHint id={del.id} mod={mod} />
+          </DropdownMenuItem>
         )}
       </PositionedMenu>
     );
