@@ -4,6 +4,8 @@ import { groupBatchActions } from "@/lib/fewer/menuSections";
 import { plural } from "@/lib/fewer/plural";
 import { selectByTag } from "@/lib/fewer/batchSelect";
 import { canvasMenuHeader, edgeMenuHeader, selectionCounts, selectionMenuHeader } from "@/lib/fewer/menuInfo";
+import { menuShortcutHint, tryMenuShortcutHint } from "@/lib/fewer/keyboardShortcuts";
+import { isMac } from "@/lib/fewer/platform";
 import { TagMenu } from "./TagMenu";
 import { MenuHeader } from "./MenuChrome";
 import type { FewerNode } from "@/lib/fewer/types";
@@ -18,6 +20,7 @@ import {
   DropdownMenuSub,
   DropdownMenuSubTrigger,
   DropdownMenuSubContent,
+  DropdownMenuShortcut,
 } from "@/components/ui/dropdown-menu";
 import { useToast } from "@/hooks/use-toast";
 
@@ -37,6 +40,14 @@ interface CanvasContextMenuProps {
   allNodes: FewerNode[];
   selectAll: () => void;
   close: () => void;
+}
+
+/** Keyboard hint for a batch action id — nothing when it has no binding in
+ *  a MULTI-selection context (F2 renames one card, not a batch dialog). */
+function DropdownHint({ id, mod }: { id: string; mod: string }) {
+  const hint = tryMenuShortcutHint(id, mod, "batch");
+  if (!hint) return null;
+  return <DropdownMenuShortcut aria-hidden="true">{hint}</DropdownMenuShortcut>;
 }
 
 /**
@@ -97,8 +108,12 @@ export function CanvasContextMenu({
   close,
 }: CanvasContextMenuProps): ReactNode {
   const { toast } = useToast();
-
+  const mod = isMac() ? "⌘" : "Ctrl";
   // ── Edge right-click ──
+  // No `Del` hint on "Delete Connection": the Delete rule only acts on RF-
+  // SELECTED edges, and a right-click does not select an edge (measured: 0
+  // selected, and Delete with this menu open removes nothing). Advertises what
+  // the key does — not what the item does — so the two stay honest.
   if (menu.kind === "edge" && lastClickedEdgeId) {
     const eid = lastClickedEdgeId;
     const edge = useGraphStore.getState().edges.find((e) => e.id === eid);
@@ -138,7 +153,7 @@ export function CanvasContextMenu({
   const isSelectionMenu = menu.kind === "selection" && ids.length >= 2;
 
   if (isSelectionMenu) {
-    const { top, more, select, delete: del } = groupBatchActions({
+    const { edit, structure, visibility, select, delete: del } = groupBatchActions({
       toast: (t) => toast(t as any),
       selectedIds: ids,
     });
@@ -146,30 +161,46 @@ export function CanvasContextMenu({
       <PositionedMenu menu={menu} close={close}>
         <MenuHeader header={selectionMenuHeader(selectionCounts(allNodes, ids))} />
         <DropdownMenuSeparator />
-        {top.map((a) => (
+        {/* Edit — the data operations. */}
+        {edit.map((a) => (
           <DropdownMenuItem
             key={a.id}
             onSelect={() => { a.run(); close(); }}
           >
             {a.label}
+            <DropdownHint id={a.id} mod={mod} />
           </DropdownMenuItem>
         ))}
+        <DropdownMenuSeparator />
+        {/* Structure — reparenting + grouping, promoted out of the old
+            "More Actions" drawer. Group ships here and in the node context
+            menus' batch section identically (web and shell). */}
+        {structure.map((a) => (
+          <DropdownMenuItem
+            key={a.id}
+            onSelect={() => { a.run(); close(); }}
+          >
+            {a.label}
+            <DropdownHint id={a.id} mod={mod} />
+          </DropdownMenuItem>
+        ))}
+        <DropdownMenuSeparator />
+        {/* View / Meta — the same submenu row as the card menus. */}
+        <DropdownMenuSub>
+          <DropdownMenuSubTrigger>Visibility</DropdownMenuSubTrigger>
+          <DropdownMenuSubContent className="w-48">
+            {visibility.map((a) => (
+              <DropdownMenuItem
+                key={a.id}
+                onSelect={() => { a.run(); close(); }}
+              >
+                {a.label}
+                <DropdownHint id={a.id} mod={mod} />
+              </DropdownMenuItem>
+            ))}
+          </DropdownMenuSubContent>
+        </DropdownMenuSub>
         {can("tags", useGraphStore.getState().tier) && <TagMenu ids={ids} />}
-        {more.length > 0 && (
-          <DropdownMenuSub>
-            <DropdownMenuSubTrigger>More Actions</DropdownMenuSubTrigger>
-            <DropdownMenuSubContent className="w-48">
-              {more.map((a) => (
-                <DropdownMenuItem
-                  key={a.id}
-                  onSelect={() => { a.run(); close(); }}
-                >
-                  {a.label}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuSubContent>
-          </DropdownMenuSub>
-        )}
         <DropdownMenuSub>
           <DropdownMenuSubTrigger>Select</DropdownMenuSubTrigger>
           <DropdownMenuSubContent className="w-48">
@@ -214,19 +245,15 @@ export function CanvasContextMenu({
             })()}
           </DropdownMenuSubContent>
         </DropdownMenuSub>
-        {/* Grouping ships as a shared batch action (batchActions.ts), so it
-            appears here — under More Actions — AND in the node context
-            menus' batch section, identically on web and in the shell. */}
+        <DropdownMenuSeparator />
         {del && (
-          <>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem
-              onSelect={() => { del.run(); close(); }}
-              className="text-destructive focus:bg-red-500/10"
-            >
-              {del.label}
-            </DropdownMenuItem>
-          </>
+          <DropdownMenuItem
+            onSelect={() => { del.run(); close(); }}
+            className="text-destructive focus:bg-red-500/10"
+          >
+            {del.label}
+            <DropdownHint id={del.id} mod={mod} />
+          </DropdownMenuItem>
         )}
       </PositionedMenu>
     );
@@ -239,6 +266,7 @@ export function CanvasContextMenu({
       <DropdownMenuSeparator />
       <DropdownMenuItem onSelect={() => { selectAll(); close(); }}>
         Select All
+        <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("selectAll", mod)}</DropdownMenuShortcut>
       </DropdownMenuItem>
       <DropdownMenuItem
         onSelect={() => {
@@ -248,6 +276,7 @@ export function CanvasContextMenu({
         }}
       >
         Organize
+        <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("organize", mod)}</DropdownMenuShortcut>
       </DropdownMenuItem>
       <DropdownMenuSeparator />
       {canvasAddChildEnabled && (
@@ -268,6 +297,7 @@ export function CanvasContextMenu({
             }}
           >
             Paste
+            <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("paste", mod)}</DropdownMenuShortcut>
           </DropdownMenuItem>
           <DropdownMenuItem
             disabled={hiddenCount === 0}
@@ -282,6 +312,7 @@ export function CanvasContextMenu({
             }}
           >
             Show All
+            <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("showAll", mod)}</DropdownMenuShortcut>
           </DropdownMenuItem>
         </>
       )}
@@ -320,6 +351,7 @@ export function CanvasContextMenu({
         className="text-red-500 focus:bg-red-500/10 focus:text-red-500"
       >
         Clear Canvas
+        <DropdownMenuShortcut aria-hidden="true">{menuShortcutHint("clearCanvas", mod)}</DropdownMenuShortcut>
       </DropdownMenuItem>
     </PositionedMenu>
   );

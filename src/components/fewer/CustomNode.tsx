@@ -37,7 +37,7 @@ import { selectSameExtension, selectSameCategory } from "@/lib/fewer/batchSelect
 import { isGitHubUrl } from "@/lib/fewer/importFlow";
 import { isLocalClient } from "@/lib/fewer/isLocalClient";
 import { LOCAL_FS_FEATURES } from "@/lib/fewer/features";
-import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT } from "@/lib/fewer/keyboardShortcuts";
+import { FEWER_ADD_NODE, FEWER_ADD_NODE_PARENT, menuShortcutHint, tryMenuShortcutHint } from "@/lib/fewer/keyboardShortcuts";
 import { TagRing, TagDots } from "./TagRing";
 import { TagMenu, SelectByTagSubmenu } from "./TagMenu";
 import { SymlinkBadge } from "./SymlinkBadge";
@@ -324,7 +324,7 @@ function FolderMenuContent({
           className="cursor-pointer"
         >
           Rename
-          <ContextMenuShortcut aria-hidden="true">F2</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("rename", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -336,7 +336,7 @@ function FolderMenuContent({
           className="cursor-pointer"
         >
           Copy
-          <ContextMenuShortcut aria-hidden="true">{mod}+C</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("copy", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -349,7 +349,7 @@ function FolderMenuContent({
           className="cursor-pointer"
         >
           Cut
-          <ContextMenuShortcut aria-hidden="true">{mod}+X</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("cut", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -359,7 +359,7 @@ function FolderMenuContent({
           className="cursor-pointer"
         >
           Duplicate
-          <ContextMenuShortcut aria-hidden="true">{mod}+D</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("duplicate", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         {clipboard && clipboard.nodeIds.length > 0 && (
           <ContextMenuItem
@@ -378,7 +378,7 @@ function FolderMenuContent({
             className="cursor-pointer"
           >
             Paste
-            <ContextMenuShortcut aria-hidden="true">{mod}+V</ContextMenuShortcut>
+            <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("paste", mod)}</ContextMenuShortcut>
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -394,6 +394,7 @@ function FolderMenuContent({
             className="cursor-pointer"
           >
             Unparent
+            <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("unparent", mod)}</ContextMenuShortcut>
           </ContextMenuItem>
         )}
         {hasChildren && (
@@ -496,6 +497,7 @@ function FolderMenuContent({
             className="cursor-pointer"
           >
             Add Child Card
+            <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("addChild", mod)}</ContextMenuShortcut>
           </ContextMenuItem>
         )}
 
@@ -528,6 +530,7 @@ function FolderMenuContent({
                   className="cursor-pointer"
                 >
                   Open in File Explorer
+                  <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("openInExplorer", mod)}</ContextMenuShortcut>
                 </ContextMenuItem>
               ) : (
                 <ContextMenuItem
@@ -573,7 +576,7 @@ function FolderMenuContent({
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
           Delete
-          <ContextMenuShortcut aria-hidden="true" className="text-red-400/70">Del</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true" className="text-red-400/70">{menuShortcutHint("delete", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         </>
         )}
@@ -581,50 +584,80 @@ function FolderMenuContent({
   );
 }
 
+/** Keyboard hint for a batch action id — nothing when it has no binding in
+ *  a MULTI-selection context (F2 renames one card, not a batch dialog). */
+function BatchHint({ id, mod }: { id: string; mod: string }) {
+  const hint = tryMenuShortcutHint(id, mod, "batch");
+  if (!hint) return null;
+  return <ContextMenuShortcut aria-hidden="true">{hint}</ContextMenuShortcut>;
+}
+
 /**
- * Batch action section rendered at the top of both node context menus when the
- * right-clicked node is part of a multi-node selection. Groups actions into
- * compact top-level items + submenus for the rest.
+ * Batch action section at the top of both node context menus when the
+ * right-clicked node is part of a multi-node selection. It draws the same
+ * clusters the canvas selection menu draws from `groupBatchActions()` — Edit →
+ * Structure → Visibility ▸ / Tags ▸ / Select ▸ → Delete — so the two menus
+ * read as one menu (T-246 rework of the old top/more split).
  */
 function GroupedBatchSection({ nodeId }: { nodeId: string }) {
   const selectedNodeIds = useGraphStore((s) => s.selectedNodeIds);
   const isBatch = selectedNodeIds.length > 1 && selectedNodeIds.includes(nodeId);
   const { toast } = useToast();
   const tier = useGraphStore((s) => s.tier);
+  const mod = isMac() ? "⌘" : "Ctrl";
   if (!isBatch) return null;
 
-  const { top, more, select, delete: del } = groupBatchActions({ toast, selectedIds: selectedNodeIds });
+  const { edit, structure, visibility, select, delete: del } = groupBatchActions({
+    toast,
+    selectedIds: selectedNodeIds,
+  });
 
   return (
     <>
-      {top.map((action) => (
+      {/* Edit — the data operations. */}
+      {edit.map((action) => (
         <ContextMenuItem
           key={action.id}
           onSelect={() => action.run()}
           className="cursor-pointer"
         >
           {action.label}
+          <BatchHint id={action.id} mod={mod} />
         </ContextMenuItem>
       ))}
+      <ContextMenuSeparator />
+      {/* Structure — reparenting and grouping, promoted out of the old
+          "More Actions" drawer where Move to Folder… and Unparent hid. */}
+      {structure.map((action) => (
+        <ContextMenuItem
+          key={action.id}
+          onSelect={() => action.run()}
+          className="cursor-pointer"
+        >
+          {action.label}
+          <BatchHint id={action.id} mod={mod} />
+        </ContextMenuItem>
+      ))}
+      <ContextMenuSeparator />
+      {/* View / Meta — the same submenu row as the single-card menu. */}
+      <ContextMenuSub>
+        <ContextMenuSubTrigger className="cursor-pointer">
+          Visibility
+        </ContextMenuSubTrigger>
+        <ContextMenuSubContent className="w-48">
+          {visibility.map((action) => (
+            <ContextMenuItem
+              key={action.id}
+              onSelect={() => action.run()}
+              className="cursor-pointer"
+            >
+              {action.label}
+              <BatchHint id={action.id} mod={mod} />
+            </ContextMenuItem>
+          ))}
+        </ContextMenuSubContent>
+      </ContextMenuSub>
       {can("tags", tier) && <TagMenu ids={selectedNodeIds} />}
-      {more.length > 0 && (
-        <ContextMenuSub>
-          <ContextMenuSubTrigger className="cursor-pointer">
-            More Actions
-          </ContextMenuSubTrigger>
-          <ContextMenuSubContent className="w-48">
-            {more.map((action) => (
-              <ContextMenuItem
-                key={action.id}
-                onSelect={() => action.run()}
-                className="cursor-pointer"
-              >
-                {action.label}
-              </ContextMenuItem>
-            ))}
-          </ContextMenuSubContent>
-        </ContextMenuSub>
-      )}
       <ContextMenuSub>
         <ContextMenuSubTrigger className="cursor-pointer">
           Select
@@ -642,16 +675,15 @@ function GroupedBatchSection({ nodeId }: { nodeId: string }) {
           {can("tags", tier) && <SelectByTagSubmenu label="By Tag" />}
         </ContextMenuSubContent>
       </ContextMenuSub>
+      <ContextMenuSeparator />
       {del && (
-        <>
-          <ContextMenuSeparator />
-          <ContextMenuItem
-            onSelect={() => del.run()}
-            className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
-          >
-            {del.label}
-          </ContextMenuItem>
-        </>
+        <ContextMenuItem
+          onSelect={() => del.run()}
+          className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
+        >
+          {del.label}
+          <BatchHint id={del.id} mod={mod} />
+        </ContextMenuItem>
       )}
     </>
   );
@@ -760,7 +792,7 @@ function FileMenuContent({
           className="cursor-pointer"
         >
           Rename
-          <ContextMenuShortcut aria-hidden="true">F2</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("rename", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -772,7 +804,7 @@ function FileMenuContent({
           className="cursor-pointer"
         >
           Copy
-          <ContextMenuShortcut aria-hidden="true">{mod}+C</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("copy", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -785,7 +817,7 @@ function FileMenuContent({
           className="cursor-pointer"
         >
           Cut
-          <ContextMenuShortcut aria-hidden="true">{mod}+X</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("cut", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         <ContextMenuItem
           onSelect={() => {
@@ -795,7 +827,7 @@ function FileMenuContent({
           className="cursor-pointer"
         >
           Duplicate
-          <ContextMenuShortcut aria-hidden="true">{mod}+D</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("duplicate", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         {clipboard && clipboard.nodeIds.length > 0 && (
           <ContextMenuItem
@@ -814,7 +846,7 @@ function FileMenuContent({
             className="cursor-pointer"
           >
             Paste
-            <ContextMenuShortcut aria-hidden="true">{mod}+V</ContextMenuShortcut>
+            <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("paste", mod)}</ContextMenuShortcut>
           </ContextMenuItem>
         )}
         <ContextMenuSeparator />
@@ -827,6 +859,7 @@ function FileMenuContent({
             className="cursor-pointer"
           >
             Unparent
+            <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("unparent", mod)}</ContextMenuShortcut>
           </ContextMenuItem>
         )}
         <ContextMenuItem
@@ -919,6 +952,7 @@ function FileMenuContent({
                 className="cursor-pointer"
               >
                 Open File
+                <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("openFile", mod)}</ContextMenuShortcut>
               </ContextMenuItem>
             )}
             <ContextMenuItem
@@ -947,7 +981,7 @@ function FileMenuContent({
           className="cursor-pointer text-red-500 focus:text-red-500 focus:bg-red-500/10"
         >
           Delete
-          <ContextMenuShortcut aria-hidden="true" className="text-red-400/70">Del</ContextMenuShortcut>
+          <ContextMenuShortcut aria-hidden="true" className="text-red-400/70">{menuShortcutHint("delete", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
         </>
         )}

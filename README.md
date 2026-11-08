@@ -113,7 +113,7 @@ docker run -p 3000:3000 fewer
 - **Copy/Paste**: **Ctrl+C / Ctrl+V** (duplicates with "copy" suffix)
 - **Undo/Redo**: **Ctrl+Z / Ctrl+Shift+Z** (50-step history per panel view; card moves and tag assignments/deletes included)
 - **Card menus**: every card menu opens with a header naming what you right-clicked (name + path, or the selection's count and breakdown), and one **Details** submenu — identical on folders and files — shows the card's type, path, size or contents, source, tags and link target before the actions that reach it (Open in provider, File Explorer, Refresh from Disk, symlink jumps). Right-click a connection for **Go to Parent**, **Go to Child** and **Delete Connection**
-- **Group** cards: select two or more, right-click → **More Actions → Group N Items**, and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike. Collapsing shrinks the frame to a pill whose connections stay ordinary canvas edges (your connection style, dash and width apply, and the group's colour tints them), and you can drag the pill to move the collapsed group
+- **Group** cards: select two or more, right-click → **Group N Items** (Structure cluster), and a gray frame appears with a title, a note (hover the title to read it) and a collapse toggle, on the web and in the desktop app alike. Collapsing shrinks the frame to a pill whose connections stay ordinary canvas edges (your connection style, dash and width apply, and the group's colour tints them), and you can drag the pill to move the collapsed group
 
 ## Features
 
@@ -172,7 +172,7 @@ docker run -p 3000:3000 fewer
 | **Folder** | Rename, Add Child, Copy Path, Refresh from Disk, Copy, Cut, Hide |
 | **File**   | Rename, Copy Name, Copy, Cut, Delete                             |
 | **Canvas** | Fit View, Select All, Organize, Zoom In/Out, Show All                      |
-| **Multi-select** | Batch actions: Rename…, Copy, Cut, Duplicate, Tags, Move to Folder…, Unparent, Delete N Items |
+| **Multi-select** | Batch actions grouped like the card menu: Edit (Rename…, Copy, Cut, Duplicate, Copy Paths) · Structure (Move to Folder…, Unparent, Group) · Visibility ▸ · Tags ▸ · Select ▸ · Delete N Items |
 
 </details>
 

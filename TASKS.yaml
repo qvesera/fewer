@@ -7002,14 +7002,32 @@ tasks:
     note: "Menus: identity header + Details submenu (folders+files), unified Radix surface for edge/pane/selection, edge Go to Parent/Child; 13 new unit cases, 3 menu e2e green, docs+README+changelog updated"
     proof: ["2bce9f1", "#581"]
     effort: {commits: 1, files: 14, insertions: 1049, deletions: 565}
+  - start: "2026-11-08T13:48:39Z"
+    end: "2026-11-08T14:08:26Z"
+    measured: true
+    note: "Shortcut hints: MENU_SHORTCUT_HINTS table beside the bindings, hints on Unparent/Add Child/Open in Explorer/Open File/Select All/Organize/Show All/Clear Canvas + batch items, 13 dispatcher tests, e2e name-cleanliness check; connection menu stays keyless (measured: right-click does not select the edge)"
+    proof: ["f342330", "#581"]
+    effort: {commits: 1, files: 9, insertions: 223, deletions: 16}
+  - start: "2026-11-08T14:20:34Z"
+    end: "2026-11-08T14:55:26Z"
+    measured: true
+    note: "Batch menu reorganization: groupBatchActions returns edit/structure/visibility/select/delete clusters with a partition test, both renderers draw the same shape with separators, More Actions removed, docs+groups e2e updated (21/21, force-click documented)"
+    proof: ["482875f", "#581"]
+    effort: {commits: 1, files: 9, insertions: 267, deletions: 113}
+  - start: "2026-11-08T15:04:33Z"
+    end: "2026-11-08T15:07:11Z"
+    measured: true
+    note: "Batch hint honesty: F2 is single-selection only, so tryMenuShortcutHint gained a batch scope (rename suppressed there); both hint renderers pass it, pinned by test. Gates: tsc/lint/build green, 2010+267 unit pass, app e2e 4/4, groups e2e 21/21"
+    proof: ["7b7c5f0", "#581"]
+    effort: {commits: 1, files: 5, insertions: 36, deletions: 9}
   - start: "2026-11-08T18:05:56Z"
     end: "2026-11-08T18:07:20Z"
     measured: true
     note: "no work: branch switched to fix/minimap-viewport-mask mid-session; the minimap fix belongs to T-247"
     proof: []
     effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
-  spent_min: 26
-  session_count: 3
+  spent_min: 84
+  session_count: 6
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
   status: "review"
@@ -7049,8 +7067,14 @@ tasks:
     note: "Minimap surface: RF's own #fff .react-flow__minimap background painted over the themed panel (found via elementFromPoint) — svg now paints transparent, panel's colour-mix shows through; e2e asserts svg background transparent + panel == color-mix(--background 80%)"
     proof: ["60811a5", "#583"]
     effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
-  spent_min: 18
-  session_count: 3
+  - start: "2026-11-08T19:16:37Z"
+    end: "2026-11-08T19:26:06Z"
+    measured: true
+    note: "Merged origin/dev into this branch to clear PR #583's conflicts: CHANGELOG/e2e auto-merged, TASKS.yaml resolved as a union (T-246 gains dev's 3 hint/batch sessions + our empty session = 6 sessions/84m; T-247 row kept); gates green — tsc, lint 0 errors, 2014+267 tests, build"
+    proof: ["26150a3", "#583"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 27
+  session_count: 4
 - id: "T-248"
   title: "Custom-theme contrast helper measures the palette, not the painted card — Fix makes text worse"
   status: "in-progress"
