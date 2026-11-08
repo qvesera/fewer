@@ -190,6 +190,10 @@ radius for angled connections also lives in Connection Styling.
 
 Shows selected card's full path. Click any segment to navigate to that ancestor.
 
+With split panes (the Pro panel workspace) the bar is **per pane**: each canvas
+shows the path of the card selected in *that* pane, and clicking a segment
+selects within it — panes never mirror whichever pane was touched last.
+
 ## Auto-hide Large Folders
 
 Every folder shows its first **N** children — the **Auto-hide Limit** in Settings → Advanced, default 10 — in the canvas sort order. Children past that limit, and everything under them, are hidden on import. The rule **cascades**: any visible folder (including one you reveal by hand) shows its own first N and no more. Hidden cards appear in the sidebar **Hidden Cards** section as a nested tree, and the folder card keeps its `N hidden` badge.

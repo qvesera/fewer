@@ -543,6 +543,67 @@ test("splitting the canvas while a card is selected keeps both canvases alive (#
   expect(errors.filter((e) => /Maximum update depth/i.test(e))).toEqual([]);
 });
 
+// Each split pane must show its OWN path (T-245): the bar read the shared
+// selection, so after touching one pane every bar mirrored the last-touched
+// one — the "known quirk" the restore (PR #577) documented.
+test("each split pane shows its own breadcrumb path (T-245)", async ({ page }) => {
+  await page.goto("/app?tier=pro");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  // Let the initial fit settle so the src header click lands on the card.
+  const vp = page.locator(".react-flow__viewport");
+  let lastTransform = "";
+  await expect
+    .poll(
+      async () => {
+        const t = (await vp.getAttribute("style")) ?? "";
+        const settled = t !== "" && t === lastTransform;
+        lastTransform = t;
+        return settled;
+      },
+      { timeout: 10000 },
+    )
+    .toBe(true);
+
+  // Pane 1 selects src → its bar reads fewer › src.
+  await srcHeader(page).click();
+  const pane1 = page.locator("[data-leaf-id]").first();
+  const pane2 = page.locator("[data-leaf-id]").nth(1);
+  const bar1 = pane1.getByTestId("breadcrumb-bar");
+  await expect(bar1).toBeVisible();
+  await expect(bar1).toContainText("src");
+
+  // Split via the bottom-right corner grip (Pro: panelWorkspace).
+  const box = await page.locator(".react-flow").first().boundingBox();
+  expect(box).not.toBeNull();
+  const sx = box!.x + box!.width - 6;
+  const sy = box!.y + box!.height - 6;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx - 70, sy - 35, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator(".react-flow")).toHaveCount(2, { timeout: 10000 });
+
+  // Pane 1 keeps its own path; pane 2 has no selection of its own → no bar
+  // (pre-T-245 both bars mirrored the shared src selection).
+  await expect(bar1).toContainText("src");
+  await expect(pane2.getByTestId("breadcrumb-bar")).toHaveCount(0);
+
+  // Select the App card inside PANE 2 → it grows its own path… (file labels
+  // drop their extension in treeToGraph: "App.tsx" → "App".)
+  await pane2.locator(".react-flow__node").filter({ hasText: "App.tsx" }).first().click();
+  const bar2 = pane2.getByTestId("breadcrumb-bar");
+  await expect(bar2).toBeVisible();
+  await expect(bar2).toContainText("App");
+  await expect(bar2.locator("button")).toHaveCount(3);
+
+  // …and pane 1 still shows its own, unchanged (fewer › src, no App).
+  await expect(bar1).toContainText("src");
+  await expect(bar1).not.toContainText("App");
+  await expect(bar1.locator("button")).toHaveCount(2);
+});
+
 // Changing the layout direction or running Organize re-fits the view to the
 // whole graph (#286). Zoom in first, otherwise the fit is a geometric no-op and
 // the assertion would be vacuous — the point is that a user working close to a
