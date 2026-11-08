@@ -508,6 +508,28 @@ test("minimap drag pans the canvas after a post-mount direction change", async (
     getComputedStyle(document.documentElement).getPropertyValue("--fewer-select-ring").trim(),
   );
   await expect(minimap.locator("rect").first()).toHaveAttribute("stroke", selectRing);
+
+  // The map's SURFACE is the themed panel. React Flow paints its own
+  // `.react-flow__minimap` background — `--xy-minimap-background-color-default`,
+  // i.e. #fff — and that white sheet sat on top of the panel, so the minimap
+  // read as a white card in every dark/custom theme (the chips and the mask were
+  // correct the whole time, which is what made it confusing).
+  const surfaces = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.background = "color-mix(in srgb, var(--background) 80%, transparent)";
+    document.body.appendChild(probe);
+    const frosted = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const svg = document.querySelector("svg.react-flow__minimap")!;
+    const panel = svg.closest(".react-flow__panel")!;
+    return {
+      frosted,
+      svgBg: getComputedStyle(svg).backgroundColor,
+      panelBg: getComputedStyle(panel).backgroundColor,
+    };
+  });
+  expect(surfaces.svgBg).toBe("rgba(0, 0, 0, 0)");
+  expect(surfaces.panelBg).toBe(surfaces.frosted);
 });
 
 // The minimap's surface follows the ACTIVE theme: the frosted panel and the dim

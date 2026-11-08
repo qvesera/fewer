@@ -216,7 +216,20 @@ export function GraphMinimap({
         role="img"
         aria-label={ariaLabel}
         className="react-flow__minimap"
-        style={{ display: "block", cursor: "grab", borderRadius: 12, touchAction: "none" }}
+        style={{
+          display: "block",
+          cursor: "grab",
+          borderRadius: 12,
+          touchAction: "none",
+          // React Flow's own stylesheet paints .react-flow__minimap with
+          // `background: var(--xy-minimap-background-color-default)` — #fff
+          // unless its `colorMode` prop is set, which we never use (the app
+          // themes itself). That white sheet covered the themed panel behind it,
+          // so the map read as a white card in every dark/custom theme. We paint
+          // no background of our own on purpose: the Panel's colour-mix is the
+          // surface, and it follows `--background` live.
+          background: "transparent",
+        }}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={endDrag}

@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - The folder context menu's Info submenu opened empty for folders from repository or URL imports, the file menu had no equivalent at all, and Unparent / Select Children appeared twice in the folder menu
 - Minimap: restored the dim sheet outside the viewport and drew chips as flat fills instead of 2px outlines — the map no longer reads as a wireframe, selected cards use the selection accent instead of the folder orange, and the viewport outline disappears at fit-zoom instead of outlining the whole panel
 - Minimap surface follows every theme: the canvas keyed darkness off themeMode === dark, which reads a custom theme as light, so a dark custom theme got a white dim sheet (and a near-invisible panel border) over its map — it now asks useDarkBackground for polarity and dims with the theme's own background token
+- Minimap background follows the theme: React Flow's own stylesheet paints .react-flow__minimap with --xy-minimap-background-color-default (#fff), and that white sheet covered the themed panel, so the map looked like a white card in dark and custom themes while its chips and dim sheet were already correct; the svg now paints no background and the panel's theme-derived surface shows through
 
 ### Changed
 
