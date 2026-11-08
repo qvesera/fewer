@@ -7051,3 +7051,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
   spent_min: 18
   session_count: 3
+- id: "T-248"
+  title: "Custom-theme contrast helper measures the palette, not the painted card — Fix makes text worse"
+  status: "review"
+  type: "fix"
+  area: "ui"
+  tier: 2
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 584
+  pr: 585
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T18:23:01Z"
+  notes: ["2026-11-08T18:23:33Z · slotContrast compares raw palette hexes, ignoring slot opacity and the canvas behind the card body (0.12/0.18 tint), so it reports bright-text-on-bright-accent failures that are invisible on the real card; Fix then mixes toward black/white (hue-destroying, picks the endpoint with fewer steps = black on a bright surface) and darkens text that was ~11:1 on screen to ~1.4:1. Plan: composite-aware slotContrast (surface = body tint over the composited background, ink = text at its opacity over that surface), hue-preserving direction-aware ensureContrast with reached flag, tooltip naming the rendered surface, tests for the exact failing pair, theming.md + changelog"]
+  sessions:
+  - start: "2026-11-08T18:55:54Z"
+    end: "2026-11-08T19:00:19Z"
+    measured: true
+    note: "Contrast measured as painted: canvasSurface/cardSurface composite body+ink at real opacities (gradients averaged), ensureContrastTinted lightens/darkens by surface with hue preserved and reports reached:false (Fix hides), badge tooltip names the surface; 7 new tests incl. the reported pair; docs+changelog; PR #585"
+    proof: ["08794ce", "#585"]
+    effort: {commits: 1, files: 7, insertions: 323, deletions: 54}
+  spent_min: 4
+  session_count: 1
