@@ -14,8 +14,12 @@ for context instead of grepping/reading files blindly.
    - Before risky edits → `get_risk`; check reachability → `get_dead_code`
 2. Only read files directly to fill gaps the index can't answer (exact current
    bytes, uncommitted changes).
-3. If answers look stale after large changes, run `repowise update` in the repo
-   root and retry.
+3. The index refreshes itself on push (the `pre-push` hook installed by
+   `bun run task:hooks` runs `repowise update --index-only --no-agents`
+   detached). Mid-session, when answers look stale after large changes, run
+   `bun run repowise:refresh` (~15s, no LLM) and retry; a bare `repowise update`
+   additionally regenerates the wiki pages with the local model — deliberate,
+   not routine.
 
 Do not skip this step even for small tasks — one `search_codebase` call is
 cheaper than crawling.
