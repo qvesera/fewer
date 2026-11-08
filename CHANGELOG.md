@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Restored the canvas breadcrumb bar: it was left unmounted by the panel-split refactor (03166bb) even though it still shipped in the bundle, so the selected card's path no longer showed anywhere.
 - Breadcrumb bars are pane-aware again: with split canvases each pane now shows its own selected card's path (and a crumb click writes that pane's selection) instead of every pane mirroring whichever pane was touched last.
 - The folder context menu's Info submenu opened empty for folders from repository or URL imports, the file menu had no equivalent at all, and Unparent / Select Children appeared twice in the folder menu
+- Minimap: restored the dim sheet outside the viewport and drew chips as flat fills instead of 2px outlines — the map no longer reads as a wireframe, selected cards use the selection accent instead of the folder orange, and the viewport outline disappears at fit-zoom instead of outlining the whole panel
 
 ### Changed
 

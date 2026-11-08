@@ -542,11 +542,10 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
             nodes={stampedNodes}
             position={mini.rfMiniMapPosition}
             style={mini.minimapStyle}
-            folderFill={themeColors.folderBg}
-            fileFill={themeColors.fileBg}
-            folderStroke={themeColors.folderIcon}
-            fileStroke={themeColors.fileIcon}
-            selectedFill={themeColors.folderIcon}
+            folderColor={themeColors.folderIcon}
+            fileColor={themeColors.fileIcon}
+            selectionColor={themeColors.selectRing}
+            maskColor={themeColors.minimapMask}
             ariaLabel="Mini map"
           />
         )}

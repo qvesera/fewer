@@ -3,6 +3,7 @@ import {
   buildMinimapGeometry,
   MAX_MINIMAP_RECTS,
   rectPath,
+  viewportMaskPath,
 } from "./minimapPath";
 import type { FewerNode } from "./types";
 
@@ -87,5 +88,35 @@ describe("buildMinimapGeometry", () => {
     const geo = buildMinimapGeometry(many);
     expect(geo.drawn).toBeGreaterThan(0);
     expect(geo.drawn).toBeLessThanOrEqual(MAX_MINIMAP_RECTS + 1);
+  });
+});
+
+describe("viewportMaskPath", () => {
+  const frame = { x: -10, y: -20, width: 400, height: 300 };
+
+  test("emits the frame then the viewport as a hole (two subpaths)", () => {
+    const d = viewportMaskPath(frame, { x: 0, y: 0, width: 100, height: 100 });
+    expect(d).toBe(`${rectPath(-10, -20, 400, 300)}${rectPath(0, 0, 100, 100)}`);
+    expect(d.match(/Z/g)?.length).toBe(2);
+  });
+
+  test("a viewport covering the frame dims nothing — the fit-zoom case", () => {
+    // Exact cover, and the clamped near-cover a fit view produces: either would
+    // outline the panel, which is what made the old map look like a border.
+    expect(viewportMaskPath(frame, { x: -10, y: -20, width: 400, height: 300 })).toBe("");
+    expect(viewportMaskPath(frame, { x: -10, y: -20, width: 399, height: 300 })).toBe("");
+  });
+
+  test("missing or degenerate viewport dims nothing", () => {
+    expect(viewportMaskPath(frame, null)).toBe("");
+    expect(viewportMaskPath(frame, { x: 0, y: 0, width: 0, height: 50 })).toBe("");
+    expect(
+      viewportMaskPath({ x: 0, y: 0, width: 0, height: 0 }, { x: 0, y: 0, width: 5, height: 5 }),
+    ).toBe("");
+  });
+
+  test("partial coverage dims", () => {
+    // a quarter of the width × a third of the height ≈ 8 % covered → dim the rest
+    expect(viewportMaskPath(frame, { x: 0, y: 0, width: 100, height: 100 })).not.toBe("");
   });
 });

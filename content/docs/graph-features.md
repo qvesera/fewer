@@ -13,7 +13,7 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 - Zoom (scroll wheel or +/- keys)
 - **Scroll action** (Settings → Advanced): defaults to **Scroll to pan**, where the wheel pans vertically and Ctrl/⌘+scroll zooms; switch to **Scroll to zoom** to make the wheel zoom directly instead (trackpad pinch-zoom always works)
 - Fit view (Space key)
-- Minimap (bottom-right, configurable)
+- Minimap (bottom-right, configurable): chips are flat fills in the card accents, everything outside the current viewport is dimmed, and the viewport itself is outlined in the selection colour (both disappear at fit-zoom, where the whole graph *is* the viewport). Drag the map to pan, wheel to zoom it
 - Controls (zoom in/out, fit view buttons)
 - **Right-click** empty canvas for the canvas context menu
 

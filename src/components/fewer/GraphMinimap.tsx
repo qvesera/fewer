@@ -4,7 +4,7 @@ import { useCallback, useMemo, useRef } from "react";
 import { Panel, useReactFlow, useStore, type PanelPosition } from "@xyflow/react";
 import { shallow } from "zustand/shallow";
 import type { CSSProperties } from "react";
-import { buildMinimapGeometry } from "@/lib/fewer/minimapPath";
+import { buildMinimapGeometry, viewportMaskPath } from "@/lib/fewer/minimapPath";
 import type { FewerNode } from "@/lib/fewer/types";
 
 /**
@@ -33,17 +33,33 @@ import type { FewerNode } from "@/lib/fewer/types";
  * Interaction parity with `<MiniMap pannable zoomable>`: drag pans, wheel
  * zooms about the viewport centre. Keyboard users get the same powers from
  * `CanvasZoomControls`, so the map stays pointer-only (as before).
+ *
+ * Painting parity is the other half (T-247): the rewrite kept the colors of the
+ * old `<MiniMap nodeColor nodeStrokeColor>` call but not its semantics, so the
+ * map came out as a wireframe — 2px non-scaling outlines on chips small enough
+ * that the outline was all you could see, the viewport drawn as a bare orange
+ * rectangle that hugs the panel at fit-zoom, and selection painted in the same
+ * orange as folders. Chips are FILLS (default no stroke), selection and the
+ * viewport share the selection accent, and the dim sheet outside the viewport —
+ * `viewportMaskPath` — is what tells you where you are looking. Keeping it as
+ * ONE path keeps the T-239 cost profile: three chip paths + at most two more.
  */
 interface GraphMinimapProps {
   /** The canvas's stamped nodes (post layout, per-view positions, selection). */
   nodes: readonly FewerNode[];
   position: PanelPosition;
   style?: CSSProperties;
-  folderFill: string;
-  fileFill: string;
-  folderStroke: string;
-  fileStroke: string;
-  selectedFill: string;
+  /** Theme ACCENT for folder chips (folderIcon), not the pale card body. */
+  folderColor: string;
+  /** Theme ACCENT for file chips (fileIcon). */
+  fileColor: string;
+  /** Selected chips and the viewport outline — distinct from both accents. */
+  selectionColor: string;
+  /** Scrim over everything outside the viewport (React Flow's `maskColor`). */
+  maskColor: string;
+  /** Chip fill alpha. */
+  chipOpacity?: number;
+  /** Chip outline in screen px; 0 = no outline (the readable default). */
   strokeWidth?: number;
   ariaLabel?: string;
 }
@@ -57,12 +73,12 @@ export function GraphMinimap({
   nodes,
   position,
   style,
-  folderFill,
-  fileFill,
-  folderStroke,
-  fileStroke,
-  selectedFill,
-  strokeWidth = 2,
+  folderColor,
+  fileColor,
+  selectionColor,
+  maskColor,
+  chipOpacity = 0.7,
+  strokeWidth = 0,
   ariaLabel = "Mini map",
 }: GraphMinimapProps) {
   const { setViewport } = useReactFlow();
@@ -173,6 +189,13 @@ export function GraphMinimap({
 
   if (geo.drawn === 0) return null;
 
+  // The dim sheet and the viewport outline come as a pair: an empty mask means
+  // there is no window to point at (no viewport, or it covers the frame at
+  // fit-zoom), and that is exactly the case where an outline degenerated into a
+  // border around the whole panel.
+  const frameRect = { x: frame.x, y: frame.y, width: frame.width, height: frame.height };
+  const maskPath = viewportMaskPath(frameRect, viewRect);
+
   return (
     <Panel position={position} style={style} aria-label={ariaLabel}>
       <svg
@@ -191,18 +214,26 @@ export function GraphMinimap({
         onPointerCancel={endDrag}
         onWheel={onWheel}
       >
-        <path d={geo.files} fill={fileFill} stroke={fileStroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-        <path d={geo.folders} fill={folderFill} stroke={folderStroke} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-        <path d={geo.selected} fill={selectedFill} stroke={selectedFill} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
-        {viewRect && (
+        <path d={geo.files} fill={fileColor} fillOpacity={chipOpacity} stroke={strokeWidth ? fileColor : "none"} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+        <path d={geo.folders} fill={folderColor} fillOpacity={chipOpacity} stroke={strokeWidth ? folderColor : "none"} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+        <path d={geo.selected} fill={selectionColor} fillOpacity={1} stroke={strokeWidth ? selectionColor : "none"} strokeWidth={strokeWidth} vectorEffect="non-scaling-stroke" />
+        {maskPath && (
+          <path
+            d={maskPath}
+            fill={maskColor}
+            fillRule="evenodd"
+            pointerEvents="none"
+          />
+        )}
+        {viewRect && maskPath && (
           <rect
             x={viewRect.x}
             y={viewRect.y}
             width={viewRect.width}
             height={viewRect.height}
             fill="none"
-            stroke={folderStroke}
-            strokeWidth={1.5}
+            stroke={selectionColor}
+            strokeWidth={1}
             vectorEffect="non-scaling-stroke"
           />
         )}

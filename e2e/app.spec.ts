@@ -493,6 +493,21 @@ test("minimap drag pans the canvas after a post-mount direction change", async (
   await page.mouse.up();
 
   expect(after).not.toBe(before);
+
+  // T-247: the map is a fill-based paint, not a wireframe — chips carry no
+  // outline, everything outside the viewport is dimmed by one evenodd path,
+  // and the viewport rectangle is stroked with the selection accent (it used to
+  // share the folder orange, so selection and viewport were both invisible).
+  const chipPaths = await minimap.locator("path").evaluateAll((ps) =>
+    ps.map((p) => ({ stroke: p.getAttribute("stroke"), fillRule: p.getAttribute("fill-rule") })),
+  );
+  expect(chipPaths.length).toBeGreaterThanOrEqual(4);
+  expect(chipPaths.slice(0, 3).every((p) => p.stroke === "none")).toBe(true);
+  expect(chipPaths.some((p) => p.fillRule === "evenodd")).toBe(true);
+  const selectRing = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--fewer-select-ring").trim(),
+  );
+  await expect(minimap.locator("rect").first()).toHaveAttribute("stroke", selectRing);
 });
 
 // Splitting while a card is selected used to crash: the new leaf had no
