@@ -51,6 +51,7 @@ breaks down.
 - **Item counts**: shows number of children
 - **Size display**: total size of all children
 - **Collapsible**: click to expand/collapse children
+- **Level of detail (zoom)**: zoom below 0.3 and every folder paints as its one-line pill — child rows drop away with the zoom and come back when you cross the seam again. The pill's chevron zooms you in past the seam rather than writing collapse state, so your own collapse choices (and exports) are untouched
 - **Resizable**: drag corners to adjust (multi-direction)
 
 ### File Cards (Purple)

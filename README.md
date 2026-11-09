@@ -121,7 +121,7 @@ docker run -p 3000:3000 fewer
 <summary><b>Graph Visualization</b></summary>
 
 - **React Flow v12** canvas with minimap + controls
-- **Folder cards** (orange): children inline, scrollable, item counts, sizes
+- **Folder cards** (orange): children inline, scrollable, item counts, sizes — zoom below 0.3 and they collapse to one-line pills (level of detail), with the rows coming back when you zoom past the seam
 - **File cards** (purple): filename, extension, category icon, size
 - **4 layout directions**: Top→Bottom, Left→Right, Bottom→Top, Right→Left, and the view re-fits to the whole graph when you switch, or after Organize
 - **3 connection styles**: Curved, Angled (adjustable radius), Straight

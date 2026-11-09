@@ -25,6 +25,14 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Context menus show the keyboard shortcut of every item that has one — Unparent Alt+Shift+P, Add Child Card Alt+N, Select All Ctrl+A, Organize Alt+R, Clear Canvas Alt+Shift+N, Open in File Explorer Alt+O, Open File Enter, Hide H, Show All Shift+H — plus the same hints in the batch sections; hints are read from MENU_SHORTCUT_HINTS, which a test fires through the key dispatcher, and the connection menu stays keyless because Delete only acts on a selected connection
 - The multi-selection menu is reorganized into the same clusters as the single-card menu — Edit (Rename…, Copy, Cut, Duplicate), Structure (Move to Folder…, Unparent, Group N Items, promoted out of the old More Actions drawer), a Visibility submenu (Hide/Show/Collapse/Expand, no longer split apart), then Tags and Select, with Delete last — identical in the card batch section and the canvas selection menu
 
+### Added
+
+- Zoom below 0.3 collapses every folder card to its one-line pill (level of detail): child rows drop away with the zoom and return when you cross the seam again, connectors re-anchor to the pill, and the pill's chevron zooms you in past the seam instead of writing collapse state — your own collapse choices and exports are untouched
+
+### Performance
+
+- Zooming across the LOD seam stays smooth on large graphs: the pill flip is deferred until the zoom animation settles and runs in a transition, pill-size dimension reports are dropped instead of written back (that store → render → re-measure loop was the multi-second stall), only painted folders re-measure once the DOM settles, the dimension merge looks changes up in a Map instead of scanning nodes × changes, and collapsed pills skip the child-row sort they throw away
+
 ## [0.9.0] - 2026-11-08
 
 ### Security

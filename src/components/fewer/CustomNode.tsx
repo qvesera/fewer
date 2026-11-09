@@ -1151,15 +1151,24 @@ function CustomNodeImpl({
   const layoutDirection = useGraphViewDirection();
   const { source, target } = getHandlePositions(layoutDirection);
   const isFolder = data.type === "folder";
-const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.collapsedFolderIds.includes(id));
+  // LOD collapse (T-250): every folder renders the one-line pill while the view
+  // is collapsed — read from the scope, NOT from a per-card zoom subscription:
+  // GraphCanvas defers the flip past the zoom animation, so a card re-renders
+  // only when the settled flip lands (never mid-animation).
+  const lodCollapsed = !!scope.lodCollapsed;
+  const userCollapsed = data.collapsed === true || scope.resolved.collapsedFolderIds.includes(id);
+  const isCollapsed = isFolder && (userCollapsed || lodCollapsed);
 
   // T-240: narrow, value-stable selectors. The card used to subscribe to the
   // store's WHOLE `nodes` and `edges` arrays — any store write re-rendered and
   // re-sorted every mounted card. Now each selector returns either a primitive
   // or a referentially-stable derived array (cardChildRows), so a write
   // re-renders only the cards whose OWN children changed.
+  // A pill (user- or LOD-collapsed) renders no rows: skip the child sort
+  // entirely — the per-card work that used to run even though the list is
+  // thrown away (ported from desktop's zoom-lag pass, T-267).
   const childRows = useGraphStore(
-    (s) => (isFolder ? childRowsOf(id, s.nodes, s.edges) : EMPTY_ROWS),
+    (s) => (isFolder && !isCollapsed ? childRowsOf(id, s.nodes, s.edges) : EMPTY_ROWS),
   );
   const childCount = useGraphStore(
     (s) => (isFolder ? childCountOf(id, s.edges) : 0),
@@ -1196,11 +1205,11 @@ const isCollapsed = isFolder && ((data.collapsed === true) || scope.resolved.col
   // content-stable hidden SET (not the per-write visible set), so it's a plain
   // number that only changes when the hidden set or the children do.
   const hiddenChildCount = useMemo(() => {
-    if (!isFolder) return 0;
+    if (!isFolder || isCollapsed) return 0;
     let painted = 0;
     for (const c of childRows) if (!scope.hiddenIds.has(c.id)) painted++;
     return childCount - painted;
-  }, [childCount, childRows, isFolder, scope.hiddenIds]);
+  }, [childCount, childRows, isFolder, isCollapsed, scope.hiddenIds]);
   const children = childRows;
 
   const isRenaming = !!scope?.isActive && renamingId === id;
@@ -1273,6 +1282,12 @@ if (isCollapsed) {
               type="button"
               onClick={(e) => {
                 e.stopPropagation();
+                if (lodCollapsed && !userCollapsed) {
+                  // LOD pill: there is no user collapse to undo — "expand" means
+                  // zoom in past the threshold, where the rows come back.
+                  useGraphStore.getState().setZoomToNodeIds([id]);
+                  return;
+                }
                 useGraphStore.getState().toggleCollapseForLeaf(scope.leafId, id);
               }}
               onPointerDown={(e) => e.stopPropagation()}

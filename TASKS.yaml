@@ -7139,3 +7139,32 @@ tasks:
     effort: {commits: 1, files: 3, insertions: 48, deletions: 8}
   spent_min: 12
   session_count: 1
+- id: "T-250"
+  title: "Port desktop's canvas optimizations: LOD folder collapse @0.3, pill child-row skip, dimension-merge Map lookup"
+  status: "review"
+  type: "perf"
+  area: "performance"
+  tier: null
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 588
+  pr: 589
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T22:40:51Z"
+  notes: ["2026-11-08T22:43:42Z · Port from fewer-desktop dev (PR #34 + follow-ups): (A) applyDimensionChanges Map lookup, (B) collapsed pill skips childRowsOf, (C) LOD folder collapse @0.3 — deferred flip past 250ms zoom animation, startTransition, drop pill-size dimension reports, settled painted-folder re-measure, scope-driven lodCollapsed. Threshold 0.3 matches desktop; tune later from perf:bench."]
+  sessions:
+  - start: "2026-11-08T22:48:19Z"
+    end: "2026-11-08T23:13:51Z"
+    measured: true
+    note: "Ported desktop's canvas perf arc: (A) applyDimensionChanges Map lookup, (B) collapsed pill skips childRowsOf, (C) LOD folder collapse @0.3 with deferred flip, startTransition, dropped pill dimension reports and settled painted-folder re-measure. lint/tsc/test(2021+270)/build green, e2e 82 passed incl. new T-250 spec, perf:bench clean. Docs + README + changelog (Added + Performance) updated."
+    proof: ["8eb5e9e", "bcf6fb7", "db7a796"]
+    effort: {commits: 3, files: 10, insertions: 181, deletions: 9}
+  spent_min: 26
+  session_count: 1

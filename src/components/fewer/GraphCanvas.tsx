@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState, type ReactNode, startTransition } from "react";
 import {
   ReactFlow,
   Background,
@@ -10,6 +10,7 @@ import {
   useNodesState,
   useEdgesState,
   useUpdateNodeInternals,
+  useStore,
   ReactFlowProvider,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -47,6 +48,7 @@ import { useCanvasDashClock } from "@/hooks/use-canvas-dash-clock";
 import { useCanvasDirectionRemeasure } from "@/hooks/use-canvas-direction-remeasure";
 import { useCanvasInitialFit } from "@/hooks/use-canvas-initial-fit";
 import { withCollapsedPillGeometry, applyViewPositions, deriveViewLayout, stampSelection } from "@/lib/fewer/viewState";
+import { LOD_FOLDER_COLLAPSE_ZOOM } from "@/lib/fewer/lodCollapse";
 import { seedRfInternals } from "@/lib/fewer/rfInternals";
 import { GraphMinimap } from "@/components/fewer/GraphMinimap";
 import { collapsedGroupMembers } from "@/lib/fewer/groups";
@@ -186,6 +188,45 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   const effectiveHiddenIds = useStableHiddenIds(vs.hiddenIds);
 
   const { visibleNodes, visibleEdges, hiddenCount } = useCanvasVisibleGraph(allNodes, allEdges, effectiveHiddenIds);
+
+  // LOD collapse (T-250): zoom below the seam paints every folder as its
+  // one-line pill. A BOOLEAN selector — this canvas re-renders only when zoom
+  // crosses the threshold, never on every wheel tick.
+  const lodNow = useStore((s) => s.transform[2] < LOD_FOLDER_COLLAPSE_ZOOM);
+  const [lodCollapsed, setLodCollapsed] = useState(lodNow);
+  // Defer the flip past the zoom animation (zoomIn/zoomOut run 250ms, see
+  // CanvasZoomControls/keyboardShortcuts): reacting on the crossing frame
+  // re-rendered every visible folder MID-ANIMATION — the zoom stutter. At rest
+  // the swap is one clean commit; the delayed handle re-measure below keys off
+  // this settled value too, and startTransition lets React yield the branch
+  // swap instead of blocking the canvas.
+  useEffect(() => {
+    if (lodNow === lodCollapsed) return;
+    const t = window.setTimeout(
+      () => startTransition(() => setLodCollapsed(lodNow)),
+      250,
+    );
+    return () => window.clearTimeout(t);
+  }, [lodNow, lodCollapsed]);
+  // PAINTED folders only: a hidden folder never flips, so it never asks for a
+  // re-measure (measuring every store node — 25k on large docs — blocked the
+  // zoom-animation frame).
+  const folderIds = useMemo(
+    () => visibleNodes.filter((n) => n.data.type === "folder").map((n) => n.id),
+    [visibleNodes],
+  );
+  // React Flow reports a dimension change per folder when the branch swaps
+  // (expanded card ↔ pill). While the view is LOD-collapsed those reports must
+  // be DROPPED: writing the pill size into the shared node — and the expanded
+  // size back on the way up — is a store → render → push → measure LOOP (the
+  // multi-second stall on large graphs). applyDimensionChanges already refuses
+  // a collapsed id, so the union reuses that guard.
+  const dropDimensionIds = useMemo(() => {
+    if (!lodCollapsed) return vs.collapsedFolderIds;
+    const union = new Set(vs.collapsedFolderIds);
+    for (const id of folderIds) union.add(id);
+    return [...union];
+  }, [lodCollapsed, vs.collapsedFolderIds, folderIds]);
 
   // This leaf's own copies: folders it has collapsed paint as a compact pill.
   // Stamped before `resolveViewNodes` so the leaf's derived layout reserves a
@@ -369,7 +410,19 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
   useCanvasDirectionRemeasure(vs.direction);
 
   const updateNodeInternals = useUpdateNodeInternals();
+  // User collapse re-measures every card's handles (infrequent, one-time).
   useCanvasCollapsedInternals(vs.collapsedFolderIds, updateNodeInternals);
+  // LOD flip (T-250): one SETTLED re-measure of the painted folders only, so
+  // edges re-anchor to the pill. No immediate pass — it races the expanded↔pill
+  // branch swap (wrong handle) and lands on the zoom frame for nothing.
+  const prevLodRef = useRef(lodCollapsed);
+  useEffect(() => {
+    const flipped = prevLodRef.current !== lodCollapsed;
+    prevLodRef.current = lodCollapsed;
+    if (!flipped || folderIds.length === 0) return;
+    const t = setTimeout(() => updateNodeInternals(folderIds), 250);
+    return () => clearTimeout(t);
+  }, [lodCollapsed, folderIds, updateNodeInternals]);
   const { fitView, zoomIn, zoomOut, screenToFlowPosition, setViewport, getViewport, getEdges } = useReactFlow();
   // User-requested re-flows (direction change, Organize) re-fit the view — see
   // useCanvasInitialFit, which reuses the same bounds computation (#286).
@@ -383,7 +436,7 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
     leafId, positionedNodes, seedNodePositions, setNodePositionForLeaf, recordDragMoves,
   });
   const { baseRef: boxSelectBaseRef, onPointerDownCapture: boxSelectOnPointerDown, onPointerUp: boxSelectOnPointerUp, onPointerCancel: boxSelectOnPointerCancel } = useCanvasBoxSelect({ selectedNodeIds, setRfNodes });
-  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: vs.collapsedFolderIds, onBeforePositionCommit: seedOnFirstDrag });
+  const handleNodesChange = useCanvasNodeChangeHandler({ onNodesChange, fitView, recordResize, boxSelectBaseRef, leafId, collapsedIds: dropDimensionIds, onBeforePositionCommit: seedOnFirstDrag });
   const { onDrop, onDragOver } = useCanvasDrop({ screenToFlowPosition, addStandaloneNode, toast });
   // Activation belongs to input, not to selection echoes: a pointer landing in
   // this canvas makes it the active view before React Flow reports anything.
@@ -495,8 +548,12 @@ function CanvasInner({ onOpenImport, onLoadSample, primary = true, leafId }: Can
       resolved: scopeResolved,
       hiddenIds: hiddenIdSet,
       hoverIds,
+      // Cards read this instead of subscribing to the zoom themselves: the
+      // flip is deferred past the animation, so cards re-render only when it
+      // lands (T-250).
+      lodCollapsed,
     }),
-    [leafId, activeLeafId, vs.direction, scopeResolved, hiddenIdSet, hoverIds],
+    [leafId, activeLeafId, vs.direction, scopeResolved, hiddenIdSet, hoverIds, lodCollapsed],
   );
   return (
     <GraphViewProvider value={scope}>

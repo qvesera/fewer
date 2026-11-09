@@ -746,6 +746,35 @@ test("changing the layout direction re-fits the view to the whole graph (#286)",
   expect(after).not.toBe(zoomedIn);
 });
 
+// Below zoom 0.3 every folder drops its child rows and paints as the same
+// one-line pill a user-collapsed folder shows (T-250 LOD). The flip is
+// deferred 250ms past the zoom animation, so each step waits it out. Zooming
+// back past the seam brings the rows back — the flip is purely visual and
+// writes no collapse state.
+test("zooming out past the LOD seam collapses folders to pills and back (T-250)", async ({ page }) => {
+  await openCanvas(page);
+
+  const src = srcHeader(page);
+  await expect(src).toBeVisible({ timeout: 10000 });
+  // The expanded card lists its children as rows.
+  await expect(src.getByText("components")).toHaveCount(1);
+
+  // Zoom out button step is ×2 per click; three land below the 0.3 seam from
+  // any fit zoom (1 → 0.125, clamped at React Flow's minZoom 0.15).
+  const zoomOut = page.getByRole("button", { name: "Zoom out (-)" });
+  for (let i = 0; i < 3; i++) await zoomOut.click();
+  await page.waitForTimeout(600); // 250ms animation + 250ms deferral + settle
+
+  await expect(src.getByText("components")).toHaveCount(0); // rows gone
+  await expect(src.getByText("7 items")).toHaveCount(1); // the pill's count survives
+
+  const zoomIn = page.getByRole("button", { name: "Zoom in (+)" });
+  for (let i = 0; i < 3; i++) await zoomIn.click();
+  await page.waitForTimeout(600);
+
+  await expect(src.getByText("components")).toHaveCount(1); // rows are back
+});
+
 test("sidebar sections and settings explain themselves on hover (T-173)", async ({ page }) => {
   // tier=pro: the Advanced tab's Layout Policy is a pro/basic-mode gate, and
   // the override is inlined into the build the webServer serves.
