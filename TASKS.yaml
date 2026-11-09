@@ -7141,14 +7141,14 @@ tasks:
   session_count: 1
 - id: "T-250"
   title: "Port desktop's canvas optimizations: LOD folder collapse @0.3, pill child-row skip, dimension-merge Map lookup"
-  status: "triaged"
+  status: "review"
   type: "perf"
   area: "performance"
   tier: null
   estimate_min: 180
   estimate_basis: "cli"
   issue: 588
-  pr: null
+  pr: 589
   internal: false
   milestone: null
   blocked_by: []
