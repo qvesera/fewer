@@ -21,7 +21,9 @@ export async function GET(request: Request) {
   cookieStore.delete("cloud_oauth_state");
   cookieStore.delete("cloud_oauth_provider");
 
-  const bad = (msg: string) => NextResponse.redirect(`${origin}/?cloud=error&msg=${encodeURIComponent(msg)}`);
+  // Land on /app, not / — the ?cloud= params are consumed by FewerApp, and /
+  // is the marketing page since the home split.
+  const bad = (msg: string) => NextResponse.redirect(`${origin}/app?cloud=error&msg=${encodeURIComponent(msg)}`);
 
   if (!provider || !code) return bad("Missing OAuth parameters");
   if (error) return bad(`Provider denied: ${error}`);
@@ -32,7 +34,7 @@ export async function GET(request: Request) {
 
   try {
     await persistConnection(authed.supabase, provider, authed.user.id, code);
-    return NextResponse.redirect(`${origin}/?cloud=connected&provider=${provider}`);
+    return NextResponse.redirect(`${origin}/app?cloud=connected&provider=${provider}`);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Unknown error";
     return bad(`Connection failed: ${msg}`);
