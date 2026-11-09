@@ -7170,14 +7170,14 @@ tasks:
   session_count: 1
 - id: "T-251"
   title: "Spike: drive.file + Picker folder-grant semantics"
-  status: "triaged"
+  status: "review"
   type: "research"
   area: "cloud"
   tier: 0
   estimate_min: 90
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 590
   internal: true
   milestone: null
   blocked_by: []
