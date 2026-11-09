@@ -7168,3 +7168,32 @@ tasks:
     effort: {commits: 3, files: 10, insertions: 181, deletions: 9}
   spent_min: 26
   session_count: 1
+- id: "T-251"
+  title: "Spike: drive.file + Picker folder-grant semantics"
+  status: "triaged"
+  type: "research"
+  area: "cloud"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-09T11:23:25Z"
+  notes: ["2026-11-09T11:23:45Z · Research spike: does drive.file + Google Picker grant access to descendants of a picked folder (U1), is the grant visible to a separate server token (U2), and are metadata fields intact (U3)? Decision input for Google Drive scope: keep drive.metadata.readonly (annual CASA) vs move to drive.file.", "2026-11-09T12:23:13Z · Scope grew: fixed stale OAuth redirect targets (?cloud= params -> /app, not / — landing page never consumed them). Genuine bug, keep after spike revert."]
+  sessions:
+  - start: "2026-11-09T11:23:51Z"
+    end: "2026-11-09T16:39:00Z"
+    measured: true
+    note: "Spike verdict: U1 FALSE — drive.file + Picker grants the picked item only; no inheritance to children across 6 picked folders (hisoka/spike2/discord/.vscode/cogs/Gemini Gems), verified via list/search/get over 45-180min; astro anomaly unexplained, non-reproducible. U2/U3 true but moot. Decision-rule row 3: B dead for tree browsing -> A (CASA/metadata.readonly) or C (client-side). OAuth /app redirect fix split to fix/cloud-oauth-redirect."
+    proof: ["72a20eb", "a027234", "2ea6718", "4475c15", "9f6a309"]
+    effort: {commits: 5, files: 8, insertions: 505, deletions: 386}
+  spent_min: 315
+  session_count: 1
