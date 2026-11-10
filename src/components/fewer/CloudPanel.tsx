@@ -48,13 +48,15 @@ export function CloudPanel({ onRequireAuth, onBrowse }: CloudPanelProps) {
 
   const linked = new Set(connections.map((c) => c.provider));
 
-  // OAuth "verification / certification" for these providers costs money, which
-  // we aren't paying right now, so don't offer to link them in the UI. The
-  // adapters stay wired (already-linked accounts keep working / can be
-  // unlinked); drop this filter to re-enable.
+  // OAuth "verification / certification" for some providers costs money, which
+  // we aren't paying right now, so don't offer to link them in the UI. Google
+  // Drive needs Google's annual CASA assessment (restricted scope) — deferred
+  // until revenue justifies it (.repowise/decisions.yaml, f8944b37). OneDrive
+  // stays offered: Microsoft publisher verification is free. The adapters stay
+  // wired (already-linked accounts keep working / can be unlinked); drop an
+  // entry from this filter to re-enable that provider.
   const HIDDEN_PROVIDERS = new Set<CloudProvider>([
     "google-drive",
-    "onedrive",
     "sharepoint",
     "azure-devops",
     "azure-blob",
