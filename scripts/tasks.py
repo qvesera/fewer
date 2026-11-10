@@ -39,6 +39,12 @@ PROJECT_OWNER = "qvesera"
 # owner qvesera) — `pr-metadata --project <n>` still overrides per call.
 PROJECT_NUMBER_DEFAULT = 1
 PROJECT_NUMBER: int | None = 1
+# item-list cap shared by sync-details and doctor --board — they MUST match:
+# doctor used 100 while sync used 200, so once the board passed 100 items
+# doctor called ~98 correctly-projected rows "missing" and failed the nightly
+# job on a phantom drift (T-253). gh auto-pages up to --limit, so one cap
+# comfortably above the item count is enough.
+PROJECT_ITEM_LIMIT = 1000
 
 # ── vocabulary ──────────────────────────────────────────────────────────
 STATUSES = (
@@ -1631,7 +1637,7 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     items: dict[int, dict[str, Any]] = {}
     try:
         listed = json.loads(gh("project", "item-list", str(args.project), "--owner", PROJECT_OWNER,
-                               "--limit", "200", "--format", "json", check=False))
+                               "--limit", str(PROJECT_ITEM_LIMIT), "--format", "json", check=False))
         for item in listed.get("items", []):
             number = (item.get("content") or {}).get("number")
             if number and item.get("id"):
@@ -2682,7 +2688,7 @@ def board_problems(ledger: dict[str, Any]) -> tuple[list[str], list[str]]:
         return [], []
     try:
         listed = json.loads(gh("project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
-                               "--limit", "100", "--format", "json", check=False))
+                               "--limit", str(PROJECT_ITEM_LIMIT), "--format", "json", check=False))
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
         # A note, NOT drift: a token without the project scope, or a flaky read,
         # must not report the board as wrong — and must not fail the nightly job
@@ -2860,10 +2866,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     notes: list[str] = []
     rows = {r.get("issue"): r for r in ledger["tasks"] if r.get("issue")}
     by_id = {r["id"]: r for r in ledger["tasks"]}
-    if not have_gh():
-        _die("doctor needs an authenticated gh (gh auth status failed)")
-    issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
-                     "--json", "number,title,state,labels")
+    # A rate-limited or unauthenticated gh must not kill the doctor: every
+    # GitHub-surface check degrades to a NOTE (the same philosophy as
+    # board_problems' unreadable-project note below). sync-details/gh-sync
+    # still hard-fail on auth, so a genuinely dead token fails the nightly job
+    # one step earlier — while a mid-run rate limit (seen on PR #591, run
+    # 42792451337) becomes "checks skipped" instead of a phantom DRIFT.
+    gh_ok = have_gh()
+    if not gh_ok:
+        notes.append("GitHub checks skipped: gh auth unavailable (rate limit or bad token)")
+        issues: list[dict[str, Any]] = []
+    else:
+        issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
+                         "--json", "number,title,state,labels")
     for issue in issues:
         row = rows.get(issue["number"])
         if row is None:
@@ -2920,7 +2935,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} has no issue and is not internal (run: gh-sync)")
         if row.get("parent") and row["parent"] not in by_id:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
-        if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
+        if gh_ok and row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a

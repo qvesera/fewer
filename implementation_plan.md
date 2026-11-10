@@ -286,3 +286,5 @@ Rule that fits all six: **`drive.file` + Picker grants the picked item only. Chi
 **Consequences for B:** even in the best case B would need a pick per tree level (unusable UX), a client-side token (breaking `content/docs/cloud.md`'s "tokens never sent to your browser"), a privacy-doc rewrite and a re-link migration — none of which it now earns. **Recommendation: A (keep `drive.metadata.readonly`, pay CASA) or C (client-side).**
 
 **Artifacts reverted with this close-out:** `SCOPE` → `drive.metadata.readonly`, `CloudPanel.tsx` `HIDDEN_PROVIDERS` restored, `src/app/dev/picker/` + `src/app/api/dev/google-token/` deleted. The OAuth `/app` redirect fix was split out (PR on `fix/cloud-oauth-redirect`).
+
+**Decision (2026-11-10):** do nothing until revenue justifies CASA — `drive.metadata.readonly` and the server-side Drive infrastructure stay, Google Drive linking stays **disabled** in the Cloud panel, OneDrive linking is **enabled** (Microsoft publisher verification is free). Free alternatives (service-account folder-share, Testing-mode consent with 7-day tokens, BYOK, zip import) are recorded as fallbacks in `.repowise/decisions.yaml` (id `f8944b37`).

@@ -1,9 +1,9 @@
 ---
 title: Cloud Storage
-description: Link cloud accounts (GitHub, Google Drive, OneDrive, SharePoint, Azure) to browse and visualize folders from cloud storage and private repositories.
+description: Link cloud accounts (GitHub, OneDrive, SharePoint, Azure) to browse and visualize folders from cloud storage and private repositories.
 ---
 
-Fewer can browse and visualize directory structures from linked cloud accounts: private GitHub repos, Google Drive, OneDrive, SharePoint, and Azure. Sign in, link an account, then browse and import a folder into the graph.
+Fewer can browse and visualize directory structures from linked cloud accounts: private GitHub repos, OneDrive, SharePoint, and Azure. Sign in, link an account, then browse and import a folder into the graph.
 
 ## Link a cloud account
 
@@ -49,11 +49,10 @@ This removes the connection and its stored tokens. It does not affect your provi
 ## Supported providers
 
 - **GitHub**: browse private (and public) repositories.
-- **Google Drive**: browse My Drive folders.
 - **OneDrive**: browse your personal OneDrive.
-- **SharePoint**: browse SharePoint sites' document libraries.
-- **Azure DevOps**: browse git repositories.
-- **Azure Blob**: browse storage container blobs.
+- **Google Drive**: adapter in place but **not currently offered for linking** — Google's annual CASA
+  security assessment for restricted scopes isn't justified by revenue yet; existing links keep working.
+- **SharePoint**, **Azure DevOps**, **Azure Blob**: adapters in place, not currently offered for linking.
 
 ## Privacy
 
