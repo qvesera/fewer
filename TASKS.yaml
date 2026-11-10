@@ -7199,30 +7199,30 @@ tasks:
   session_count: 1
 - id: "T-252"
   title: "Defer Google Drive linking until CASA is justified; keep OneDrive enabled"
-  status: "in-progress"
+  status: "review"
   type: "task"
   area: "cloud"
   tier: 0
   estimate_min: 30
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 591
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-10T08:55:22Z"
   notes: []
   sessions:
   - start: "2026-11-10T08:55:27Z"
-    end: null
+    end: "2026-11-10T09:03:35Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Decision recorded (.repowise/decisions.yaml f8944b37): defer CASA until revenue; Google Drive hidden (adapter intact), OneDrive enabled; docs + changelog updated. PR #591."
+    proof: ["820b02f", "#591"]
+    effort: {commits: 1, files: 6, insertions: 70, deletions: 11}
+  spent_min: 8
   session_count: 1
