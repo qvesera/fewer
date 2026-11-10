@@ -39,6 +39,12 @@ PROJECT_OWNER = "qvesera"
 # owner qvesera) — `pr-metadata --project <n>` still overrides per call.
 PROJECT_NUMBER_DEFAULT = 1
 PROJECT_NUMBER: int | None = 1
+# item-list cap shared by sync-details and doctor --board — they MUST match:
+# doctor used 100 while sync used 200, so once the board passed 100 items
+# doctor called ~98 correctly-projected rows "missing" and failed the nightly
+# job on a phantom drift (T-253). gh auto-pages up to --limit, so one cap
+# comfortably above the item count is enough.
+PROJECT_ITEM_LIMIT = 1000
 
 # ── vocabulary ──────────────────────────────────────────────────────────
 STATUSES = (
@@ -1631,7 +1637,7 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     items: dict[int, dict[str, Any]] = {}
     try:
         listed = json.loads(gh("project", "item-list", str(args.project), "--owner", PROJECT_OWNER,
-                               "--limit", "200", "--format", "json", check=False))
+                               "--limit", str(PROJECT_ITEM_LIMIT), "--format", "json", check=False))
         for item in listed.get("items", []):
             number = (item.get("content") or {}).get("number")
             if number and item.get("id"):
@@ -2682,7 +2688,7 @@ def board_problems(ledger: dict[str, Any]) -> tuple[list[str], list[str]]:
         return [], []
     try:
         listed = json.loads(gh("project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
-                               "--limit", "100", "--format", "json", check=False))
+                               "--limit", str(PROJECT_ITEM_LIMIT), "--format", "json", check=False))
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
         # A note, NOT drift: a token without the project scope, or a flaky read,
         # must not report the board as wrong — and must not fail the nightly job

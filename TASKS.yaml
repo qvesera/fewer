@@ -7226,3 +7226,32 @@ tasks:
     effort: {commits: 1, files: 6, insertions: 70, deletions: 11}
   spent_min: 8
   session_count: 1
+- id: "T-253"
+  title: "Board projection: fix doctor item-list truncation, sync on merge/PR to dev"
+  status: "in-progress"
+  type: "infra"
+  area: "cloud"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-10T09:20:13Z"
+  notes: []
+  sessions:
+  - start: "2026-11-10T09:20:14Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
