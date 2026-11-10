@@ -19,7 +19,7 @@ export async function GET(request: Request) {
   const limits = limitsFor(await getUserPlan(authed.supabase, authed.user.id));
   if (!limits.cloudConnections) {
     return NextResponse.redirect(
-      `${origin}/?cloud=error&msg=${encodeURIComponent(
+      `${origin}/app?cloud=error&msg=${encodeURIComponent(
         "Cloud connections are a Pro feature. Public imports (URL, GitHub, local disk) stay free.",
       )}`
     );
@@ -33,7 +33,7 @@ export async function GET(request: Request) {
     url = await adapter.buildAuthUrl(state);
   } catch (err) {
     const msg = err instanceof Error ? err.message : "Provider not configured";
-    return NextResponse.redirect(`${origin}/?cloud=error&msg=${encodeURIComponent(msg)}`);
+    return NextResponse.redirect(`${origin}/app?cloud=error&msg=${encodeURIComponent(msg)}`);
   }
 
   // Store state in a httpOnly cookie so the callback can verify it (CSRF).

@@ -198,3 +198,91 @@ None. Pure TypeScript refactor of existing store/history utilities.
 6. Fix createStore.commitHistory/applyEdgeChanges and GraphCanvas drag/resize wiring (onNodeDragStart/onNodeDragStop -> MovePositionsOp; onNodeResizeStart/onNodeResizeStop -> ResizeOp).
 7. Add src/lib/fewer/history.test.ts; run bun test, bun run lint, bun run build.
 8. Update CHANGELOG.md, bump package.json version, commit, push.
+
+---
+
+## [Spike T-251: drive.file + Google Picker folder-grant semantics] (2026-11-09, throwaway branch `spike/drive-file-picker`)
+
+**Status: DONE — verdict: U1 FALSE, B dead for tree browsing (decision rule row 3).**
+
+### Hypotheses (final verdicts)
+
+| # | Hypothesis | Verdict |
+|---|---|---|
+| U1 | children/grandchildren of a picked folder listable via `files.list` | **FALSE** — picker grant covers the picked item only |
+| U2 | server-held token runs the same listing (grant per client+user+file) | TRUE but moot — server matched browser everywhere; both see only granted items |
+| U3 | entries carry `size`/`mimeType`/`webViewLink` | TRUE (file.txt size 14, webViewLink both sides) — moot |
+
+### Decision-rule row 3: P1/P2 ❌ → **B dead** → A (keep `drive.metadata.readonly`, pay CASA) or C (fully client-side)
+
+### Why
+
+Option B (move Google Drive to `drive.file` scope + Picker-first UX) vs Option A (keep `drive.metadata.readonly`, pay annual CASA) vs Option C (fully client-side Drive). Google's docs don't answer whether `drive.file` grants reach a *picked folder's descendants* for `files.list` — hence a spike.
+
+### Hypotheses
+
+| # | Hypothesis | Decides |
+|---|---|---|
+| U1 | After picking folder F in the Picker under `drive.file`, `files.list(q="'F' in parents")` returns F's direct children, and recursion reaches grandchildren | If false, B can't render a tree → B dead |
+| U2 | A server-held token (same client_id, `drive.file`) can run the same listing — grant is per client+user+file, not per token | If true, only the *pick* goes client-side; listing stays in `listChildren()` |
+| U3 | Picked/listed entries still carry `size`, `mimeType`, `webViewLink` for `CloudEntry`/`toEntry()` | If not, graph loses sizes/links |
+
+### Decision rule (written before running)
+
+| Outcome | Verdict |
+|---|---|
+| P1 ✅ P2 ✅ P3 ✅ | **B viable** → plan B: picker-first UX, client token for pick only, privacy-doc rewrite (`content/docs/cloud.md:60`), re-link migration for existing connections |
+| P1 ✅ P3 ❌ | B only with client-side listing → B costs the server-token promise; weigh against C |
+| P1/P2 ❌ | **B dead** for tree browsing → A (pay CASA) or C (client-side) |
+
+### Prerequisites (human, GCP console, ~10 min)
+
+1. Enable **Google Picker API** on the existing project behind `.env.local`.
+2. Create **API key**, restrict to `http://localhost:3000` → put it in `.env.local` as `GOOGLE_PICKER_API_KEY=…`.
+3. OAuth consent screen → Data Access → add scope `https://www.googleapis.com/auth/drive.file` (keep existing restricted scope).
+4. Confirm Authorized redirect URI contains `http://localhost:3000/api/cloud/callback` and Authorized JavaScript origin contains `http://localhost:3000`.
+5. Keep consent status **Testing** + account in **Test users**.
+6. Fixture in Drive: `spike-parent/{spike-child-a/inner.txt, spike-child-b/, file.txt}` + one sibling folder left unpicked (for P4).
+7. **Unlink + re-link Google Drive** in the app (old `drive.metadata.readonly` connection doesn't carry over after `SCOPE` switched to `drive.file`).
+
+### Runbook
+
+```bash
+bun run dev
+# sign in at / → Sidebar → connect Google Drive (new consent shows drive.file)
+# open http://localhost:3000/dev/picker → Open Picker → pick spike-parent
+# paste unpicked sibling folder id into the P4 field BEFORE picking (or re-pick after)
+# probes P1–P4 render with PASS/FAIL + raw JSON
+```
+
+### Temporary artifacts (DELETE after spike — all marked in-file)
+
+- `src/lib/fewer/cloud/providers/google.ts` — `SCOPE` → `drive.file` (revert to `drive.metadata.readonly`)
+- `src/app/api/dev/google-token/route.ts` — dev-only (`NODE_ENV==="production"` → 404) token-to-browser route; **its existence is a finding**: B forces a token into the page, contradicting `content/docs/cloud.md` "Tokens are never sent to your browser"
+- `src/app/dev/picker/page.tsx` — GIS/gapi Picker + probes P1–P4
+- `src/components/fewer/CloudPanel.tsx` — `HIDDEN_PROVIDERS` drops `google-drive` + `onedrive` (link options re-enabled for local testing; restore both entries on revert)
+
+### Side-finding (KEEP after spike revert — genuine bug)
+
+OAuth redirects landed on `/` (marketing landing page) since the home split; the `?cloud=connected|error` params are consumed only by `FewerApp` at `/app`, so the success toast + panel refresh never fired (connection row itself persisted — `persistConnection` runs before the redirect). Fixed: all 4 redirect targets in `api/cloud/callback` + `api/cloud/connect` now point at `/app`.
+
+### P1–P4 raw results
+
+**Decisive evidence — 6 folders picked, inheritance never observed (2026-11-09):**
+
+| Picked folder | Folder metadata | Actual children | Children the app saw |
+|---|---|---|---|
+| `hisoka` (picked 4×) | 200 | `astro`, `zz-test.txt` | `astro` only — **anomaly** |
+| `spike2` (4×) | 200 | `spike-child-a/b`, `file.txt` | none |
+| `discord` | 200 | 12 items (all old: `.vscode`, `astro.exe`, `test*.py`…) | `hisoka` only — *itself directly picked earlier* |
+| `.vscode` | picked | populated | none |
+| `cogs` | picked | populated | none |
+| `Gemini Gems` | picked | populated | none |
+
+Rule that fits all six: **`drive.file` + Picker grants the picked item only. Children are visible only when themselves picked or app-created.** Verified via `files.list` (4 q-variants), name/fullText search, `files.get`, legacy v2 `children`; no propagation within 45–180 min. `astro` (created 0.7 s after `hisoka`, Aug 8) is a one-off unexplained grant — metadata clean (`shared:false`, owner-only); not a reproducible mechanism.
+
+**Run logs:** run 1 (picked `hisoka`, wrong-folder name-check FAIL but P1/P3 returned `astro` — first U1 false negative), run 2 (app-created fixture — **confound**: app-created files auto-grant under `drive.file`, so P1/P2 green results were vacuous), runs 3–5 (`spike2` re-picks, `discord`, `.vscode`/`cogs`/`Gemini Gems` — all `[]` for unpicked children). P4 control: unpicked-folder metadata `404`, children `[]` (app-created marker files inside it were visible → further proof of the per-item rule).
+
+**Consequences for B:** even in the best case B would need a pick per tree level (unusable UX), a client-side token (breaking `content/docs/cloud.md`'s "tokens never sent to your browser"), a privacy-doc rewrite and a re-link migration — none of which it now earns. **Recommendation: A (keep `drive.metadata.readonly`, pay CASA) or C (client-side).**
+
+**Artifacts reverted with this close-out:** `SCOPE` → `drive.metadata.readonly`, `CloudPanel.tsx` `HIDDEN_PROVIDERS` restored, `src/app/dev/picker/` + `src/app/api/dev/google-token/` deleted. The OAuth `/app` redirect fix was split out (PR on `fix/cloud-oauth-redirect`).
