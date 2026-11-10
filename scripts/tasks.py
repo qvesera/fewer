@@ -2866,10 +2866,19 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     notes: list[str] = []
     rows = {r.get("issue"): r for r in ledger["tasks"] if r.get("issue")}
     by_id = {r["id"]: r for r in ledger["tasks"]}
-    if not have_gh():
-        _die("doctor needs an authenticated gh (gh auth status failed)")
-    issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
-                     "--json", "number,title,state,labels")
+    # A rate-limited or unauthenticated gh must not kill the doctor: every
+    # GitHub-surface check degrades to a NOTE (the same philosophy as
+    # board_problems' unreadable-project note below). sync-details/gh-sync
+    # still hard-fail on auth, so a genuinely dead token fails the nightly job
+    # one step earlier — while a mid-run rate limit (seen on PR #591, run
+    # 42792451337) becomes "checks skipped" instead of a phantom DRIFT.
+    gh_ok = have_gh()
+    if not gh_ok:
+        notes.append("GitHub checks skipped: gh auth unavailable (rate limit or bad token)")
+        issues: list[dict[str, Any]] = []
+    else:
+        issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
+                         "--json", "number,title,state,labels")
     for issue in issues:
         row = rows.get(issue["number"])
         if row is None:
@@ -2926,7 +2935,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} has no issue and is not internal (run: gh-sync)")
         if row.get("parent") and row["parent"] not in by_id:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
-        if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
+        if gh_ok and row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
             problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
