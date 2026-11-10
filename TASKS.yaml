@@ -6942,7 +6942,7 @@ tasks:
   session_count: 1
 - id: "T-245"
   title: "Make canvas breadcrumbs pane-aware (per-leaf selection path)"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ui"
   tier: null
@@ -6971,7 +6971,7 @@ tasks:
   session_count: 1
 - id: "T-246"
   title: "Rework card, edge and canvas context menus: header identity, Details submenu, one shared design"
-  status: "review"
+  status: "done"
   type: "refactor"
   area: "ui"
   tier: 2
@@ -7030,7 +7030,7 @@ tasks:
   session_count: 6
 - id: "T-247"
   title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7077,7 +7077,7 @@ tasks:
   session_count: 4
 - id: "T-248"
   title: "Custom-theme contrast helper measures the palette, not the painted card — Fix makes text worse"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "ui"
   tier: 2
@@ -7112,7 +7112,7 @@ tasks:
   session_count: 2
 - id: "T-249"
   title: "Auto-refresh the repowise index on push (pre-push hook)"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "infra"
   tier: 0
@@ -7141,7 +7141,7 @@ tasks:
   session_count: 1
 - id: "T-250"
   title: "Port desktop's canvas optimizations: LOD folder collapse @0.3, pill child-row skip, dimension-merge Map lookup"
-  status: "review"
+  status: "done"
   type: "perf"
   area: "performance"
   tier: null
@@ -7170,7 +7170,7 @@ tasks:
   session_count: 1
 - id: "T-251"
   title: "Spike: drive.file + Picker folder-grant semantics"
-  status: "review"
+  status: "done"
   type: "research"
   area: "cloud"
   tier: 0
@@ -7199,7 +7199,7 @@ tasks:
   session_count: 1
 - id: "T-252"
   title: "Defer Google Drive linking until CASA is justified; keep OneDrive enabled"
-  status: "review"
+  status: "done"
   type: "task"
   area: "cloud"
   tier: 0
@@ -7228,7 +7228,7 @@ tasks:
   session_count: 1
 - id: "T-253"
   title: "Board projection: fix doctor item-list truncation, sync on merge/PR to dev"
-  status: "review"
+  status: "done"
   type: "infra"
   area: "cloud"
   tier: 0
