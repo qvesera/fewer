@@ -7228,30 +7228,30 @@ tasks:
   session_count: 1
 - id: "T-253"
   title: "Board projection: fix doctor item-list truncation, sync on merge/PR to dev"
-  status: "in-progress"
+  status: "review"
   type: "infra"
   area: "cloud"
   tier: 0
   estimate_min: 45
   estimate_basis: "cli"
   issue: null
-  pr: null
+  pr: 591
   internal: true
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-10T09:20:13Z"
   notes: []
   sessions:
   - start: "2026-11-10T09:20:14Z"
-    end: null
+    end: "2026-11-10T09:36:41Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Root cause: doctor --board read item-list with --limit 100 vs sync-details' 200 — board (203 items) truncated, 98 phantom drifts, nightly red for days while board was actually clean. Fixed: shared PROJECT_ITEM_LIMIT=1000. Triggers added: push to dev + PR to dev (fork-guarded; reconcile plan gated to nightly/dispatch). Local reconcile: gh-sync relabelled #451, sync-details 197 rows/1 field write, doctor now agrees 1:1."
+    proof: ["ff5ce82", "#591"]
+    effort: {commits: 1, files: 3, insertions: 51, deletions: 3}
+  spent_min: 16
   session_count: 1
