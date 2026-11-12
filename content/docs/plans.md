@@ -27,7 +27,8 @@ Some client-side features require sign-in or a Pro plan. These are cosmetic gate
 | Connection motion (animated connections) | ✗ | ✓ | ✓ |
 | Custom theme editor | ✗ | ✓ | ✓ |
 | Advanced import formats (JSON, script) | ✗ | ✓ | ✓ |
-| Export without watermark | ✗ | ✓ | ✓ |
+| Export without watermark | ✗ | ✗ | ✓ |
+| Watch digests (nightly crawl + email) | ✗ | ✗ | ✓ |
 | Gallery publishing | ✗ | ✓ | ✓ |
 
 ### Guest
@@ -36,11 +37,11 @@ No account needed. Everything runs locally: disk import, public URLs, all editin
 
 ### Free account
 
-A signed-in account with no recurring price. Around 3 saved graphs (updating an existing one is never blocked), a 30-day automatic version history per graph, public "anyone with the link" sharing, the public gallery, and hash/`#s:` short links for moderate payloads. Server quotas are enforced in the API routes themselves: the UI just surfaces the error.
+A signed-in account with no recurring price. Around 3 saved graphs (updating an existing one is never blocked), a 30-day automatic version history per graph, public "anyone with the link" sharing, the public gallery, and hash/`#s:` short links for moderate payloads. Exports still carry the fewer watermark, and watch digests are Pro. Server quotas are enforced in the API routes themselves: the UI just surfaces the error.
 
 ### Pro
 
-For power users: the panel workspace (multi-view dock with split views), tags, unlimited saved graphs, a full year of version history, cloud-saved custom themes, up to 10 watched indexes with the nightly change digest, a crawl quota for large imports, and DB-backed short links for large payloads. Private cloud connectors (GitHub, Drive, OneDrive, SharePoint, Azure) and invite-only sharing are also Pro. **$10–15/mo.**
+For power users: the panel workspace (multi-view dock with split views), tags, unlimited saved graphs, a full year of version history, cloud-saved custom themes, exports without the fewer watermark, up to 10 watched indexes with the nightly change digest, a crawl quota for large imports, and DB-backed short links for large payloads. Private cloud connectors (GitHub, Drive, OneDrive, SharePoint, Azure) and invite-only sharing are also Pro. **$10–15/mo.**
 
 ### Team
 

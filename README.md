@@ -234,7 +234,7 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Watch File Indexes</b></summary>
 
-- **Watch indexes**: watch a public file index and get a daily email digest when it changes
+- **Watch indexes** *(Pro)*: watch a public file index and get a daily email digest when it changes
 - **Consolidated digest**: one email at 23:59 listing everything added/removed across your watched indexes
 - **No changes, no email**: digests are only sent on days something changed
 
@@ -265,6 +265,8 @@ docker run -p 3000:3000 fewer
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
+
+Exports carry a small fewer credit below the Pro plan: a linked logo on **SVG** and **PNG**, a credit line on the other formats. Pro removes it, and the toggle in the export panel turns it off.
 
 Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, collapsed groups (pill and their wires), tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
 

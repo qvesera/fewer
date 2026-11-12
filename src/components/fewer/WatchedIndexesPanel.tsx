@@ -17,23 +17,40 @@ export function WatchedIndexesPanel() {
   const [removing, setRemoving] = useState<string | null>(null);
 
   if (!can("watchIndexes", tier)) {
+    // Two locks, two messages: a guest is asked to sign in, a signed-in
+    // account is told watch digests are a Pro feature (T-256). The Pro line
+    // names no purchase path, because there is no checkout while billing is
+    // being finished.
+    if (!user) {
+      return (
+        <div className="flex flex-col gap-4 py-1">
+          <p className="text-xs text-muted-foreground/80 leading-relaxed">
+            Sign in to watch public file indexes and get a daily digest when they change.
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            className="gap-1.5 w-fit text-xs cursor-pointer"
+            onClick={() => {
+              useGraphStore.getState().setSettingsOpen(false);
+              setTimeout(() => useGraphStore.getState().setAuthOpen(true), 150);
+            }}
+          >
+            <Lock className="h-3.5 w-3.5" />
+            Sign in to watch indexes
+          </Button>
+        </div>
+      );
+    }
     return (
       <div className="flex flex-col gap-4 py-1">
         <p className="text-xs text-muted-foreground/80 leading-relaxed">
-          Sign in to watch public file indexes and get a daily digest when they change.
+          Watch digests are a Pro feature: a nightly crawl per index, and an email whenever
+          the index changes.
         </p>
-        <Button
-          variant="outline"
-          size="sm"
-          className="gap-1.5 w-fit text-xs cursor-pointer"
-          onClick={() => {
-            useGraphStore.getState().setSettingsOpen(false);
-            setTimeout(() => useGraphStore.getState().setAuthOpen(true), 150);
-          }}
-        >
-          <Lock className="h-3.5 w-3.5" />
-          Sign in to watch indexes
-        </Button>
+        <p className="text-xs text-muted-foreground/80 leading-relaxed">
+          Pro is granted by hand while billing is being finished. Ask and we will set it up.
+        </p>
       </div>
     );
   }

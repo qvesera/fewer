@@ -75,11 +75,11 @@ describe("marketingFeatures", () => {
   });
 
   test("gated features are marked and no copy points at a purchase path", () => {
-    // Nothing on the rail is gated today (T-161 cut tags, the one Pro
-    // feature), so the honest answer is an empty list. The badge itself stays
-    // in the inspector: the next gated feature gets it for free.
+    // Watch digests became a Pro feature (T-256): a nightly crawl per watched
+    // index is not free to run, so the card carries the badge and the honest
+    // answer stops being an empty list.
     const gated = MARKETING_FEATURES.filter((f) => f.tier === "pro").map((f) => f.id);
-    expect(gated).toEqual([]);
+    expect(gated).toEqual(["watch"]);
     for (const feature of MARKETING_FEATURES) {
       // There is no per-feature link any more, so the guard is the copy: a
       // feature must never hint at a purchase path that does not exist while

@@ -7,6 +7,9 @@
 // local: local import, all exports (watermarked), hash sharing under 2,000
 // characters. Their limits live client-side; the server never had a session
 // to check anyway.
+//
+// Exports carry the fewer watermark below Pro, and watch digests are Pro
+// only (T-256): both are enforced here, on the server, not by the UI.
 import type { SupabaseClient } from "@supabase/supabase-js";
 
 export type Plan = "free" | "pro" | "team";
@@ -41,7 +44,10 @@ export const GUEST_LIMITS: PlanLimits = {
 
 export const FREE_LIMITS: PlanLimits = {
   savedGraphs: 3,
-  watchedIndexes: 3,
+  // Watch digests are a Pro feature (T-256): a cap of zero stops every new
+  // watch, and the nightly job skips non-Pro rows before crawling, so the
+  // gate holds for watches that already exist.
+  watchedIndexes: 0,
   historyDays: 30,
   savedThemes: false,
   largeShareLinks: false,

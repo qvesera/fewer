@@ -26,6 +26,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Context menus show the keyboard shortcut of every item that has one — Unparent Alt+Shift+P, Add Child Card Alt+N, Select All Ctrl+A, Organize Alt+R, Clear Canvas Alt+Shift+N, Open in File Explorer Alt+O, Open File Enter, Hide H, Show All Shift+H — plus the same hints in the batch sections; hints are read from MENU_SHORTCUT_HINTS, which a test fires through the key dispatcher, and the connection menu stays keyless because Delete only acts on a selected connection
 - The multi-selection menu is reorganized into the same clusters as the single-card menu — Edit (Rename…, Copy, Cut, Duplicate), Structure (Move to Folder…, Unparent, Group N Items, promoted out of the old More Actions drawer), a Visibility submenu (Hide/Show/Collapse/Expand, no longer split apart), then Tags and Select, with Delete last — identical in the card batch section and the canvas selection menu
 - Cloud panel: OneDrive linking is offered again; Google Drive stays hidden until revenue justifies Google's annual CASA assessment (decision recorded in .repowise/decisions.yaml — Drive adapter and server-side token storage remain in place)
+- Exports keep the fewer watermark on the free plan (a linked logo on SVG and PNG, a credit line elsewhere); only Pro removes it
+- Watch digests are a Pro feature: a nightly crawl per watched index. Watches already on a free account stay saved and start again if the account becomes Pro
 
 ### Added
 

@@ -10,6 +10,11 @@ import { emailShell, escapeHtml } from "./emailTemplate";
  * Watch-digest job — crawls every active watched index, diffs against the
  * stored baseline, and emails each user one consolidated digest.
  *
+ * Only Pro and Team accounts are crawled (T-256): watch digests cost a
+ * nightly crawl per index, so the plan gate is applied here, before the
+ * crawl, and non-Pro rows are left untouched (a later Pro grant revives
+ * them).
+ *
  * Triggered nightly by the GitHub Actions workflow (.github/workflows/
  * watch-digest.yml) via scripts/watch-digest.ts. Also callable through the
  * cron-secret-protected /api/watch/run route for manual/debug triggers.
@@ -59,6 +64,26 @@ async function buildEmailMap(supabase: SupabaseClient): Promise<Map<string, stri
   return emailById;
 }
 
+/**
+ * Watch digests are a Pro feature (T-256), so the job only crawls and emails
+ * for Pro and Team accounts. The rows themselves are left alone: a watch
+ * created earlier is still there, and a later Pro grant revives it with no
+ * data change.
+ */
+export function watchAllowedFor(plan: string | null | undefined): boolean {
+  return plan === "pro" || plan === "team";
+}
+
+/** Map user id → plan, for the rows this job is allowed to crawl. */
+async function buildPlanMap(supabase: SupabaseClient): Promise<Map<string, string>> {
+  const planById = new Map<string, string>();
+  const { data } = await supabase.from("profiles").select("user_id, plan");
+  for (const row of (data ?? []) as { user_id: string; plan: string | null }[]) {
+    planById.set(row.user_id, row.plan ?? "free");
+  }
+  return planById;
+}
+
 /** Crawl every watched row, diff against its baseline, update the baseline,
  *  and group the non-empty changes per user. */
 async function collectChangesByUser(
@@ -105,8 +130,16 @@ export async function runWatchDigest(): Promise<{ users: number; emails: number 
     return { users: 0, emails: 0 };
   }
 
+  // The gate is applied BEFORE the crawl: a non-Pro row costs no outbound
+  // request, no baseline update and no email (T-256). A row whose owner has no
+  // profile row is treated as free and skipped.
+  const planById = await buildPlanMap(supabase);
+  const allowed = (rows as WatchedRow[]).filter((row) =>
+    watchAllowedFor(planById.get(row.user_id)),
+  );
+
   const emailById = await buildEmailMap(supabase);
-  const changesByUser = await collectChangesByUser(supabase, rows as WatchedRow[]);
+  const changesByUser = await collectChangesByUser(supabase, allowed);
 
   // Send one consolidated email per user with changes.
   let emailsSent = 0;

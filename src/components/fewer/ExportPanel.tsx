@@ -126,8 +126,8 @@ export function ExportPanel() {
   const { selectedNodeIds } = useUiState();
   const { toast } = useToast();
   const tier = useGraphStore((s) => s.tier);
-  // Guests always export with the fewer watermark; the toggle stays functional
-  // only for signed-in users.
+  // Exports carry the fewer watermark below Pro (T-256); the toggle only works
+  // for Pro and Team accounts.
   const canRemoveBranding = can("unbrandedExport", tier);
   const includeBranding = !canRemoveBranding || settings.includeBranding;
   const [exportSelected, setExportSelected] = useState(false);
@@ -487,7 +487,7 @@ export function ExportPanel() {
                 <Label className="text-xs font-semibold">Include fewer branding</Label>
                 <p className="text-xs text-muted-foreground">
                   {!canRemoveBranding
-                    ? "Signed out: exports carry the fewer watermark until you sign in."
+                    ? "Exports carry the fewer watermark until you are on Pro."
                     : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
                 </p>
               </div>
