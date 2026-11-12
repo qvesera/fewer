@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
@@ -20,6 +20,18 @@ export function PricingContactForm({ defaultPlan = "pro" }: { defaultPlan?: Cont
   const [plan, setPlan] = useState<ContactPlan>(defaultPlan);
   const [state, setState] = useState<"idle" | "sending" | "sent" | "error">("idle");
   const [message, setMessage] = useState("");
+
+  useEffect(() => {
+    // A plain form post (no JavaScript) comes back as ?sent=1 or ?sent=0.
+    const sent = new URLSearchParams(window.location.search).get("sent");
+    if (sent === "1") {
+      setState("sent");
+      setMessage("Thanks. We will reply to that address.");
+    } else if (sent === "0") {
+      setState("error");
+      setMessage("That did not go through. Try again.");
+    }
+  }, []);
 
   async function onSubmit(event: React.FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -56,19 +68,49 @@ export function PricingContactForm({ defaultPlan = "pro" }: { defaultPlan?: Cont
   }
 
   return (
-    <form onSubmit={onSubmit} className="space-y-4" noValidate>
+    // action + method: with no JavaScript (or a hydration that never
+    // happened) the browser posts the form itself and the route answers
+    // with a redirect. With JavaScript, onSubmit takes over and posts JSON.
+    // The native validation is left on: the browser checks the obvious
+    // things before a request is made, and the route checks the rest.
+    <form action="/api/contact" method="post" onSubmit={onSubmit} className="space-y-4">
+      {/* The fields are uncontrolled and carry `suppressHydrationWarning`.
+          A browser can change a form field before React hydrates it - an
+          autofill, a password manager, a restored form on a reload - and
+          React reports that as a hydration mismatch it will not patch. The
+          value it found is the visitor's own, so the warning is noise: the
+          fields are read from the DOM at submit time (FormData), never from
+          React state.
+
+          If hydration does not happen at all, the form still works: it posts
+          to /api/contact as a plain HTML form, and the route answers a
+          form-encoded body with a redirect. */}
       <div className="grid gap-4 sm:grid-cols-2">
         <div className="space-y-1.5">
           <label htmlFor="contact-name" className="text-xs font-semibold">
             Your name
           </label>
-          <Input id="contact-name" name="name" required maxLength={100} autoComplete="name" />
+          <Input
+            id="contact-name"
+            name="name"
+            required
+            maxLength={100}
+            autoComplete="name"
+            suppressHydrationWarning
+          />
         </div>
         <div className="space-y-1.5">
           <label htmlFor="contact-email" className="text-xs font-semibold">
             Your email
           </label>
-          <Input id="contact-email" name="email" type="email" required autoComplete="email" />
+          <Input
+            id="contact-email"
+            name="email"
+            type="email"
+            required
+            autoComplete="email"
+            suppressHydrationWarning
+          />
         </div>
       </div>
 
@@ -77,7 +119,13 @@ export function PricingContactForm({ defaultPlan = "pro" }: { defaultPlan?: Cont
           <label htmlFor="contact-org" className="text-xs font-semibold">
             Organisation (optional)
           </label>
-          <Input id="contact-org" name="organisation" maxLength={140} autoComplete="organization" />
+          <Input
+            id="contact-org"
+            name="organisation"
+            maxLength={140}
+            autoComplete="organization"
+            suppressHydrationWarning
+          />
         </div>
         <div className="space-y-1.5">
           <label htmlFor="contact-plan" className="text-xs font-semibold">
@@ -103,13 +151,27 @@ export function PricingContactForm({ defaultPlan = "pro" }: { defaultPlan?: Cont
         <label htmlFor="contact-message" className="text-xs font-semibold">
           What do you need?
         </label>
-        <Textarea id="contact-message" name="message" rows={5} required maxLength={2000} />
+        <Textarea
+          id="contact-message"
+          name="message"
+          rows={5}
+          required
+          maxLength={2000}
+          suppressHydrationWarning
+        />
       </div>
 
       {/* Honeypot: hidden from people, filled by robots. */}
       <div className="hidden" aria-hidden="true">
         <label htmlFor="contact-website">Website</label>
-        <input id="contact-website" name="website" type="text" tabIndex={-1} autoComplete="off" />
+        <input
+          id="contact-website"
+          name="website"
+          type="text"
+          tabIndex={-1}
+          autoComplete="off"
+          suppressHydrationWarning
+        />
       </div>
 
       <div className="flex flex-wrap items-center gap-4">

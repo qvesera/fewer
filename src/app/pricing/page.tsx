@@ -52,7 +52,7 @@ export default function PricingPage() {
           </div>
           <noscript>
             <p className="mt-6 text-sm text-muted-foreground">
-              The form needs JavaScript. Without it, write to enquiry at fewer.directory.
+              The form works without JavaScript too: fill it in and press Send.
             </p>
           </noscript>
         </div>

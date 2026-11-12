@@ -70,20 +70,46 @@ export async function POST(request: Request) {
     }
 
     let body: ContactInput;
+    // A plain HTML form post (no JavaScript, or hydration that never
+    // happened) sends a form-encoded body; the fetch path sends JSON. Both
+    // are answered, and the form-encoded one answers with a redirect, which
+    // is what a browser expects from a form submission.
+    const contentType = request.headers.get("content-type") ?? "";
+    const isFormPost = contentType.includes("application/x-www-form-urlencoded");
     try {
-      body = (await request.json()) as ContactInput;
+      if (isFormPost) {
+        const form = await request.formData();
+        body = {
+          plan: String(form.get("plan") ?? ""),
+          name: String(form.get("name") ?? ""),
+          email: String(form.get("email") ?? ""),
+          organisation: String(form.get("organisation") ?? ""),
+          message: String(form.get("message") ?? ""),
+          website: String(form.get("website") ?? ""),
+        };
+      } else {
+        body = (await request.json()) as ContactInput;
+      }
     } catch {
+      if (isFormPost) {
+        return NextResponse.redirect(new URL("/pricing?sent=0", request.url), 303);
+      }
       return NextResponse.json({ error: "Malformed request." }, { status: 400 });
     }
 
     // The honeypot: a field a person never sees, so only a robot fills it.
     // Answer as if it worked, so the robot learns nothing.
     if (body.website) {
-      return NextResponse.json({ ok: true });
+      return isFormPost
+        ? NextResponse.redirect(new URL("/pricing?sent=1", request.url), 303)
+        : NextResponse.json({ ok: true });
     }
 
     const parsed = validateContact(body);
     if (!parsed.ok) {
+      if (isFormPost) {
+        return NextResponse.redirect(new URL("/pricing?sent=0", request.url), 303);
+      }
       return NextResponse.json({ error: parsed.error }, { status: 400 });
     }
 
@@ -98,10 +124,14 @@ export async function POST(request: Request) {
     });
     if (error) {
       console.error("[contact] resend failed:", error.message);
-      return NextResponse.json({ error: "Could not send that. Try again." }, { status: 502 });
+      return isFormPost
+        ? NextResponse.redirect(new URL("/pricing?sent=0", request.url), 303)
+        : NextResponse.json({ error: "Could not send that. Try again." }, { status: 502 });
     }
 
-    return NextResponse.json({ ok: true });
+    return isFormPost
+      ? NextResponse.redirect(new URL("/pricing?sent=1", request.url), 303)
+      : NextResponse.json({ ok: true });
   } catch (err) {
     return serverError(err);
   }
