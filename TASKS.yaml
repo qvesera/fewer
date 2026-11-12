@@ -7306,8 +7306,14 @@ tasks:
     note: "Scale answer now quotes the tested figures: 5,000 folders on the canvas, 25,000 tested on the desktop and carried to the web"
     proof: ["ae7d5bb"]
     effort: {commits: 1, files: 5, insertions: 7, deletions: 3}
-  spent_min: 43
-  session_count: 4
+  - start: "2026-11-12T20:58:01Z"
+    end: "2026-11-12T20:59:34Z"
+    measured: true
+    note: "Scale answer reworded: leads with the tested figure, the ceiling gets its own sentence"
+    proof: ["4768d2a"]
+    effort: {commits: 1, files: 3, insertions: 3, deletions: 3}
+  spent_min: 45
+  session_count: 5
 - id: "T-255"
   title: "Blog listing index rail"
   status: "review"
