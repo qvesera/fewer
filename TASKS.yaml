@@ -7428,5 +7428,11 @@ tasks:
     note: "Doctor asks GitHub about rows outside the 200-issue window instead of calling them missing"
     proof: ["537bd48"]
     effort: {commits: 1, files: 1, insertions: 24, deletions: 2}
-  spent_min: 11
-  session_count: 1
+  - start: "2026-11-12T19:05:04Z"
+    end: "2026-11-12T19:06:01Z"
+    measured: true
+    note: "Doctor reads the issue list once (parent included) and degrades to a NOTE on a failed read: 6m11s to 11s, and the secondary rate limit no longer kills it"
+    proof: ["6363482"]
+    effort: {commits: 1, files: 1, insertions: 42, deletions: 28}
+  spent_min: 12
+  session_count: 2
