@@ -7288,8 +7288,14 @@ tasks:
     note: "FAQ section on the landing page: faq_items table, fallback copy, native details disclosure, FAQPage JSON-LD"
     proof: ["cf1d5b0"]
     effort: {commits: 1, files: 9, insertions: 478, deletions: 4}
-  spent_min: 14
-  session_count: 1
+  - start: "2026-11-12T12:09:07Z"
+    end: "2026-11-12T12:17:44Z"
+    measured: true
+    note: "FAQ copy: five questions (added 'can I make changes to my directory', dropped the browser question and uninstall), README in step; e2e first-scroll race fixed"
+    proof: ["afc04df", "9d7c689"]
+    effort: {commits: 2, files: 4, insertions: 21, deletions: 27}
+  spent_min: 23
+  session_count: 2
 - id: "T-255"
   title: "Blog listing index rail"
   status: "review"
