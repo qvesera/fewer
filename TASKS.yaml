@@ -7362,7 +7362,7 @@ tasks:
   session_count: 1
 - id: "T-257"
   title: "Pricing page with the Pro plan and an enterprise contact form"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "growth"
   tier: 1
@@ -7387,5 +7387,11 @@ tasks:
     note: "Pricing page with Free/Pro/Enterprise, four currencies, intro and yearly prices, and a contact form that mails the enquiry with the visitor in reply-to"
     proof: ["768fadc"]
     effort: {commits: 1, files: 15, insertions: 4055, deletions: 8}
-  spent_min: 1
-  session_count: 1
+  - start: "2026-11-12T17:38:15Z"
+    end: "2026-11-12T17:39:13Z"
+    measured: true
+    note: "Pricing page app link follows the deployment host"
+    proof: ["c854dfb"]
+    effort: {commits: 1, files: 2, insertions: 17, deletions: 1}
+  spent_min: 2
+  session_count: 2
