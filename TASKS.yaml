@@ -7263,14 +7263,14 @@ tasks:
   session_count: 2
 - id: "T-254"
   title: "DB-backed FAQ section on the landing page"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "growth"
   tier: 1
   estimate_min: 180
   estimate_basis: "cli"
   issue: 593
-  pr: null
+  pr: 595
   internal: false
   milestone: null
   blocked_by: []
@@ -7292,14 +7292,14 @@ tasks:
   session_count: 1
 - id: "T-255"
   title: "Blog listing index rail"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "blog"
   tier: 1
   estimate_min: 90
   estimate_basis: "cli"
   issue: 594
-  pr: null
+  pr: 595
   internal: false
   milestone: null
   blocked_by: []
