@@ -2935,8 +2935,30 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} has no issue and is not internal (run: gh-sync)")
         if row.get("parent") and row["parent"] not in by_id:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
-        if gh_ok and row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
-            problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
+    # The issue list above is a WINDOW (200 issues), not the whole repository:
+    # an issue older than the window is not missing, it is simply not in the
+    # list. Calling those missing invents drift the moment the repository
+    # grows past the window - and the doctor is the check that says the ledger
+    # and GitHub agree, so a false DRIFT here is a red CI that means nothing.
+    # Ask GitHub about the rows outside the window instead.
+    window = {i["number"] for i in issues}
+    for row in ledger["tasks"]:
+        number = row.get("issue")
+        if not gh_ok or not number or number in window:
+            continue
+        try:
+            out = gh("issue", "view", str(number), "--json", "number", "--jq", ".number",
+                     check=False)
+        except (SystemExit, FileNotFoundError):
+            out = ""
+        if not out.strip():
+            # An unreadable answer is a NOTE, never drift: a rate-limited call
+            # must not invent a missing issue (same rule as the parent check).
+            notes.append(f"{row['id']} #{number}: unreadable (rate limit?) — "
+                         "existence unverified")
+            continue
+        if out.strip() != str(number):
+            problems.append(f"{row['id']} references #{number}, which does not exist")
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
         # projection of the row, and `sync-details` is its only writer. Extend,
