@@ -7261,3 +7261,61 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 14, deletions: 5}
   spent_min: 96
   session_count: 2
+- id: "T-254"
+  title: "DB-backed FAQ section on the landing page"
+  status: "triaged"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 593
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T11:26:21Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T11:30:50Z"
+    end: "2026-11-12T11:45:01Z"
+    measured: true
+    note: "FAQ section on the landing page: faq_items table, fallback copy, native details disclosure, FAQPage JSON-LD"
+    proof: ["cf1d5b0"]
+    effort: {commits: 1, files: 9, insertions: 478, deletions: 4}
+  spent_min: 14
+  session_count: 1
+- id: "T-255"
+  title: "Blog listing index rail"
+  status: "triaged"
+  type: "feat"
+  area: "blog"
+  tier: 1
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 594
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T11:26:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T11:46:52Z"
+    end: "2026-11-12T11:50:47Z"
+    measured: true
+    note: "Blog listing index rail: 16rem left rail listing every post, links to the post pages"
+    proof: ["42b93ad"]
+    effort: {commits: 1, files: 2, insertions: 61, deletions: 30}
+  spent_min: 4
+  session_count: 1
