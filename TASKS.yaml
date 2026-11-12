@@ -7405,8 +7405,14 @@ tasks:
     note: "Pricing cards: the price block is laid out properly and all three cards align"
     proof: ["bcb42df"]
     effort: {commits: 1, files: 1, insertions: 49, deletions: 27}
-  spent_min: 7
-  session_count: 3
+  - start: "2026-11-12T20:05:27Z"
+    end: "2026-11-12T20:06:16Z"
+    measured: true
+    note: "Yearly Pro price set per currency (69.99 / 59.99 / 69.99 / 5999), ten months for the price of twelve; the 20% claim replaced by what is true"
+    proof: ["f71511b"]
+    effort: {commits: 1, files: 5, insertions: 61, deletions: 37}
+  spent_min: 8
+  session_count: 4
 - id: "T-258"
   title: "doctor: an issue older than the 200-row window is not a missing issue"
   status: "review"
