@@ -554,10 +554,9 @@ test("no feature is badged or sold", async ({ page }) => {
   await page.locator("#features").scrollIntoViewIfNeeded();
   await parkTheTour(page);
 
-  // Nothing on the rail is gated today (T-161 cut tags, the one Pro feature),
-  // so the inspector never wears the badge and never sells anything - it used
-  // to offer a "Try it" that only read the docs. Every chip is clicked so the
-  // assertions cannot rot when the catalogue moves.
+  // Every chip is clicked so the assertions cannot rot when the catalogue
+  // moves. Nothing on the rail sells anything - it used to offer a "Try it"
+  // that only read the docs.
   const chips = await page.locator("[data-mk-chip]").all();
   expect(chips.length).toBeGreaterThan(0);
   for (const chip of chips) {
@@ -573,7 +572,12 @@ test("no feature is badged or sold", async ({ page }) => {
   await expect(links).toHaveCount(1);
   await expect(links).toHaveAttribute("href", "/gallery?tab=themes");
 
+  // One card is gated now: watch digests are Pro (T-256). The badge is the
+  // whole affordance - it names the tier and it is not a link, because there
+  // is no checkout to send anyone to.
   await expect(page.getByTitle("Needs a signed-in Pro account")).toHaveCount(0);
+  await page.locator('[data-mk-chip="watch"]').click();
+  await expect(page.getByTitle("Needs a signed-in Pro account")).toHaveCount(1);
 });
 
 test("a chip drives the callout the same way a card does", async ({ page }) => {
@@ -781,6 +785,54 @@ test("/welcome redirects to the canonical home instead of duplicating it", async
   await expect(
     page.getByRole("heading", { name: "See everything in your folders at once" }),
   ).toBeVisible();
+});
+
+/**
+ * The pricing page (T-257): the prices, the two switches and the contact
+ * form.
+ *
+ * What is pinned is what a reader can do: pick a currency and a period and
+ * see the price change, find the form, and send an enquiry. The numbers
+ * themselves are pinned by the unit test (src/lib/fewer/pricing.test.ts),
+ * which is where the arithmetic belongs.
+ *
+ * The page must not print an email address: the form is the only door, so
+ * there is nothing for a scraper to take. The source is checked for that.
+ */
+test("the pricing page shows the plans, switches the price, and takes an enquiry", async ({
+  page,
+}) => {
+  await page.goto("/pricing");
+
+  // The three plans, in the order a reader meets them.
+  await expect(page.getByRole("heading", { name: "Free", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pro", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enterprise", exact: true })).toBeVisible();
+
+  // The Pro price, in the default currency and period.
+  await expect(page.getByText("$6.99").first()).toBeVisible();
+
+  // The currency switch changes the price.
+  await page.getByRole("button", { name: "GBP", exact: true }).click();
+  await expect(page.getByText("£5.99").first()).toBeVisible();
+
+  // The period switch shows the yearly price and what it works out at.
+  await page.getByRole("button", { name: "yearly", exact: true }).click();
+  await expect(page.getByText("£57.50").first()).toBeVisible();
+  await expect(page.getByText("£4.79").first()).toBeVisible();
+
+  // The choice travels in the URL, so a link shows the same price.
+  await expect(page).toHaveURL(/currency=GBP/);
+  await expect(page).toHaveURL(/period=yearly/);
+
+  // The contact form is where the paid plans lead.
+  await page.getByRole("link", { name: "Ask about Pro" }).click();
+  await expect(page.locator("#contact")).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+
+  // No address is printed anywhere on the page.
+  const source = await page.content();
+  expect(source).not.toContain("@fewer.directory");
 });
 
 /**

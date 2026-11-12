@@ -34,6 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Zoom below 0.3 collapses every folder card to its one-line pill (level of detail): child rows drop away with the zoom and return when you cross the seam again, connectors re-anchor to the pill, and the pill's chevron zooms you in past the seam instead of writing collapse state — your own collapse choices and exports are untouched
 - Landing page FAQ section: the questions and answers live in the database (faq_items) and can be edited without a deploy
 - Blog listing gained the same left-hand index the docs page has, so a post can be picked instead of scrolled to
+- Pricing page: Free, Pro and Enterprise, with the Pro price in USD, GBP, EUR and INR, an introductory price and a yearly plan 20% cheaper
+- Contact form on the pricing page: enquiries go to the inbox with the sender in reply-to, so no address is published
 
 ### Performance
 

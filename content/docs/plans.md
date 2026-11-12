@@ -10,9 +10,9 @@ Fewer's core runs entirely in the browser. Account tiers unlock two things: clie
 | Tier         | Price            | Included                                                           |
 | ------------ | ---------------- | ------------------------------------------------------------------ |
 | Guest        | Free             | Single-canvas layout, all exports (watermarked), hash sharing < 2,000 chars |
-| Free account | $0               | ~3 saved graphs, 30-day history, public sharing, watermark-free exports |
-| Pro          | $10–15/mo         | Panel workspace (multi-view dock), tags, unlimited saves, 1-yr history, saved themes, 5–10 watched indexes, large-payload short links |
-| Team         | ~$12–15/user/mo  | Org workspaces, private sharing/gallery, shared theme libraries, admin controls |
+| Free account | $0               | ~3 saved graphs, 30-day history, public sharing, watermarked exports |
+| Pro          | See the pricing page | Panel workspace (multi-view dock), tags, unlimited saves, 1-yr history, saved themes, unwatermarked exports, 5–10 watched indexes, large-payload short links |
+| Team         | Ask              | Org workspaces, private sharing/gallery, shared theme libraries, admin controls |
 
 ## Client features by tier
 
@@ -41,7 +41,7 @@ A signed-in account with no recurring price. Around 3 saved graphs (updating an 
 
 ### Pro
 
-For power users: the panel workspace (multi-view dock with split views), tags, unlimited saved graphs, a full year of version history, cloud-saved custom themes, exports without the fewer watermark, up to 10 watched indexes with the nightly change digest, a crawl quota for large imports, and DB-backed short links for large payloads. Private cloud connectors (GitHub, Drive, OneDrive, SharePoint, Azure) and invite-only sharing are also Pro. **$10–15/mo.**
+For power users: the panel workspace (multi-view dock with split views), tags, unlimited saved graphs, a full year of version history, cloud-saved custom themes, exports without the fewer watermark, up to 10 watched indexes with the nightly change digest, a crawl quota for large imports, and DB-backed short links for large payloads. Private cloud connectors (GitHub, Drive, OneDrive, SharePoint, Azure) and invite-only sharing are also Pro. **The current prices, in four currencies and with the yearly discount, are on the [pricing page](/pricing)**; there is no checkout yet, so a plan is set up by hand.
 
 ### Team
 
