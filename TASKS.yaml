@@ -7417,8 +7417,14 @@ tasks:
     note: "Contact form: hydration-safe fields, and a plain HTML post path so it works without JavaScript"
     proof: ["6c7773b"]
     effort: {commits: 1, files: 3, insertions: 104, deletions: 12}
-  spent_min: 9
-  session_count: 5
+  - start: "2026-11-12T20:47:40Z"
+    end: "2026-11-12T20:48:28Z"
+    measured: true
+    note: "Plans doc: the Team paragraph no longer quotes a price the table does not show; reseed regenerated"
+    proof: ["c8e29e3"]
+    effort: {commits: 1, files: 2, insertions: 36, deletions: 36}
+  spent_min: 10
+  session_count: 6
 - id: "T-258"
   title: "doctor: an issue older than the 200-row window is not a missing issue"
   status: "review"
