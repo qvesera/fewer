@@ -57,7 +57,7 @@ bun run dev
 ### Prerequisites
 
 - Bun 1.3+ (or Node.js 18+)
-- Chrome/Edge for full File System Access API support; Firefox/Safari via `webkitdirectory` fallback
+- Any modern browser: folder import uses the `webkitdirectory` fallback everywhere. The local filesystem features (directory picker, writing back to disk) are switched off in the web build — see [Browser Support](#browser-support)
 
 ### Alternative installs
 
@@ -234,7 +234,7 @@ docker run -p 3000:3000 fewer
 <details>
 <summary><b>Watch File Indexes</b></summary>
 
-- **Watch indexes**: watch a public file index and get a daily email digest when it changes
+- **Watch indexes** *(Pro)*: watch a public file index and get a daily email digest when it changes
 - **Consolidated digest**: one email at 23:59 listing everything added/removed across your watched indexes
 - **No changes, no email**: digests are only sent on days something changed
 
@@ -265,6 +265,8 @@ docker run -p 3000:3000 fewer
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
+
+Exports carry a small fewer credit below the Pro plan: a linked logo on **SVG** and **PNG**, a credit line on the other formats. Pro removes it, and the toggle in the export panel turns it off.
 
 Image exports (**SVG**, **PNG**) mirror the active graph view: its hidden cards, card positions, derived layout, collapsed folders, collapsed groups (pill and their wires), tag rings, and connection style all travel into the image. Everything else is unaffected by view settings. The active-view marker used in a split layout is never drawn into an export.
 
@@ -378,29 +380,33 @@ src/
 
 ## FAQ
 
-**Q: Does fewer send my directory data anywhere?**
+**Q: Is fewer free?**
 
-A: Your directory is never uploaded. Local import, editing, layout and export all run in your browser. Network calls happen only for features you opt into: GitHub/URL/Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.
+A: The core is free and needs no account: open a folder, an archive, a link or a repo, search it, arrange it and export it. A free account adds saved graphs, version history and share links. A few power features are Pro: the panel workspace, tags, exports without the fewer credit and watch digests. There is no checkout yet, so Pro is set up by hand. The [pricing page](/pricing) has the numbers.
 
-**Q: Can I use fewer without installing anything?**
+**Q: Why does my export carry a fewer watermark?**
 
-A: Yes. The standalone version is available at [app.fewer.directory](https://app.fewer.directory). The self-hosted version requires `bun install && bun run dev`.
+A: Below the Pro plan every export carries a small fewer credit: a linked logo on PNG and SVG, a credit line on the other formats. Pro removes it, and the toggle in the export panel turns it off.
 
-**Q: Why does directory import not work in Firefox/Safari?**
+**Q: How is this different from my file manager?**
 
-A: Folder import works in every browser: Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only, and are currently switched off entirely in the web build (see the note above).
+A: A file manager opens one folder at a time and shows you a list. Fewer puts the whole tree on one canvas: search everything inside it, even files still zipped up, group and rename in bulk, re-lay it out, and export the result.
 
-**Q: How do I uninstall?**
+**Q: Can fewer make changes to my directory?**
 
-A: Delete the repo folder. That's it. No background processes, no config files, no registry entries.
+A: Not directly. Fewer does not write to the folders on your system: it reads a directory, lets you organise it on the canvas and export the result, and every change stays inside the graph until you export. Writing back to the real directory is not available in the browser build. The desktop version, which is work in progress, is where that will live.
 
-**Q: Do I need an account?**
+**Q: How big a folder can it handle?**
 
-A: No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, accessing them across devices, and invite-only sharing.
+A: fewer handles folders in the thousands, and it has been tested with 5,000 of them on one canvas. We have run it up to 25,000 files, and it stays smooth: the canvas keeps up while you zoom, search and rearrange.
 
-**Q: Can I set my own avatar?**
+**Q: Does it search inside my files?**
 
-A: The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer doesn't host user images, so there's no upload, that keeps the app free of image storage without giving up identity in the toolbar.
+A: It searches names and paths, including files inside zip, tar and other archives that were never unpacked. It does not read the text inside your files: nothing is uploaded and nothing is indexed on our side.
+
+**Q: Do I have to import my folder again?**
+
+A: Yes, unless you save it. The canvas lives in the tab, so closing it loses the view. Save the graph to a free account to reopen it anywhere, or export it as JSON and import it back.
 
 ## Roadmap
 

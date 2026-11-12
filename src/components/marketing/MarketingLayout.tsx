@@ -13,6 +13,10 @@ const NAV = [
   // The home page itself owns the #features anchor — /welcome used to be a
   // byte-for-byte duplicate of it (T-149), so the link no longer hops off-page.
   { label: "Features", href: "/#features" },
+  // The FAQ is a section of the home page too, and its answers live in the
+  // database (T-254), so the link is an anchor on the page that renders them.
+  { label: "FAQ", href: "/#faq" },
+  { label: "Pricing", href: "/pricing" },
   { label: "Gallery", href: "/gallery" },
   { label: "Privacy", href: "/privacy" },
   { label: "Docs", href: "/docs" },
@@ -91,6 +95,16 @@ export function MarketingLayout({ children }: { children: React.ReactNode }) {
                 <li>
                   <Link href="/docs" className="text-foreground/80 hover:text-foreground">
                     Documentation
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/#faq" className="text-foreground/80 hover:text-foreground">
+                    FAQ
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/pricing" className="text-foreground/80 hover:text-foreground">
+                    Pricing
                   </Link>
                 </li>
                 <li>

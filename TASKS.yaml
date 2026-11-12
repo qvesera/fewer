@@ -7261,3 +7261,214 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 14, deletions: 5}
   spent_min: 96
   session_count: 2
+- id: "T-254"
+  title: "DB-backed FAQ section on the landing page"
+  status: "review"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 593
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T11:26:21Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T11:30:50Z"
+    end: "2026-11-12T11:45:01Z"
+    measured: true
+    note: "FAQ section on the landing page: faq_items table, fallback copy, native details disclosure, FAQPage JSON-LD"
+    proof: ["cf1d5b0"]
+    effort: {commits: 1, files: 9, insertions: 478, deletions: 4}
+  - start: "2026-11-12T12:09:07Z"
+    end: "2026-11-12T12:17:44Z"
+    measured: true
+    note: "FAQ copy: five questions (added 'can I make changes to my directory', dropped the browser question and uninstall), README in step; e2e first-scroll race fixed"
+    proof: ["afc04df", "9d7c689"]
+    effort: {commits: 2, files: 4, insertions: 21, deletions: 27}
+  - start: "2026-11-12T17:10:11Z"
+    end: "2026-11-12T17:28:38Z"
+    measured: true
+    note: "FAQ rewritten around what a first-time reader still wants to know: seven questions the page does not answer"
+    proof: ["03c83aa"]
+    effort: {commits: 1, files: 4, insertions: 77, deletions: 48}
+  - start: "2026-11-12T17:54:23Z"
+    end: "2026-11-12T17:56:14Z"
+    measured: true
+    note: "Scale answer now quotes the tested figures: 5,000 folders on the canvas, 25,000 tested on the desktop and carried to the web"
+    proof: ["ae7d5bb"]
+    effort: {commits: 1, files: 5, insertions: 7, deletions: 3}
+  - start: "2026-11-12T20:58:01Z"
+    end: "2026-11-12T20:59:34Z"
+    measured: true
+    note: "Scale answer reworded: leads with the tested figure, the ceiling gets its own sentence"
+    proof: ["4768d2a"]
+    effort: {commits: 1, files: 3, insertions: 3, deletions: 3}
+  - start: "2026-11-12T21:04:48Z"
+    end: "2026-11-12T21:05:26Z"
+    measured: true
+    note: "Scale answer: dropped the performance-app line, now leads with 5,000 folders and 25,000 files tested, stays smooth"
+    proof: ["b2aaa3e"]
+    effort: {commits: 1, files: 5, insertions: 5, deletions: 5}
+  spent_min: 46
+  session_count: 6
+- id: "T-255"
+  title: "Blog listing index rail"
+  status: "review"
+  type: "feat"
+  area: "blog"
+  tier: 1
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 594
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T11:26:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T11:46:52Z"
+    end: "2026-11-12T11:50:47Z"
+    measured: true
+    note: "Blog listing index rail: 16rem left rail listing every post, links to the post pages"
+    proof: ["42b93ad"]
+    effort: {commits: 1, files: 2, insertions: 61, deletions: 30}
+  spent_min: 4
+  session_count: 1
+- id: "T-256"
+  title: "Move unbranded export and watch digests behind the Pro plan"
+  status: "review"
+  type: "feat"
+  area: "billing"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 596
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T16:58:46Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T17:02:52Z"
+    end: "2026-11-12T17:10:07Z"
+    measured: true
+    note: "Unbranded export and watch digests moved behind Pro: tier map, server limits, nightly job plan filter, panel and export copy, docs"
+    proof: ["3b882d8"]
+    effort: {commits: 1, files: 15, insertions: 147, deletions: 34}
+  spent_min: 7
+  session_count: 1
+- id: "T-257"
+  title: "Pricing page with the Pro plan and an enterprise contact form"
+  status: "review"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 597
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T16:58:46Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T17:28:43Z"
+    end: "2026-11-12T17:29:56Z"
+    measured: true
+    note: "Pricing page with Free/Pro/Enterprise, four currencies, intro and yearly prices, and a contact form that mails the enquiry with the visitor in reply-to"
+    proof: ["768fadc"]
+    effort: {commits: 1, files: 15, insertions: 4055, deletions: 8}
+  - start: "2026-11-12T17:38:15Z"
+    end: "2026-11-12T17:39:13Z"
+    measured: true
+    note: "Pricing page app link follows the deployment host"
+    proof: ["c854dfb"]
+    effort: {commits: 1, files: 2, insertions: 17, deletions: 1}
+  - start: "2026-11-12T19:14:29Z"
+    end: "2026-11-12T19:19:23Z"
+    measured: true
+    note: "Pricing cards: the price block is laid out properly and all three cards align"
+    proof: ["bcb42df"]
+    effort: {commits: 1, files: 1, insertions: 49, deletions: 27}
+  - start: "2026-11-12T20:05:27Z"
+    end: "2026-11-12T20:06:16Z"
+    measured: true
+    note: "Yearly Pro price set per currency (69.99 / 59.99 / 69.99 / 5999), ten months for the price of twelve; the 20% claim replaced by what is true"
+    proof: ["f71511b"]
+    effort: {commits: 1, files: 5, insertions: 61, deletions: 37}
+  - start: "2026-11-12T20:41:18Z"
+    end: "2026-11-12T20:41:59Z"
+    measured: true
+    note: "Contact form: hydration-safe fields, and a plain HTML post path so it works without JavaScript"
+    proof: ["6c7773b"]
+    effort: {commits: 1, files: 3, insertions: 104, deletions: 12}
+  - start: "2026-11-12T20:47:40Z"
+    end: "2026-11-12T20:48:28Z"
+    measured: true
+    note: "Plans doc: the Team paragraph no longer quotes a price the table does not show; reseed regenerated"
+    proof: ["c8e29e3"]
+    effort: {commits: 1, files: 2, insertions: 36, deletions: 36}
+  spent_min: 10
+  session_count: 6
+- id: "T-258"
+  title: "doctor: an issue older than the 200-row window is not a missing issue"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 1
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 598
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T18:26:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T18:33:22Z"
+    end: "2026-11-12T18:44:12Z"
+    measured: true
+    note: "Doctor asks GitHub about rows outside the 200-issue window instead of calling them missing"
+    proof: ["537bd48"]
+    effort: {commits: 1, files: 1, insertions: 24, deletions: 2}
+  - start: "2026-11-12T19:05:04Z"
+    end: "2026-11-12T19:06:01Z"
+    measured: true
+    note: "Doctor reads the issue list once (parent included) and degrades to a NOTE on a failed read: 6m11s to 11s, and the secondary rate limit no longer kills it"
+    proof: ["6363482"]
+    effort: {commits: 1, files: 1, insertions: 42, deletions: 28}
+  spent_min: 12
+  session_count: 2

@@ -26,10 +26,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Context menus show the keyboard shortcut of every item that has one — Unparent Alt+Shift+P, Add Child Card Alt+N, Select All Ctrl+A, Organize Alt+R, Clear Canvas Alt+Shift+N, Open in File Explorer Alt+O, Open File Enter, Hide H, Show All Shift+H — plus the same hints in the batch sections; hints are read from MENU_SHORTCUT_HINTS, which a test fires through the key dispatcher, and the connection menu stays keyless because Delete only acts on a selected connection
 - The multi-selection menu is reorganized into the same clusters as the single-card menu — Edit (Rename…, Copy, Cut, Duplicate), Structure (Move to Folder…, Unparent, Group N Items, promoted out of the old More Actions drawer), a Visibility submenu (Hide/Show/Collapse/Expand, no longer split apart), then Tags and Select, with Delete last — identical in the card batch section and the canvas selection menu
 - Cloud panel: OneDrive linking is offered again; Google Drive stays hidden until revenue justifies Google's annual CASA assessment (decision recorded in .repowise/decisions.yaml — Drive adapter and server-side token storage remain in place)
+- Exports keep the fewer watermark on the free plan (a linked logo on SVG and PNG, a credit line elsewhere); only Pro removes it
+- Watch digests are a Pro feature: a nightly crawl per watched index. Watches already on a free account stay saved and start again if the account becomes Pro
 
 ### Added
 
 - Zoom below 0.3 collapses every folder card to its one-line pill (level of detail): child rows drop away with the zoom and return when you cross the seam again, connectors re-anchor to the pill, and the pill's chevron zooms you in past the seam instead of writing collapse state — your own collapse choices and exports are untouched
+- Landing page FAQ section: the questions and answers live in the database (faq_items) and can be edited without a deploy
+- Blog listing gained the same left-hand index the docs page has, so a post can be picked instead of scrolled to
+- Pricing page: Free, Pro and Enterprise, with the Pro price in USD, GBP, EUR and INR, an introductory price and a yearly plan at ten months for the price of twelve
+- Contact form on the pricing page: enquiries go to the inbox with the sender in reply-to, so no address is published
 
 ### Performance
 

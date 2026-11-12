@@ -65,11 +65,14 @@ export async function POST(request: Request) {
         limits.watchedIndexes !== Infinity &&
         overLimit(await countOwned(supabase, "watched_indexes", user.id), limits.watchedIndexes)
       ) {
+        // A cap of zero means the feature itself is Pro (T-256), so the
+        // message says that instead of "up to 0 indexes".
+        const message =
+          limits.watchedIndexes === 0
+            ? `Watch digests are a Pro feature (up to ${PRO_LIMITS.watchedIndexes} indexes).`
+            : `Free plan watches up to ${limits.watchedIndexes} indexes. Upgrade to Pro for up to ${PRO_LIMITS.watchedIndexes}.`;
         return NextResponse.json(
-          {
-            error: `Free plan watches up to ${limits.watchedIndexes} indexes. Upgrade to Pro for up to ${PRO_LIMITS.watchedIndexes}.`,
-            code: "plan_limit",
-          },
+          { error: message, code: "plan_limit" },
           { status: 403 },
         );
       }

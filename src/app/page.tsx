@@ -1,6 +1,8 @@
 import type { Metadata } from "next";
 import { MarketingLayout } from "@/components/marketing/MarketingLayout";
 import { MarketingHome } from "@/components/marketing/MarketingHome";
+import { FALLBACK_FAQ, type FaqItem } from "@/lib/fewer/faq";
+import { getSupabase } from "@/lib/supabase";
 
 export const metadata: Metadata = {
   title: "fewer | See everything inside any folder, at once",
@@ -33,14 +35,43 @@ export const metadata: Metadata = {
   },
 };
 
+// The FAQ lives in the database (faq_items), so the page revalidates every
+// 60s and an edit goes live without a deploy - the same contract the docs and
+// blog listings have.
+export const revalidate = 60;
+
+/**
+ * The landing page's questions.
+ *
+ * Two different failures, two different answers: a query that errors (no
+ * database in this environment, an outage, a table that is not there yet)
+ * falls back to the repo copy, so the page is never missing its FAQ; a query
+ * that succeeds and returns nothing means the operator published no
+ * questions, and the section is dropped rather than resurrected.
+ */
+async function getFaqItems(): Promise<FaqItem[]> {
+  try {
+    const { data, error } = await getSupabase()
+      .from("faq_items")
+      .select("slug,question,answer")
+      .eq("published", true)
+      .order("sort_order", { ascending: true });
+    if (error) return FALLBACK_FAQ;
+    return (data ?? []) as FaqItem[];
+  } catch {
+    return FALLBACK_FAQ;
+  }
+}
+
 /**
  * Root page. The `/` route always serves the public marketing homepage;
  * the interactive app lives at `/app` (see src/app/app/page.tsx).
  */
-export default function Home() {
+export default async function Home() {
+  const faq = await getFaqItems();
   return (
     <MarketingLayout>
-      <MarketingHome />
+      <MarketingHome faq={faq} />
     </MarketingLayout>
   );
 }

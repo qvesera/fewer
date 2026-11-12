@@ -5,6 +5,8 @@ description: Watch public file indexes and get a daily email digest when they ch
 
 Fewer can watch the public file indexes you import and email you a daily digest when they change. This is useful for keeping an eye on a directory that updates over time, such as a data mirror or a downloadable-assets folder.
 
+> **Watch digests are a Pro feature.** Each watched index costs a nightly crawl, so watching is part of the Pro plan. Pro is granted by hand while billing is being finished: ask and we will set it up. Watches you already have stay saved and start working again the moment the account is on Pro.
+
 ## How it works
 
 1. Import a public file index URL (Apache or nginx auto-index).
@@ -12,7 +14,7 @@ Fewer can watch the public file indexes you import and email you a daily digest 
 3. Fewer crawls every watched index each night at **23:59**.
 4. If anything changed, you get **one consolidated email** the next morning with the additions and removals. No changes, no email.
 
-Watching requires a signed-in account and only works for public file index URLs (not GitHub repositories).
+Watching requires a Pro account and only works for public file index URLs (not GitHub repositories).
 
 ## Watch an index
 

@@ -1,5 +1,21 @@
 import { describe, expect, test } from "bun:test";
-import { digestHtml, digestText } from "./watchDigest";
+import { digestHtml, digestText, watchAllowedFor } from "./watchDigest";
+
+describe("the watch plan gate (T-256)", () => {
+  test("only Pro and Team accounts are crawled", () => {
+    expect(watchAllowedFor("pro")).toBe(true);
+    expect(watchAllowedFor("team")).toBe(true);
+  });
+
+  test("free, guest and unknown plans are not crawled", () => {
+    // A missing profile row means an unknown plan, and an unknown plan is
+    // treated as free: the gate fails closed.
+    expect(watchAllowedFor("free")).toBe(false);
+    expect(watchAllowedFor(null)).toBe(false);
+    expect(watchAllowedFor(undefined)).toBe(false);
+    expect(watchAllowedFor("bogus")).toBe(false);
+  });
+});
 
 describe("digest email bodies", () => {
   const changes = [

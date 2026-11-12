@@ -12,6 +12,7 @@ export const revalidate = 60;
 
 const STATIC: Array<{ path: string; priority: number }> = [
   { path: "", priority: 1 },
+  { path: "/pricing", priority: 0.8 },
   { path: "/gallery", priority: 0.7 },
   { path: "/docs", priority: 0.6 },
   { path: "/blog", priority: 0.6 },
