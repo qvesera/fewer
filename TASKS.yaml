@@ -7294,8 +7294,14 @@ tasks:
     note: "FAQ copy: five questions (added 'can I make changes to my directory', dropped the browser question and uninstall), README in step; e2e first-scroll race fixed"
     proof: ["afc04df", "9d7c689"]
     effort: {commits: 2, files: 4, insertions: 21, deletions: 27}
-  spent_min: 23
-  session_count: 2
+  - start: "2026-11-12T17:10:11Z"
+    end: "2026-11-12T17:28:38Z"
+    measured: true
+    note: "FAQ rewritten around what a first-time reader still wants to know: seven questions the page does not answer"
+    proof: ["03c83aa"]
+    effort: {commits: 1, files: 4, insertions: 77, deletions: 48}
+  spent_min: 41
+  session_count: 3
 - id: "T-255"
   title: "Blog listing index rail"
   status: "review"
@@ -7324,4 +7330,62 @@ tasks:
     proof: ["42b93ad"]
     effort: {commits: 1, files: 2, insertions: 61, deletions: 30}
   spent_min: 4
+  session_count: 1
+- id: "T-256"
+  title: "Move unbranded export and watch digests behind the Pro plan"
+  status: "review"
+  type: "feat"
+  area: "billing"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 596
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T16:58:46Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T17:02:52Z"
+    end: "2026-11-12T17:10:07Z"
+    measured: true
+    note: "Unbranded export and watch digests moved behind Pro: tier map, server limits, nightly job plan filter, panel and export copy, docs"
+    proof: ["3b882d8"]
+    effort: {commits: 1, files: 15, insertions: 147, deletions: 34}
+  spent_min: 7
+  session_count: 1
+- id: "T-257"
+  title: "Pricing page with the Pro plan and an enterprise contact form"
+  status: "review"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 597
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T16:58:46Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T17:28:43Z"
+    end: "2026-11-12T17:29:56Z"
+    measured: true
+    note: "Pricing page with Free/Pro/Enterprise, four currencies, intro and yearly prices, and a contact form that mails the enquiry with the visitor in reply-to"
+    proof: ["768fadc"]
+    effort: {commits: 1, files: 15, insertions: 4055, deletions: 8}
+  spent_min: 1
   session_count: 1
