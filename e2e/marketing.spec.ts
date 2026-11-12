@@ -143,6 +143,14 @@ test("the first scroll takes the reader straight to the demo", async ({ page }) 
   await page.goto("/");
   expect(await page.evaluate(() => window.scrollY)).toBeLessThan(40);
 
+  // The gesture has to land on a live page. The jump is set up by the effect
+  // that also gives the page its Lenis class, so a wheel that arrives before
+  // that effect runs is a plain scroll with no jump to follow - and the page
+  // is exactly one wheel past the demo's offset. On a loaded machine that
+  // race is lost often enough to be noise, so the test waits for the same
+  // marker the sibling test uses.
+  await expect(page.locator("html")).toHaveClass(/lenis/);
+
   await page.mouse.move(4, 4);
   await page.mouse.wheel(0, 120);
 
