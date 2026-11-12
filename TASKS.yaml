@@ -7401,3 +7401,32 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 17, deletions: 1}
   spent_min: 2
   session_count: 2
+- id: "T-258"
+  title: "doctor: an issue older than the 200-row window is not a missing issue"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 1
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 598
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T18:26:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T18:33:22Z"
+    end: "2026-11-12T18:44:12Z"
+    measured: true
+    note: "Doctor asks GitHub about rows outside the 200-issue window instead of calling them missing"
+    proof: ["537bd48"]
+    effort: {commits: 1, files: 1, insertions: 24, deletions: 2}
+  spent_min: 11
+  session_count: 1
