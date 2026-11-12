@@ -7399,8 +7399,14 @@ tasks:
     note: "Pricing page app link follows the deployment host"
     proof: ["c854dfb"]
     effort: {commits: 1, files: 2, insertions: 17, deletions: 1}
-  spent_min: 2
-  session_count: 2
+  - start: "2026-11-12T19:14:29Z"
+    end: "2026-11-12T19:19:23Z"
+    measured: true
+    note: "Pricing cards: the price block is laid out properly and all three cards align"
+    proof: ["bcb42df"]
+    effort: {commits: 1, files: 1, insertions: 49, deletions: 27}
+  spent_min: 7
+  session_count: 3
 - id: "T-258"
   title: "doctor: an issue older than the 200-row window is not a missing issue"
   status: "review"
