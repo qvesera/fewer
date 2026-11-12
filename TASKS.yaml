@@ -7362,7 +7362,7 @@ tasks:
   session_count: 1
 - id: "T-257"
   title: "Pricing page with the Pro plan and an enterprise contact form"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "growth"
   tier: 1
