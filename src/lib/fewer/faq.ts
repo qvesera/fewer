@@ -41,16 +41,10 @@ export const FALLBACK_FAQ: FaqItem[] = [
       "Yes. The standalone version runs at app.fewer.directory. The self-hosted version needs bun install and bun run dev.",
   },
   {
-    slug: "firefox-safari",
-    question: "Why does directory import not work in Firefox or Safari?",
+    slug: "edit-directory",
+    question: "Can I make changes to my directory using fewer?",
     answer:
-      "Folder import works in every browser: Firefox and Safari use the webkitdirectory fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the directory picker itself) stay Chrome and Edge only, and are switched off entirely in the web build.",
-  },
-  {
-    slug: "uninstall",
-    question: "How do I uninstall?",
-    answer:
-      "Delete the repo folder. That is it. No background processes, no config files, no registry entries.",
+      "Not directly. Fewer does not write to the folders on your system: it reads a directory, lets you organise it on the canvas and export the result, and every change stays inside the graph until you export. Writing back to the real directory is not available in the browser build. The desktop version, which is work in progress, is where that will live.",
   },
   {
     slug: "account",

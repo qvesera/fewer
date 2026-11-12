@@ -57,7 +57,7 @@ bun run dev
 ### Prerequisites
 
 - Bun 1.3+ (or Node.js 18+)
-- Chrome/Edge for full File System Access API support; Firefox/Safari via `webkitdirectory` fallback
+- Any modern browser: folder import uses the `webkitdirectory` fallback everywhere. The local filesystem features (directory picker, writing back to disk) are switched off in the web build — see [Browser Support](#browser-support)
 
 ### Alternative installs
 
@@ -386,13 +386,9 @@ A: Your directory is never uploaded. Local import, editing, layout and export al
 
 A: Yes. The standalone version is available at [app.fewer.directory](https://app.fewer.directory). The self-hosted version requires `bun install && bun run dev`.
 
-**Q: Why does directory import not work in Firefox/Safari?**
+**Q: Can I make changes to my directory using fewer?**
 
-A: Folder import works in every browser: Firefox and Safari use the `webkitdirectory` fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the FSA directory picker itself) stay Chrome/Edge-only, and are currently switched off entirely in the web build (see the note above).
-
-**Q: How do I uninstall?**
-
-A: Delete the repo folder. That's it. No background processes, no config files, no registry entries.
+A: Not directly. Fewer does not write to the folders on your system: it reads a directory, lets you organise it on the canvas and export the result, and every change stays inside the graph until you export. Writing back to the real directory is not available in the browser build. The desktop version, which is work in progress, is where that will live.
 
 **Q: Do I need an account?**
 

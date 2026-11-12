@@ -10,8 +10,8 @@
 -- one markdown blob per page with a (type, slug) key and no ordering, while
 -- a FAQ is a list of short rows the landing page renders in a fixed order.
 --
--- Seeded with the six questions the README already answers (README §FAQ is
--- the source-of-record copy; src/lib/fewer/faq.ts carries the same six as
+-- Seeded with the five questions the README already answers (README §FAQ is
+-- the source-of-record copy; src/lib/fewer/faq.ts carries the same five as
 -- the fallback for a build or an environment with no database).
 --
 -- Idempotent: the seed only INSERTS (on conflict do nothing), deliberately
@@ -74,20 +74,16 @@ values
    'Can I use fewer without installing anything?',
    'Yes. The standalone version runs at app.fewer.directory. The self-hosted version needs bun install and bun run dev.',
    20),
-  ('firefox-safari',
-   'Why does directory import not work in Firefox or Safari?',
-   'Folder import works in every browser: Firefox and Safari use the webkitdirectory fallback instead of the File System Access API. What the fallback cannot do is hand back live file handles, so features that write back to disk (and the directory picker itself) stay Chrome and Edge only, and are switched off entirely in the web build.',
+  ('edit-directory',
+   'Can I make changes to my directory using fewer?',
+   'Not directly. Fewer does not write to the folders on your system: it reads a directory, lets you organise it on the canvas and export the result, and every change stays inside the graph until you export. Writing back to the real directory is not available in the browser build. The desktop version, which is work in progress, is where that will live.',
    30),
-  ('uninstall',
-   'How do I uninstall?',
-   'Delete the repo folder. That is it. No background processes, no config files, no registry entries.',
-   40),
   ('account',
    'Do I need an account?',
    'No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, opening them on another device, and invite-only sharing.',
-   50),
+   40),
   ('avatar',
    'Can I set my own avatar?',
    'The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer does not host user images, so there is no upload: that keeps the app free of image storage without giving up identity in the toolbar.',
-   60)
+   50)
 on conflict (slug) do nothing;
