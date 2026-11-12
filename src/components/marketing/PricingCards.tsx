@@ -120,34 +120,56 @@ export function PricingCards() {
             <h2 className="text-xl font-semibold tracking-tight text-foreground">{plan.name}</h2>
             <p className="mt-1 text-sm text-muted-foreground">{plan.tagline}</p>
 
-            {plan.priced ? (
-              <div className="mt-5">
-                <div className="flex items-baseline gap-2">
-                  <span className="text-4xl font-bold tracking-tight text-foreground">
-                    {formatMoney(intro, currency)}
-                  </span>
-                  <span className="text-sm text-muted-foreground">
-                    {period === "monthly" ? "/mo" : "/yr"}
-                  </span>
-                </div>
-                {perMonth !== null && (
-                  <p className="mt-1 text-sm text-muted-foreground">
-                    {formatMoney(perMonth, currency)} a month, billed yearly
+            {/* One price area for all three cards, so the feature lists start
+                on the same line whatever the plan says. The price carries its
+                own unit on the baseline (leading-none, so the unit does not
+                drop to the bottom of the number's line box), and the
+                introductory price sits BELOW it as its own line with the
+                normal price struck through - a struck price running into the
+                sentence beside it reads as one broken line. */}
+            <div className="mt-6 min-h-[10rem]">
+              {plan.priced ? (
+                <>
+                  <div className="flex items-baseline gap-1.5">
+                    <span className="text-4xl font-bold leading-none tracking-tight tabular-nums text-foreground">
+                      {formatMoney(intro, currency)}
+                    </span>
+                    <span className="text-sm font-medium text-muted-foreground">
+                      {period === "monthly" ? "/month" : "/year"}
+                    </span>
+                  </div>
+
+                  {perMonth !== null && (
+                    <p className="mt-2 text-sm text-muted-foreground">
+                      {formatMoney(perMonth, currency)} a month, billed yearly
+                    </p>
+                  )}
+
+                  <p className="mt-4 text-sm text-muted-foreground">
+                    was{" "}
+                    <span className="line-through">{formatMoney(normal, currency)}</span>
                   </p>
-                )}
-                <p className="mt-2 text-sm text-muted-foreground">
-                  <span className="line-through">{formatMoney(normal, currency)}</span>{" "}
-                  <span className="text-foreground">{INTRO_TERM}</span>
-                </p>
-                {period === "yearly" && (
-                  <p className="mt-1 text-sm text-foreground">Save 20% on the yearly plan.</p>
-                )}
-              </div>
-            ) : (
-              <p className="mt-5 text-2xl font-semibold tracking-tight text-foreground">
-                {plan.id === "free" ? "Free" : "Talk to us"}
-              </p>
-            )}
+                  <p className="mt-1 text-sm text-foreground/90">{INTRO_TERM}</p>
+
+                  {period === "yearly" && (
+                    <p className="mt-3 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
+                      Save 20% against the monthly plan
+                    </p>
+                  )}
+                </>
+              ) : (
+                <>
+                  <p className="text-3xl font-bold leading-none tracking-tight text-foreground">
+                    {plan.id === "free" ? "Free" : "Talk to us"}
+                  </p>
+                  <p className="mt-2 text-sm text-muted-foreground">
+                    {plan.id === "free"
+                      ? "No account, no card, no expiry."
+                      : "We set the plan up with you, by hand."}
+                  </p>
+                </>
+              )}
+            </div>
 
             <ul className="mt-5 flex-1 space-y-2 text-sm text-foreground/90">
               {plan.features.map((feature) => (
