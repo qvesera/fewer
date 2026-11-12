@@ -1,6 +1,6 @@
 ---
 title: Import & Export
-description: Import directories from disk, GitHub, or files (Fewer graph documents, JSON, ASCII tree, CSV, DOT, shell script). Export your graph as SVG, PNG, Fewer graph (.fwr), JSON, CSV, DOT, shell scripts, or ASCII trees.
+description: Import directories from disk, GitHub, or files (Fewer graph documents, JSON, ASCII tree, CSV, DOT, shell script). Export your graph as SVG, PNG, Fewer graph (.fwr), JSON, CSV, DOT, shell scripts, or ASCII trees — or export the edits you made as a script that replays them on your disk.
 ---
 
 Fewer lets you import file trees in multiple formats, whether it is directly from your disk, a github url, or from a previously exported file.
@@ -242,8 +242,63 @@ Notes:
 | JSON           | `.json`    | Structural data, re-import, other tools         |
 | CSV            | `.csv`     | Tabular, spreadsheets, re-import                |
 | DOT            | `.dot`     | Graphviz rendering, re-import                   |
-| Script         | `.sh` / `.bat` | Reproduce directory structure               |
+| Export Folders | `.sh` / `.bat` | Reproduce directory structure              |
+| Export Changes | `.sh`      | Replay your edits onto the imported folder      |
 | Tree           | `.txt`     | ASCII tree for docs/README                      |
+
+### Export Changes: replay your edits on disk
+
+**Export Folders** writes the *shape* of your graph as `mkdir` commands.
+**Export Changes** writes the *edits* you made: the folders and files you
+renamed, moved, re-parented and duplicated, plus the ones you added — as a
+script that applies them to the folder you imported.
+
+It answers the question the browser cannot: "I arranged these files in the
+graph — now make my machine look like that." You run the script; your device
+does the work; nothing is written from the browser.
+
+**How it works.** Fewer remembers the tree exactly as it was imported, and
+diffs it against your graph when you export. The result is the *net* change:
+an edit you undid produces nothing, and a folder you renamed carries its
+children with it. The script:
+
+1. **Refuses the wrong folder.** It checks that the folder it runs in is the
+   one that was imported, and that the files it moves are really there. If
+   either fails, it stops before touching anything (`--force` overrides).
+2. **Asks what to do.** Run it in a terminal and it offers
+   `[y]es / [d]ry-run / [n]o`, and — when the script contains deletions — a
+   second question, because deletions cannot be undone. Without a terminal
+   (a scheduled run, a pipe) it applies the safe changes and skips the
+   deletions.
+3. **Moves everything aside first.** Each renamed or moved entry is staged in
+   a temporary folder inside the tree and then placed in its new home. That is
+   why swapping two folders, or moving a folder into another one, works
+   without a special case.
+4. **Cleans up after itself.** The staging folder is removed when the script
+   finishes; if it fails halfway, it tells you where the moved files are.
+
+```bash
+# run it in the folder you imported
+bash fewer-changes-20261113-1015.sh
+# or from anywhere, pointing at the folder
+bash ~/Downloads/fewer-changes-20261113-1015.sh ~/work/my-project
+```
+
+Flags for scripted use: `--dry-run` (print the commands, change nothing),
+`--yes` (don't ask), `--allow-delete` (permit the deletions), `--force` (skip
+the checks).
+
+**What it can and cannot do.** It replays *names and places*: folders created,
+files renamed, entries moved and re-parented, duplicates copied from their
+original. It does not invent file **contents** — a file you created in the
+graph is created empty, and a file you edited outside the app is left alone.
+Entries the import never saw (excluded by the import options) are not touched.
+
+**Deletions are off by default.** Turn **Include deletions** on in the export
+panel to list them in the script; the script still asks before removing
+anything.
+
+**Windows** runs the script through WSL or Git Bash — the script is bash.
 
 ### FWR: the document, JSON: the structure
 
@@ -268,7 +323,9 @@ likewise not scanned: the desktop library reads `.fwr` files only.
 
 ### Export Selected
 
-Toggle **Export Selected** to export only the selected subtree.
+Toggle **Export Selected** to export only the selected subtree. **Export
+Changes** is the exception: it always replays the whole graph, because the
+changes are measured against the folder as it was imported.
 
 ### Image Exports Mirror the Active View
 

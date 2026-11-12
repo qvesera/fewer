@@ -4,6 +4,8 @@ Blog-post backlog. Major features merged to `dev` get a one-line entry here (see
 
 ## To write
 
+- [ ] 2026-11-13 · Export Changes: the edits you make in the graph replayed on your machine as a checked, reviewable script · T-259 — write it as the answer to "the browser can't touch my files".
+
 - [ ] 2026-10-13 · Home page redesign: interactive mini-canvas hero, tree-vs-graph comparison, canvas dot grid with a feathered pointer highlight · T-150 · write only if the marketing page becomes a story of its own.
 
 - [ ] 2026-09-14 · Theme gallery: publish saved themes to the community gallery (search, author attribution, instant Apply on the page, `#t:<id>` deep links) · feature — write alongside a future gallery/routing post.
