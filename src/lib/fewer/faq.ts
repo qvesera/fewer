@@ -65,7 +65,7 @@ export const FALLBACK_FAQ: FaqItem[] = [
     slug: "how-big",
     question: "How big a folder can it handle?",
     answer:
-      "fewer is built for trees in the thousands of cards. We have tested up to 5,000 folders on the canvas, and that is where we would call it a performance app: zoom out and every folder folds to a one-line pill, large folders hide their rows, and the canvas stays readable. The ceiling is higher than that (25,000 cards have been run on the desktop build and carried over to the web one), but 5,000 is the number we design for.",
+      "fewer is built for folders in the thousands of cards, and it has been tested with 5,000 of them on one canvas. That is where fewer stops being a viewer and becomes a performance app: zoomed out, every folder folds to a one-line pill and large folders hide their rows, so the canvas stays readable. The ceiling is higher: a 25,000 card graph has been run on the desktop build and carried over to the web one, but 5,000 is the number we design for.",
   },
   {
     slug: "search-scope",
