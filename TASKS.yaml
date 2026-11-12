@@ -7300,8 +7300,14 @@ tasks:
     note: "FAQ rewritten around what a first-time reader still wants to know: seven questions the page does not answer"
     proof: ["03c83aa"]
     effort: {commits: 1, files: 4, insertions: 77, deletions: 48}
-  spent_min: 41
-  session_count: 3
+  - start: "2026-11-12T17:54:23Z"
+    end: "2026-11-12T17:56:14Z"
+    measured: true
+    note: "Scale answer now quotes the tested figures: 5,000 folders on the canvas, 25,000 tested on the desktop and carried to the web"
+    proof: ["ae7d5bb"]
+    effort: {commits: 1, files: 5, insertions: 7, deletions: 3}
+  spent_min: 43
+  session_count: 4
 - id: "T-255"
   title: "Blog listing index rail"
   status: "review"
