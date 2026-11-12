@@ -774,3 +774,58 @@ test("/welcome redirects to the canonical home instead of duplicating it", async
     page.getByRole("heading", { name: "See everything in your folders at once" }),
   ).toBeVisible();
 });
+
+/**
+ * The FAQ (T-254): the questions the landing page answers, with the copy in
+ * the database and a repo copy as the fallback for a build or an environment
+ * with no database (the e2e suite is one of those - it runs without Supabase
+ * env vars, so it reads the fallback).
+ *
+ * What is pinned here is what a reader can do, not which rows exist: the
+ * section is there, its rows open, and the structured data describes exactly
+ * the rows on the page. A row count would break the moment somebody adds a
+ * question in the Studio.
+ */
+test("the landing page answers the FAQ, and the schema describes those answers", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  // The nav points at the section, which lives on the page that renders it.
+  await expect(page.locator('header a[href="/#faq"]')).toHaveCount(1);
+
+  const section = page.locator("#faq");
+  await section.scrollIntoViewIfNeeded();
+  await expect(section).toBeVisible();
+
+  // Reveal keeps a row invisible until it is scrolled to; wait for the
+  // section to reveal itself before touching a row inside it.
+  await page.waitForFunction(() => {
+    const el = document.querySelector("#faq [data-reveal]");
+    return el?.getAttribute("data-reveal") === "1";
+  });
+
+  const rows = page.locator("[data-mk-faq]");
+  const count = await rows.count();
+  expect(count).toBeGreaterThan(0);
+
+  // The structured data a search engine reads describes exactly these rows.
+  const payload = JSON.parse(
+    (await page.locator('script[type="application/ld+json"]').textContent()) ?? "{}",
+  );
+  expect(payload["@type"]).toBe("FAQPage");
+  expect(payload.mainEntity).toHaveLength(count);
+
+  // The disclosure is native: it opens on a click, with no hydration and no
+  // JavaScript of its own.
+  const first = rows.first();
+  const answer = first.locator("p");
+  await expect(answer).toBeHidden();
+  await first.locator("summary").click();
+  await expect(answer).toBeVisible();
+
+  // The question on the page is the question in the schema.
+  expect(payload.mainEntity[0].name).toBe(
+    (await first.locator("summary span").textContent())?.trim(),
+  );
+});

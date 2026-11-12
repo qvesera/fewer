@@ -30,6 +30,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ### Added
 
 - Zoom below 0.3 collapses every folder card to its one-line pill (level of detail): child rows drop away with the zoom and return when you cross the seam again, connectors re-anchor to the pill, and the pill's chevron zooms you in past the seam instead of writing collapse state — your own collapse choices and exports are untouched
+- Landing page FAQ section: the questions and answers live in the database (faq_items) and can be edited without a deploy
 
 ### Performance
 
