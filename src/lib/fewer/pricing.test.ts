@@ -108,4 +108,12 @@ describe("the pricing copy", () => {
       expect(plan.ctaAnchor).toBe("#contact");
     }
   });
+
+  test("the app link follows the deployment's host", () => {
+    // A self-hosted build must send readers to its own app, not to the
+    // public one.
+    const free = PRICING_PLANS.find((p) => p.id === "free")!;
+    const expected = `${(process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fewer.directory").replace(/\/$/, "")}/app`;
+    expect(free.ctaHref).toBe(expected);
+  });
 });

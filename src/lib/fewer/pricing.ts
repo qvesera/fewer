@@ -121,6 +121,14 @@ export interface PricingPlan {
   priced: boolean;
 }
 
+/**
+ * The public app host, so a self-hosted deployment sends readers to its own
+ * app instead of to app.fewer.directory (the same default the marketing
+ * layout uses).
+ */
+export const APP_URL =
+  `${(process.env.NEXT_PUBLIC_APP_URL ?? "https://app.fewer.directory").replace(/\/$/, "")}/app`;
+
 export const PRICING_PLANS: PricingPlan[] = [
   {
     id: "free",
@@ -133,7 +141,7 @@ export const PRICING_PLANS: PricingPlan[] = [
       "A free account adds 3 saved graphs, 30 days of history and share links",
     ],
     cta: "Launch the app",
-    ctaHref: "https://app.fewer.directory/app",
+    ctaHref: APP_URL,
     priced: false,
   },
   {
