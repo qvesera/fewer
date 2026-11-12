@@ -24,7 +24,8 @@ import {
   FileText,
   FileSpreadsheet,
   FileCode,
-  FileTerminal,
+  FileDiff,
+  Files,
   FolderTree,
   Download,
   MousePointerClick,
@@ -47,6 +48,7 @@ import {
 } from "@/hooks/use-canvas-visible-graph";
 import { exportGraph, type PngRasterResult } from "@/lib/fewer/exportUtils";
 import {
+  exportChangesScript,
   exportDirectoryScript,
   exportDirectoryTree,
 } from "@/lib/fewer/scriptExport";
@@ -102,10 +104,17 @@ const ADVANCED_FORMATS: {
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
   {
     value: "script",
-    label: "Shell Script",
-    desc: "mkdir commands (.sh)",
-    icon: FileTerminal,
+    label: "Export Folders",
+    desc: "Folder structure (.sh)",
+    icon: Files,
     info: "Recreate your folder structure anywhere with a single script.",
+  },
+  {
+    value: "changes",
+    label: "Export Changes",
+    desc: "Replay your edits (.sh)",
+    icon: FileDiff,
+    info: "A script that replays the renames, moves and new folders you made in the graph onto the folder you imported. It checks the folder first and asks before it deletes.",
   },
 ];
 
@@ -298,6 +307,34 @@ export function ExportPanel() {
 
     if (settings.format === "script") {
       exportDirectoryScript(nodesToExport, edgesToExport, includeBranding);
+    } else if (settings.format === "changes") {
+      // The replay is always for the whole graph: the baseline describes the
+      // folder as it was imported, so a subtree would not add up.
+      const baseline = useGraphStore.getState().baseline;
+      if (!baseline || baseline.length === 0) {
+        toast({
+          title: "Nothing to replay",
+          description:
+            "Import a folder first — the changes script needs to know what that folder looked like before your edits.",
+          variant: "destructive",
+        });
+        return;
+      }
+      const { summary, warnings } = exportChangesScript(
+        nodes,
+        baseline,
+        settings.includeDeletions,
+        includeBranding,
+      );
+      setOpen(false);
+      toast({
+        title: "Exported",
+        description:
+          `${summary.total} change(s): ${summary.renamed} renamed or moved, ` +
+          `${summary.created} created, ${summary.deleted} deleted.` +
+          (warnings.length > 0 ? ` ${warnings.length} note(s) in the script.` : ""),
+      });
+      return;
     } else if (settings.format === "tree") {
       exportDirectoryTree(nodesToExport, edgesToExport, includeBranding);
     } else {
@@ -352,7 +389,10 @@ export function ExportPanel() {
   };
 
   const isRaster = settings.format === "png";
-  const canExportSelected = selectedNodeIds.length > 0 && !singleFileSelected;
+  // The changes script replays the whole graph against the import baseline —
+  // a subtree would not line up with it.
+  const canExportSelected =
+    selectedNodeIds.length > 0 && !singleFileSelected && settings.format !== "changes";
 
   // SVG/PNG render only the non-hidden subset of the export selection (the
   // active view's hidden set), so if every exportable node is hidden the image
@@ -429,6 +469,22 @@ export function ExportPanel() {
             </div>
           </div>
 
+          {settings.format === "changes" && (
+            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
+              <div className="space-y-0.5">
+                <Label className="text-xs font-semibold">Include deletions</Label>
+                <p className="text-xs text-muted-foreground leading-snug">
+                  Off: the script never removes anything. On: it lists what it would
+                  delete, and still asks you before it does.
+                </p>
+              </div>
+              <Switch
+                checked={settings.includeDeletions ?? false}
+                onCheckedChange={(v) => setSettings({ includeDeletions: v })}
+              />
+            </div>
+          )}
+
           {/* Action Buttons (Standard shadcn Button) */}
           {imageBlocked && (
             <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
@@ -456,7 +512,7 @@ export function ExportPanel() {
             Generate Share Link
           </Button>
 
-          {!singleFileSelected && (
+          {!singleFileSelected && settings.format !== "changes" && (
             <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
               <div className="flex items-center gap-3 min-w-0">
                 <MousePointerClick className="h-4 w-4 text-muted-foreground/85 shrink-0" />

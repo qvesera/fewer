@@ -180,6 +180,7 @@ export const createStructureSlice: StructureSliceCreator = (set, get) => ({
       searchQuery: "", categoryFilter: [], categoryHiddenIds: [], hiddenIds: [], renamingId: null, clipboard: null,
       graphVersion: 0, revealedRootIds: [], autoHiddenIds: [],
       revealedFromHidden: [], independentlyHiddenIds: [], localRootPath: null,
+      baseline: null,
       tags: [], tagFilter: [], tagFilterHiddenIds: [],
     });
   },

@@ -1,6 +1,8 @@
 import type { FewerNode, FewerEdge } from "./types";
 import { getRelativePath } from "./validation";
 import { FEWER_CREDIT } from "./branding";
+import { buildChangesScript } from "./changesScript";
+import type { BaselineEntry } from "./importBaseline";
 
 function downloadBlob(content: string, filename: string, mime: string) {
   const blob = new Blob([content], { type: mime });
@@ -76,6 +78,34 @@ export function exportDirectoryScript(
       "application/x-sh"
     );
   }
+}
+
+/* -------------------------------------------------------------------------- */
+/*  Changes Script Export                                                     */
+/* -------------------------------------------------------------------------- */
+
+/**
+ * Downloads a script that replays the edits made in the graph onto the folder
+ * it was imported from: renames, moves, new folders and files, and (when
+ * asked for) deletions. The script checks the folder before it touches
+ * anything and asks before it deletes.
+ */
+export function exportChangesScript(
+  nodes: FewerNode[],
+  baseline: BaselineEntry[],
+  includeDeletions = false,
+  includeBranding = true,
+) {
+  const fileName = `fewer-changes-${timestamp()}.sh`;
+  const { script, summary, warnings } = buildChangesScript({
+    baseline,
+    nodes,
+    includeDeletions,
+    includeBranding,
+    fileName,
+  });
+  downloadBlob(script, fileName, "application/x-sh");
+  return { summary, warnings };
 }
 
 /* -------------------------------------------------------------------------- */

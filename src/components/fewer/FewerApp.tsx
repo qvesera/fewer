@@ -401,7 +401,7 @@ export function FewerApp() {
       if (graphTimerRef.current) clearTimeout(graphTimerRef.current);
       graphTimerRef.current = setTimeout(() => {
         const s = useGraphStore.getState();
-        saveGraphLocal({ nodes: s.nodes.map(pruneNodeForSave), edges: s.edges, tags: s.tags, groups: s.groups ?? [], dataSource: s.dataSource, localRootPath: s.localRootPath });
+        saveGraphLocal({ nodes: s.nodes.map(pruneNodeForSave), edges: s.edges, tags: s.tags, groups: s.groups ?? [], dataSource: s.dataSource, localRootPath: s.localRootPath, baseline: s.baseline ?? undefined });
       }, 500);
     });
     return () => {
