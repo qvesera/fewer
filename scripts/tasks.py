@@ -2877,8 +2877,20 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         notes.append("GitHub checks skipped: gh auth unavailable (rate limit or bad token)")
         issues: list[dict[str, Any]] = []
     else:
-        issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
-                         "--json", "number,title,state,labels")
+        # The parent comes with the issue, so the whole read is ONE query. It
+        # used to be one `gh issue view` per issue, which is ~200 requests in
+        # a burst: that trips GitHub's secondary rate limit (which kills the
+        # board-reconcile job and every doctor that runs near it) and made
+        # the job take minutes. A failed read is a NOTE, not a crash: the
+        # doctor degrades to "the GitHub checks were skipped".
+        try:
+            issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
+                             "--json", "number,title,state,labels,parent")
+        except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+            issues = []
+            gh_ok = False
+            notes.append("Issue list unreadable (rate limit?) — the GitHub checks "
+                         "are skipped")
     for issue in issues:
         row = rows.get(issue["number"])
         if row is None:
@@ -2904,19 +2916,18 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         # nothing, and reporting that as drift invents five broken links out of one
         # throttled request. Unknown is reported as a note instead.
         parent_id = row.get("parent")
-        try:
-            out = gh("issue", "view", str(issue["number"]), "--json", "parent",
-                     "--jq", ".parent.number // 0", check=False)
-        except (SystemExit, FileNotFoundError):
-            out = ""
-        gh_parent = out.strip()
-        if not gh_parent:
+        parent = issue.get("parent")
+        if isinstance(parent, dict) and parent.get("number"):
+            gh_parent = str(parent["number"])
+        elif parent is None:
+            gh_parent = "0"
+        else:
+            # An unreadable parent is NOT "no parent": reporting that as drift
+            # invents broken links out of one bad read. Unknown is a note.
+            gh_parent = None
             if parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
                 notes.append(f"{row['id']} #{issue['number']}: parent unreadable "
-                             f"(rate limit?) — link parity unverified")
-            gh_parent = None
-        elif gh_parent == "0":
-            gh_parent = "0"
+                             f"— link parity unverified")
         if gh_parent is None:
             pass
         elif parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
@@ -2940,25 +2951,28 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     # list. Calling those missing invents drift the moment the repository
     # grows past the window - and the doctor is the check that says the ledger
     # and GitHub agree, so a false DRIFT here is a red CI that means nothing.
-    # Ask GitHub about the rows outside the window instead.
+    # The tail is fetched in ONE call: a call per row is N requests, and N
+    # requests is what exhausts the API rate limit.
     window = {i["number"] for i in issues}
-    for row in ledger["tasks"]:
-        number = row.get("issue")
-        if not gh_ok or not number or number in window:
-            continue
+    outside = [r for r in ledger["tasks"] if r.get("issue") and r["issue"] not in window]
+    if gh_ok and outside:
+        known: set[int] | None = None
         try:
-            out = gh("issue", "view", str(number), "--json", "number", "--jq", ".number",
-                     check=False)
-        except (SystemExit, FileNotFoundError):
-            out = ""
-        if not out.strip():
+            every = gh_json("issue", "list", "--state", "all", "--limit", "1000",
+                            "--json", "number")
+            known = {i["number"] for i in every}
+        except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+            known = None
+        if known is None:
             # An unreadable answer is a NOTE, never drift: a rate-limited call
             # must not invent a missing issue (same rule as the parent check).
-            notes.append(f"{row['id']} #{number}: unreadable (rate limit?) — "
-                         "existence unverified")
-            continue
-        if out.strip() != str(number):
-            problems.append(f"{row['id']} references #{number}, which does not exist")
+            notes.append(f"{len(outside)} row(s) point at issues outside the "
+                         "200-issue window; existence unverified (rate limit?)")
+        else:
+            for row in outside:
+                if row["issue"] not in known:
+                    problems.append(f"{row['id']} references #{row['issue']}, "
+                                    "which does not exist")
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
         # projection of the row, and `sync-details` is its only writer. Extend,
