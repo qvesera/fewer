@@ -7,29 +7,29 @@ Fewer's core runs entirely in the browser. Account tiers unlock two things: clie
 
 ## Tiers
 
-| Tier         | Price            | Included                                                           |
-| ------------ | ---------------- | ------------------------------------------------------------------ |
-| Guest        | Free             | Single-canvas layout, all exports (watermarked), hash sharing < 2,000 chars |
-| Free account | $0               | ~3 saved graphs, 30-day history, public sharing, watermarked exports |
+| Tier         | Price                | Included                                                                                                                                                     |
+| ------------ | -------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| Guest        | Free                 | Single-canvas layout, all exports (watermarked), hash sharing < 2,000 chars                                                                                  |
+| Free account | $0                   | ~3 saved graphs, 30-day history, public sharing, watermarked exports                                                                                         |
 | Pro          | See the pricing page | Panel workspace (multi-view dock), tags, unlimited saves, 1-yr history, saved themes, unwatermarked exports, 5–10 watched indexes, large-payload short links |
-| Team         | Ask              | Org workspaces, private sharing/gallery, shared theme libraries, admin controls |
+| Team         | Ask                  | Org workspaces, private sharing/gallery, shared theme libraries, admin controls                                                                              |
 
 ## Client features by tier
 
 Some client-side features require sign-in or a Pro plan. These are cosmetic gates: the server enforces all metered limits regardless.
 
-| Feature | Guest | Free | Pro |
-| --- | --- | --- | --- |
-| Panel workspace (multi-view dock, split views, corner grips) | ✗ | ✗ | ✓ |
-| Tags (tag panel, tag menus, tag filter) | ✗ | ✗ | ✓ |
-| Saved graphs sidebar | ✗ | ✓ | ✓ |
-| Graph Analytics | ✗ | ✓ | ✓ |
-| Connection motion (animated connections) | ✗ | ✓ | ✓ |
-| Custom theme editor | ✗ | ✓ | ✓ |
-| Advanced import formats (JSON, script) | ✗ | ✓ | ✓ |
-| Export without watermark | ✗ | ✗ | ✓ |
-| Watch digests (nightly crawl + email) | ✗ | ✗ | ✓ |
-| Gallery publishing | ✗ | ✓ | ✓ |
+| Feature                                                      | Guest | Free | Pro |
+| ------------------------------------------------------------ | ----- | ---- | --- |
+| Panel workspace (multi-view dock, split views, corner grips) | ✗     | ✗    | ✓   |
+| Tags (tag panel, tag menus, tag filter)                      | ✗     | ✗    | ✓   |
+| Saved graphs sidebar                                         | ✗     | ✓    | ✓   |
+| Graph Analytics                                              | ✗     | ✓    | ✓   |
+| Connection motion (animated connections)                     | ✗     | ✓    | ✓   |
+| Custom theme editor                                          | ✗     | ✓    | ✓   |
+| Advanced import formats (JSON, script)                       | ✗     | ✓    | ✓   |
+| Export without watermark                                     | ✗     | ✗    | ✓   |
+| Watch digests (nightly crawl + email)                        | ✗     | ✗    | ✓   |
+| Gallery publishing                                           | ✗     | ✓    | ✓   |
 
 ### Guest
 
@@ -45,7 +45,7 @@ For power users: the panel workspace (multi-view dock with split views), tags, u
 
 ### Team
 
-Everything in Pro plus org-level tooling for shared workspaces: org workspaces, private sharing and a private gallery, shared theme libraries, and admin controls. **~$12–15/user/mo.** Team-specific features are rolling out incrementally; the entitlement row is ready at the account level today.
+Everything in Pro plus org-level tooling for shared workspaces: org workspaces, private sharing and a private gallery, shared theme libraries, and admin controls. Team-specific features are rolling out incrementally; the entitlement row is ready at the account level today.
 
 ## How plans are managed
 
