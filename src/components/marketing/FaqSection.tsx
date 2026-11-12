@@ -44,7 +44,7 @@ export function FaqSection({ items }: { items: FaqItem[] }) {
             Questions
           </h2>
           <p className="mx-auto mt-4 max-w-2xl text-center text-lg text-muted-foreground">
-            The things people ask first, answered here.
+            The questions the page above leaves open.
           </p>
         </Reveal>
 
@@ -69,14 +69,6 @@ export function FaqSection({ items }: { items: FaqItem[] }) {
             </Reveal>
           ))}
         </div>
-
-        <Reveal delay={120}>
-          <div className="mt-10 flex justify-center">
-            <Link href={APP_URL} className={buttonVariants({ variant: "outline", size: "lg" })}>
-              Launch the app
-            </Link>
-          </div>
-        </Reveal>
       </div>
 
       {/* The structured data a search engine reads for a FAQ result. */}

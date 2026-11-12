@@ -10,8 +10,8 @@
 -- one markdown blob per page with a (type, slug) key and no ordering, while
 -- a FAQ is a list of short rows the landing page renders in a fixed order.
 --
--- Seeded with the five questions the README already answers (README §FAQ is
--- the source-of-record copy; src/lib/fewer/faq.ts carries the same five as
+-- Seeded with the seven questions the README already answers (README §FAQ is
+-- the source-of-record copy; src/lib/fewer/faq.ts carries the same seven as
 -- the fallback for a build or an environment with no database).
 --
 -- Idempotent: the seed only INSERTS (on conflict do nothing), deliberately
@@ -66,24 +66,32 @@ create index if not exists faq_items_listing_idx
 
 insert into public.faq_items (slug, question, answer, sort_order)
 values
-  ('privacy',
-   'Does fewer send my directory data anywhere?',
-   'Your directory is never uploaded. Local import, editing, layout and export all run in your browser. Network calls happen only for features you opt into: GitHub, URL and Internet Archive imports, linked cloud accounts, an account (saved graphs, version history, share links, gallery), and watch digests. No telemetry, no analytics.',
+  ('is-it-free',
+   'Is fewer free?',
+   'The core is free and needs no account: open a folder, an archive, a link or a repo, search it, arrange it and export it. A free account adds saved graphs, version history and share links. A few power features are Pro: the panel workspace, tags, exports without the fewer credit and watch digests. There is no checkout yet, so Pro is set up by hand. The [pricing page](/pricing) has the numbers.',
    10),
-  ('no-install',
-   'Can I use fewer without installing anything?',
-   'Yes. The standalone version runs at app.fewer.directory. The self-hosted version needs bun install and bun run dev.',
+  ('export-watermark',
+   'Why does my export carry a fewer watermark?',
+   'Below the Pro plan every export carries a small fewer credit: a linked logo on PNG and SVG, a credit line on the other formats. Pro removes it, and the toggle in the export panel turns it off.',
    20),
-  ('edit-directory',
-   'Can I make changes to my directory using fewer?',
-   'Not directly. Fewer does not write to the folders on your system: it reads a directory, lets you organise it on the canvas and export the result, and every change stays inside the graph until you export. Writing back to the real directory is not available in the browser build. The desktop version, which is work in progress, is where that will live.',
+  ('different-from-file-manager',
+   'How is this different from my file manager?',
+   'A file manager opens one folder at a time and shows you a list. Fewer puts the whole tree on one canvas: search everything inside it, even files still zipped up, group and rename in bulk, re-lay it out, and export the result.',
    30),
-  ('account',
-   'Do I need an account?',
-   'No. Fewer works fully without one. Signing in (optional) unlocks saving graphs to your account, opening them on another device, and invite-only sharing.',
+  ('edit-directory',
+   'Can fewer make changes to my directory?',
+   'Not directly. Fewer does not write to the folders on your system: it reads a directory, lets you organise it on the canvas and export the result, and every change stays inside the graph until you export. Writing back to the real directory is not available in the browser build. The desktop version, which is work in progress, is where that will live.',
    40),
-  ('avatar',
-   'Can I set my own avatar?',
-   'The avatar in the toolbar is your Google or GitHub profile picture when you signed up with one, otherwise your initials. Fewer does not host user images, so there is no upload: that keeps the app free of image storage without giving up identity in the toolbar.',
-   50)
+  ('how-big',
+   'How big a folder can it handle?',
+   'fewer is built for trees in the thousands of cards: zoom out and every folder folds to a one-line pill, large folders hide their rows, and the layout is written for 1K+ cards. A folder with hundreds of thousands of files is a different job.',
+   50),
+  ('search-scope',
+   'Does it search inside my files?',
+   'It searches names and paths, including files inside zip, tar and other archives that were never unpacked. It does not read the text inside your files: nothing is uploaded and nothing is indexed on our side.',
+   60),
+  ('re-import',
+   'Do I have to import my folder again?',
+   'Yes, unless you save it. The canvas lives in the tab, so closing it loses the view. Save the graph to a free account to reopen it anywhere, or export it as JSON and import it back.',
+   70)
 on conflict (slug) do nothing;
