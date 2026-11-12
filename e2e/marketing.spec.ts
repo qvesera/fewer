@@ -818,8 +818,8 @@ test("the pricing page shows the plans, switches the price, and takes an enquiry
 
   // The period switch shows the yearly price and what it works out at.
   await page.getByRole("button", { name: "yearly", exact: true }).click();
-  await expect(page.getByText("£57.50").first()).toBeVisible();
-  await expect(page.getByText("£4.79").first()).toBeVisible();
+  await expect(page.getByText("£59.99").first()).toBeVisible();
+  await expect(page.getByText("£5.00").first()).toBeVisible();
 
   // The choice travels in the URL, so a link shows the same price.
   await expect(page).toHaveURL(/currency=GBP/);

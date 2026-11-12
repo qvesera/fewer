@@ -152,8 +152,8 @@ export function PricingCards() {
                   <p className="mt-1 text-sm text-foreground/90">{INTRO_TERM}</p>
 
                   {period === "yearly" && (
-                    <p className="mt-3 inline-flex items-center rounded-full bg-primary/10 px-2.5 py-1 text-xs font-medium text-primary">
-                      Save 20% against the monthly plan
+                    <p className="mt-3 text-sm text-muted-foreground">
+                      Two months free against paying monthly.
                     </p>
                   )}
                 </>

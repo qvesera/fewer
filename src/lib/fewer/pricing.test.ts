@@ -6,13 +6,11 @@ import {
   MONTHLY_PRICES,
   PRICING_PLANS,
   TAX_NOTE,
-  YEARLY_DISCOUNT,
   compareAtPrice,
   currencyForLocale,
   formatMoney,
   monthlyEquivalent,
   priceFor,
-  yearlyPrice,
 } from "./pricing";
 
 /**
@@ -23,30 +21,47 @@ import {
  * currency, including the one that has no minor unit. These tests are what
  * makes the page's numbers trustworthy.
  */
-describe("the yearly discount", () => {
-  test("a yearly plan is twelve months at 20% off", () => {
+describe("the yearly plan", () => {
+  test("the yearly price is ten months of the introductory monthly price", () => {
+    // The yearly price is a set price, not a percentage off: it is ten months
+    // of the introductory monthly one, so a year costs two months less than
+    // paying monthly for the same offer. The set price is rounded UP to a
+    // round figure (69.99 against 69.90), so the relation is a close one, not
+    // an exact one.
     for (const currency of CURRENCIES) {
-      for (const kind of ["intro", "normal"] as const) {
-        const monthly = MONTHLY_PRICES[currency][kind];
-        const yearly = yearlyPrice(monthly, currency);
-        const saved = 1 - yearly / (monthly * 12);
-        // Rounding to the currency's precision moves the figure by a hair.
-        expect(Math.abs(saved - YEARLY_DISCOUNT)).toBeLessThan(0.001);
-      }
+      const monthly = MONTHLY_PRICES[currency].intro;
+      const yearly = priceFor(currency, "yearly", "intro");
+      expect(Math.abs(yearly - monthly * 10) / (monthly * 10)).toBeLessThan(0.01);
+      // The claim on the card: two months free against paying monthly.
+      expect(monthlyEquivalent(yearly, currency)).toBeLessThan(monthly);
     }
   });
 
+  test("the normal yearly price is twelve months of the normal monthly price", () => {
+    for (const currency of CURRENCIES) {
+      const monthly = MONTHLY_PRICES[currency].normal;
+      const yearly = priceFor(currency, "yearly", "normal");
+      expect(Math.abs(yearly - monthly * 12)).toBeLessThanOrEqual(0.01);
+    }
+  });
+
+  test("the yearly price is set, per currency", () => {
+    expect(priceFor("USD", "yearly", "intro")).toBe(69.99);
+    expect(priceFor("GBP", "yearly", "intro")).toBe(59.99);
+    expect(priceFor("EUR", "yearly", "intro")).toBe(69.99);
+    expect(priceFor("INR", "yearly", "intro")).toBe(5999);
+  });
+
   test("rupees stay whole numbers", () => {
-    expect(yearlyPrice(599, "INR")).toBe(5750);
-    expect(yearlyPrice(999, "INR")).toBe(9590);
-    expect(formatMoney(5750, "INR")).toContain("5,750");
-    expect(formatMoney(5750, "INR")).not.toContain(".");
+    expect(priceFor("INR", "yearly", "intro")).toBe(5999);
+    expect(formatMoney(5999, "INR")).toContain("5,999");
+    expect(formatMoney(5999, "INR")).not.toContain(".");
   });
 
   test("the yearly monthly-equivalent is the yearly price over twelve", () => {
-    expect(monthlyEquivalent(yearlyPrice(6.99, "USD"), "USD")).toBe(5.59);
-    expect(monthlyEquivalent(yearlyPrice(9.99, "USD"), "USD")).toBe(7.99);
-    expect(monthlyEquivalent(yearlyPrice(5.99, "GBP"), "GBP")).toBe(4.79);
+    expect(monthlyEquivalent(priceFor("USD", "yearly"), "USD")).toBe(5.83);
+    expect(monthlyEquivalent(priceFor("GBP", "yearly"), "GBP")).toBe(5);
+    expect(monthlyEquivalent(priceFor("INR", "yearly"), "INR")).toBe(500);
   });
 
   test("the introductory price is below the normal one, in every currency", () => {
@@ -54,6 +69,9 @@ describe("the yearly discount", () => {
       expect(MONTHLY_PRICES[currency].intro).toBeLessThan(MONTHLY_PRICES[currency].normal);
       expect(priceFor(currency, "monthly", "intro")).toBeLessThan(
         compareAtPrice(currency, "monthly"),
+      );
+      expect(priceFor(currency, "yearly", "intro")).toBeLessThan(
+        compareAtPrice(currency, "yearly"),
       );
     }
   });

@@ -5,9 +5,10 @@
  *
  * Two rules the copy depends on:
  *
- * - The yearly price is DERIVED from the monthly one (twelve months, less
- *   20%), never typed twice. A discount that is computed cannot drift away
- *   from the price it discounts.
+ * - The yearly price is a SET price (ten months of the introductory price for
+ *   a year), not a percentage off the monthly one. The normal yearly price is
+ *   twelve months of the normal monthly price, so the struck-through price
+ *   beside it always says what the plan costs without the offer.
  * - The introductory price is a separate number, and the normal price is
  *   shown next to it, struck through. The term is part of the offer, so it
  *   is written down here rather than left to whoever edits the page.
@@ -24,7 +25,7 @@ export type PriceKind = "intro" | "normal";
 
 export const CURRENCIES: Currency[] = ["USD", "GBP", "EUR", "INR"];
 
-/** The monthly prices, per currency. The yearly price is derived. */
+/** The monthly prices, per currency. */
 export const MONTHLY_PRICES: Record<Currency, Record<PriceKind, number>> = {
   USD: { intro: 6.99, normal: 9.99 },
   GBP: { intro: 5.99, normal: 7.99 },
@@ -32,8 +33,16 @@ export const MONTHLY_PRICES: Record<Currency, Record<PriceKind, number>> = {
   INR: { intro: 599, normal: 999 },
 };
 
-/** The yearly plan is twelve months at 20% off. */
-export const YEARLY_DISCOUNT = 0.2;
+/**
+ * The yearly plan is a price, not a percentage: ten months of the
+ * introductory price for a year (two months free against paying monthly).
+ */
+export const YEARLY_INTRO_PRICES: Record<Currency, number> = {
+  USD: 69.99,
+  GBP: 59.99,
+  EUR: 69.99,
+  INR: 5999,
+};
 
 /** Currencies whose smallest unit is the whole number (rupees). */
 const ZERO_DECIMAL_CURRENCIES: Currency[] = ["INR"];
@@ -48,12 +57,7 @@ function roundForCurrency(value: number, currency: Currency): number {
   return Math.round(value * factor) / factor;
 }
 
-/** The yearly price for a monthly one: twelve months, 20% off. */
-export function yearlyPrice(monthly: number, currency: Currency): number {
-  return roundForCurrency(monthly * 12 * (1 - YEARLY_DISCOUNT), currency);
-}
-
-/** What a yearly plan costs per month, for the "x/mo" line. */
+/** What a yearly plan costs per month, for the "x a month" line. */
 export function monthlyEquivalent(yearly: number, currency: Currency): number {
   return roundForCurrency(yearly / 12, currency);
 }
@@ -64,8 +68,10 @@ export function priceFor(
   period: Period,
   kind: PriceKind = "intro",
 ): number {
-  const monthly = MONTHLY_PRICES[currency][kind];
-  return period === "monthly" ? monthly : yearlyPrice(monthly, currency);
+  if (period === "monthly") return MONTHLY_PRICES[currency][kind];
+  if (kind === "intro") return YEARLY_INTRO_PRICES[currency];
+  // The normal yearly price is twelve months of the normal monthly one.
+  return roundForCurrency(MONTHLY_PRICES[currency].normal * 12, currency);
 }
 
 /** The struck-through price next to the introductory one. */
