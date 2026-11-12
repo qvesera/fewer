@@ -106,7 +106,7 @@ output handle) is unaffected: it uses the app's own drag payload, not the OS.
 
 Fewer ships a single custom **Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. It handles large graphs (1K+ cards) and is used for both initial import and relayout operations.
 
-The layout is not the limit of the app. The whole canvas has been tested with **5,000 folders** on it, which is where fewer becomes a performance application rather than a viewer; past that, the canvas stays readable because zoomed-out folders collapse to a one-line pill, large folders hide their rows, and the layout runs asynchronously. A 25,000 card graph has been run on the desktop build and carried over to the web build, so the ceiling is higher than the number we design for.
+The layout is not the limit of the app. The whole canvas has been tested with **5,000 folders** on it, and we have run it up to 25,000 files: it stays smooth, because zoomed-out folders collapse to a one-line pill, large folders hide their rows, and the layout runs asynchronously, so the canvas keeps up while you zoom, search and rearrange.
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention

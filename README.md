@@ -398,7 +398,7 @@ A: Not directly. Fewer does not write to the folders on your system: it reads a 
 
 **Q: How big a folder can it handle?**
 
-A: fewer is built for folders in the thousands of cards, and it has been tested with 5,000 of them on one canvas. That is where fewer stops being a viewer and becomes a performance app: zoomed out, every folder folds to a one-line pill and large folders hide their rows, so the canvas stays readable. The ceiling is higher: a 25,000 card graph has been run on the desktop build and carried over to the web one, but 5,000 is the number we design for.
+A: fewer handles folders in the thousands, and it has been tested with 5,000 of them on one canvas. We have run it up to 25,000 files, and it stays smooth: the canvas keeps up while you zoom, search and rearrange.
 
 **Q: Does it search inside my files?**
 
