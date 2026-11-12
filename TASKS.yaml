@@ -7312,8 +7312,14 @@ tasks:
     note: "Scale answer reworded: leads with the tested figure, the ceiling gets its own sentence"
     proof: ["4768d2a"]
     effort: {commits: 1, files: 3, insertions: 3, deletions: 3}
-  spent_min: 45
-  session_count: 5
+  - start: "2026-11-12T21:04:48Z"
+    end: "2026-11-12T21:05:26Z"
+    measured: true
+    note: "Scale answer: dropped the performance-app line, now leads with 5,000 folders and 25,000 files tested, stays smooth"
+    proof: ["b2aaa3e"]
+    effort: {commits: 1, files: 5, insertions: 5, deletions: 5}
+  spent_min: 46
+  session_count: 6
 - id: "T-255"
   title: "Blog listing index rail"
   status: "review"
