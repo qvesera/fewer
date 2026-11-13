@@ -7491,7 +7491,7 @@ tasks:
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-12T21:42:33Z"
-  notes: ["2026-11-12T21:42:37Z · Baseline-diff replay script: importBaseline manifest + changesScript pure module + Export Changes tile + interactive prompts (apply/dry-run/delete confirmation) + root/preflight checks."]
+  notes: ["2026-11-12T21:42:37Z · Baseline-diff replay script: importBaseline manifest + changesScript pure module + Export Changes tile + interactive prompts (apply/dry-run/delete confirmation) + root/preflight checks.", "2026-11-13T14:48:40Z · Follow-up (landed on the stacked archive branch #602 because it touches the shared plan engine): a folder replay whose only edits were inside an expanded zip produced a script that did nothing and said nothing. The diff now runs over the whole graph so those edits are counted as skipped; the script carries the plan's notes in a Notes block and exits early with the reason; the export panel says the same instead of reporting zero changes; and the folder check no longer samples paths inside an archive (they never exist on disk). Gates: tsc 0, lint 0 errors, bun run test 2089+270 pass 0 fail, bun run build OK, migrations verify OK."]
   sessions:
   - start: "2026-11-12T21:42:49Z"
     end: "2026-11-12T22:00:13Z"
