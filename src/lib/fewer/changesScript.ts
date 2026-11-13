@@ -28,6 +28,8 @@ export interface ChangesScriptResult {
   warnings: string[];
   /** "folder" replays onto a directory; "archive" replays inside an archive. */
   target: "folder" | "archive";
+  /** Changes that live inside an archive and cannot be replayed onto a folder. */
+  skippedInArchives: number;
 }
 
 /** One entry of the graph, as the plan sees it: paths relative to the root. */
@@ -76,6 +78,8 @@ export interface ChangesPlan {
   preDeletes: string[];
   deletes: string[];
   fingerprint: string[];
+  /** Changes that live inside an archive and cannot be replayed onto a folder. */
+  skippedInArchives: number;
   warnings: string[];
 }
 
@@ -194,8 +198,10 @@ export function planChanges(
   // The folder the script runs in, or the archive file it replays into.
   const rootName = target === "archive" ? (baselineRoot?.path ?? "") : currentRoot;
 
-  // Archives that are NOT the root live inside the folder: their members are
-  // out of scope for a folder replay.
+  // Archives that live INSIDE the folder (a zip expanded during the import):
+  // the zip is one file on disk, so its members are not files and a change to
+  // one of them cannot be replayed onto the folder. The zip card itself is a
+  // real file, so it stays in scope.
   const archivePaths = new Set<string>();
   for (const entry of base) if (entry.isArchive) archivePaths.add(entry.path);
   for (const entry of current) if (entry.isArchive) archivePaths.add(entry.path);
@@ -204,29 +210,20 @@ export function planChanges(
   const insideArchive = (path: string) =>
     [...archivePaths].some((prefix) => path.startsWith(`${prefix}/`));
 
-  if (archivePaths.size > 0) {
-    warnings.push(
-      `Skipped the entries inside ${archivePaths.size} archive(s) in the graph — an archive is one file, so its members cannot be replayed on disk.`,
-    );
-  }
-
-  // The members of an expanded archive never reach the disk, so they are out
-  // of the plan on both sides.
-  const inScope = (entry: Entry) => !insideArchive(entry.path);
-  const scopedBase = base.filter(inScope);
-  const scopedCurrent = current.filter(inScope);
-
-  const baseById = new Map(scopedBase.map((entry) => [entry.id, entry]));
+  const baseById = new Map(base.map((entry) => [entry.id, entry]));
   const idMatched = new Set<string>();
-  for (const entry of scopedCurrent) if (baseById.has(entry.id)) idMatched.add(entry.id);
-  const baseByPath = new Map(scopedBase.map((entry) => [entry.path, entry]));
+  for (const entry of current) if (baseById.has(entry.id)) idMatched.add(entry.id);
+  const baseByPath = new Map(base.map((entry) => [entry.path, entry]));
 
   const matched = new Set<string>();
   const rawMoves: Move[] = [];
   const creates: Entry[] = [];
   const relinks: Link[] = [];
 
-  for (const entry of scopedCurrent) {
+  // The diff runs over everything, archive members included: a change to a
+  // member is a change the user made, and it has to be *reported* as skipped
+  // rather than quietly dropped.
+  for (const entry of current) {
     const counterpart = baseById.get(entry.id);
     if (counterpart) {
       matched.add(counterpart.id);
@@ -247,8 +244,19 @@ export function planChanges(
     creates.push(entry);
   }
 
-  const deleted = scopedBase.filter((entry) => !matched.has(entry.id));
-  let moves = reduceMoves(rawMoves);
+  const deleted = base.filter((entry) => !matched.has(entry.id));
+
+  // ── what cannot be replayed onto a folder ───────────────────────────────
+  const skippedInArchives: string[] = [];
+  const isArchiveChange = (path: string) => insideArchive(path);
+
+  let moves = reduceMoves(
+    rawMoves.filter((move) => {
+      if (!isArchiveChange(move.from) && !isArchiveChange(move.to)) return true;
+      skippedInArchives.push(`${move.from} → ${move.to}`);
+      return false;
+    }),
+  );
   const remap = makeRemapper(moves);
 
   // ── deletions ───────────────────────────────────────────────────────────
@@ -262,6 +270,10 @@ export function planChanges(
   const notReplayed: string[] = [];
 
   for (const entry of deletedTop) {
+    if (isArchiveChange(entry.path)) {
+      skippedInArchives.push(`deleted ${entry.path}`);
+      continue;
+    }
     if (moveDests.has(entry.path)) {
       // Something has to move into the space this entry occupies.
       if (includeDeletions) {
@@ -307,6 +319,10 @@ export function planChanges(
     if (covered.some((prefix) => entry.path === prefix || entry.path.startsWith(`${prefix}/`))) {
       continue; // already copied as part of a copied folder
     }
+    if (isArchiveChange(entry.path)) {
+      skippedInArchives.push(`created ${entry.path}`);
+      continue;
+    }
     if (!isSafePath(entry.path)) {
       warnings.push(`Skipped "${entry.path}": the path is not safe to write from a script.`);
       continue;
@@ -351,8 +367,22 @@ export function planChanges(
   // loops in the script address the same pair.
   const commitSequence = commitOrder.map((move) => stageIndex.get(move.id) ?? 0);
 
+  if (skippedInArchives.length > 0) {
+    const shown = skippedInArchives.slice(0, 3).join(", ");
+    const more = skippedInArchives.length > 3 ? `, +${skippedInArchives.length - 3} more` : "";
+    warnings.push(
+      `Skipped ${skippedInArchives.length} change(s) inside ${archivePaths.size} archive(s) (${shown}${more}) — an archive is one file, so its members cannot be replayed onto the folder. Open the archive itself and export the changes from there.`,
+    );
+  }
+
   const movedIds = new Set(safeMoves.map((move) => move.id));
-  const stable = base.filter((entry) => !movedIds.has(entry.id) && !deletedIds.has(entry.id));
+  // The fingerprint must only sample paths that really exist on disk: an
+  // archive member never does, and sampling one would fail the folder check
+  // on a folder that is perfectly fine.
+  const stable = base.filter(
+    (entry) =>
+      !movedIds.has(entry.id) && !deletedIds.has(entry.id) && !insideArchive(entry.path),
+  );
   const fingerprint = pickFingerprint(stable).filter(isSafePath);
 
   return {
@@ -368,6 +398,7 @@ export function planChanges(
     preDeletes,
     deletes: safeDeletes.sort((a, b) => b.length - a.length),
     fingerprint,
+    skippedInArchives: skippedInArchives.length,
     warnings,
   };
 }
@@ -459,6 +490,18 @@ function summaryLine(summary: ChangesSummary): string {
 }
 
 /**
+ * The plan's warnings as comment lines, so the script itself explains what it
+ * will not do. Without this the one sentence that says "your changes are
+ * inside a zip" lives only in a toast, and the file on disk looks like it
+ * simply forgot the work.
+ */
+function renderNotes(warnings: string[]): string {
+  if (warnings.length === 0) return "";
+  const lines = warnings.map((warning) => `# - ${warning}`);
+  return ["#", "# Notes:", ...lines, ""].join("\n");
+}
+
+/**
  * Build the bash script that replays the graph's edits onto a folder.
  *
  * The script is data-driven: the diff becomes shell arrays, and the program
@@ -494,6 +537,7 @@ export function buildChangesScript(args: {
 
   const branding = includeBranding ? ["# Created with fewer"] : [];
   const header = [...branding, `# ${summaryLine(summary)}`].join("\n");
+  const notes = renderNotes(plan.warnings);
 
   if (plan.target === "archive") {
     // The archive is the target: one file, replayed with 7-Zip. Its card in
@@ -505,6 +549,7 @@ export function buildChangesScript(args: {
       .replaceAll("__CHANGES__", String(summary.total))
       .replaceAll("__DELETES__", String(summary.deleted))
       .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh")
+      .replace("__NOTES__", notes)
       // The Python fallback travels with the script, so the file the user runs
       // needs nothing beside it.
       .replace("__PYTHON__", ARCHIVE_PYTHON_PROGRAM);
@@ -515,7 +560,13 @@ export function buildChangesScript(args: {
       BASH_ARCHIVE_APPLY,
     ].join("");
 
-    return { script, summary, warnings: plan.warnings, target: "archive" };
+    return {
+      script,
+      summary,
+      warnings: plan.warnings,
+      target: "archive",
+      skippedInArchives: plan.skippedInArchives,
+    };
   }
 
   const preamble = BASH_PREAMBLE.replace("# __SUMMARY__", header)
@@ -524,7 +575,9 @@ export function buildChangesScript(args: {
     .replaceAll("__DATE__", generatedAt)
     .replaceAll("__CHANGES__", String(summary.total))
     .replaceAll("__DELETES__", String(summary.deleted))
-    .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh");
+    .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh")
+    .replace("__NOTES__", notes)
+    .replaceAll("__NOTES_COUNT__", String(plan.skippedInArchives));
 
   const script = [
     preamble,
@@ -532,5 +585,11 @@ export function buildChangesScript(args: {
     BASH_APPLY,
   ].join("");
 
-  return { script, summary, warnings: plan.warnings, target: "folder" };
+  return {
+    script,
+    summary,
+    warnings: plan.warnings,
+    target: "folder",
+    skippedInArchives: plan.skippedInArchives,
+  };
 }

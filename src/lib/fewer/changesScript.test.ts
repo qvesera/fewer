@@ -271,22 +271,96 @@ describe("archive replay", () => {
       ["project/release.zip", "folder"],
       ["project/release.zip/inner.txt", "file"],
     ]);
-    before[3].data.isArchive = true;
+    before[3].data.isArchive = true; // the zip card
     const after = tree([
       ["project/src", "folder"],
       ["project/src/b.txt", "file"],
       ["project/release.zip", "folder"],
-      ["project/release.zip/inner.txt", "file"],
+      ["project/release.zip/renamed.txt", "file"],
     ]);
     after[3].data.isArchive = true;
+    after[1].id = before[1].id;
     after[2].id = before[2].id;
     after[3].id = before[3].id;
+    after[4].id = before[4].id;
     const plan = planChanges(captureBaseline(before), after);
     expect(plan.target).toBe("folder");
-    // Only the real file moved; the zip's member is out of scope.
+    // The real file moved; the zip's member did not — it cannot.
     expect(plan.moves).toHaveLength(1);
     expect(plan.moves[0].to).toBe("src/b.txt");
-    expect(plan.warnings.join(" ")).toContain("archive");
+    expect(plan.skippedInArchives).toBe(1);
+  });
+
+  test("a rename inside an expanded zip is reported as skipped, not lost", () => {
+    // The shape from a real export: a folder of zips, edited inside one of
+    // them. Nothing can be replayed onto the folder, and the script has to say
+    // so instead of looking like it forgot the work.
+    const before = tree([
+      ["test zips/Logos.zip", "folder"],
+      ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+      ["test zips/Other.zip", "folder"],
+    ]);
+    before[1].data.isArchive = true; // the zip card
+    before[3].data.isArchive = true;
+    const after = tree([
+      ["test zips/Logos.zip", "folder"],
+      ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
+      ["test zips/Other.zip", "folder"],
+    ]);
+    after[1].data.isArchive = true;
+    after[3].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+    after[3].id = before[3].id;
+
+    const plan = planChanges(captureBaseline(before), after);
+    expect(plan.moves).toHaveLength(0);
+    expect(plan.skippedInArchives).toBe(1);
+    expect(plan.warnings.join(" ")).toContain("inside");
+    expect(plan.warnings.join(" ")).toContain("Open the archive itself");
+  });
+
+  test("the fingerprint never samples a path inside an archive", () => {
+    // An archive member does not exist on disk, so sampling one would fail
+    // the folder check on a folder that is perfectly fine.
+    const before = tree([
+      ["project/Logos.zip", "folder"],
+      ["project/Logos.zip/inner.eps", "file"],
+      ["project/real.txt", "file"],
+    ]);
+    before[1].data.isArchive = true; // the zip card
+    const plan = planChanges(captureBaseline(before), before);
+    expect(plan.fingerprint.every((path) => !path.includes("Logos.zip/"))).toBe(true);
+    expect(plan.fingerprint).toContain("real.txt");
+  });
+
+  test("a script whose only changes are inside archives says so and does nothing", () => {
+    const before = tree([
+      ["test zips/Logos.zip", "folder"],
+      ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+    ]);
+    before[1].data.isArchive = true; // the zip card
+    const after = tree([
+      ["test zips/Logos.zip", "folder"],
+      ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
+    ]);
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+
+    const { script, summary, skippedInArchives } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+    });
+    expect(summary.total).toBe(0);
+    expect(skippedInArchives).toBe(1);
+    // The script explains itself, in the file the user runs.
+    expect(script).toContain("# Notes:");
+    expect(script).toContain("inside an archive");
+    expect(script).toContain("Open the archive itself");
+    // And it exits before doing anything.
+    expect(script).toContain("Nothing to replay");
+    expect(script).toContain("NOTES_COUNT=1");
   });
 
   test("the archive script replays a rename, a swap and a deletion", () => {

@@ -97,7 +97,7 @@ export function exportChangesScript(
   includeBranding = true,
 ) {
   const fileName = `fewer-changes-${timestamp()}.sh`;
-  const { script, summary, warnings, target } = buildChangesScript({
+  const { script, summary, warnings, target, skippedInArchives } = buildChangesScript({
     baseline,
     nodes,
     includeDeletions,
@@ -105,7 +105,7 @@ export function exportChangesScript(
     fileName,
   });
   downloadBlob(script, fileName, "application/x-sh");
-  return { summary, warnings, target };
+  return { summary, warnings, target, skippedInArchives };
 }
 
 /* -------------------------------------------------------------------------- */

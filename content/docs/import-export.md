@@ -321,7 +321,18 @@ untouched: 7-Zip can read them but not rewrite them.
 
 A zip that was *expanded inside* a folder import is a different thing: the zip
 is one file on disk, so the entries inside it cannot be replayed there. Those
-are skipped, and the script says how many.
+are skipped — and the script says so, in a **Notes:** block at the top and
+again when it runs:
+
+```
+Nothing to replay in "test zips" — the changes you made are inside an archive,
+and an archive is one file.
+Open the archive itself and export the changes from there.
+```
+
+To replay edits inside a zip, open **that zip** as the graph (import the
+archive itself) and export the changes from there — the script then edits the
+archive with 7-Zip or Python.
 
 **Windows** runs the script through WSL or Git Bash — the script is bash.
 

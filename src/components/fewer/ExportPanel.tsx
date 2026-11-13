@@ -320,13 +320,26 @@ export function ExportPanel() {
         });
         return;
       }
-      const { summary, warnings, target } = exportChangesScript(
+      const { summary, warnings, target, skippedInArchives } = exportChangesScript(
         nodes,
         baseline,
         settings.includeDeletions,
         includeBranding,
       );
       setOpen(false);
+      // The reason a script does nothing belongs in front of the user, not
+      // only in a comment inside the file: "0 changes" with no reason is the
+      // one answer that teaches nothing.
+      if (summary.total === 0 && skippedInArchives > 0) {
+        toast({
+          title: "Nothing to replay",
+          description:
+            `Your ${skippedInArchives} change(s) are inside an archive, and an archive is one file — ` +
+            "open the .zip itself and export the changes from there.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Exported",
         description:
