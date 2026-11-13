@@ -7528,5 +7528,11 @@ tasks:
     note: "Shipped the archive renderer for Export Changes: the archive import flags its root, the plan targets 'archive', and a new 7-Zip program (rn/d/a) replays renames, moves, swaps, chains, deletions, new entries and duplicates inside the zip. 7-Zip renames one pair per call, so the moves use the same two-phase staging as the folder script. RAR, multi-volume and self-extracting archives are refused; a zip expanded inside a folder import is skipped with a note. Also fixed: a deletion that frees a move's destination now runs before the move. Gates: tsc 0, lint 0 errors, bun run test 2083+270 pass 0 fail, bun run build OK, migrations verify OK; two real 7z round-trips (swap+rename+delete, and adding a file) asserted byte for byte."
     proof: ["ec2c01c", "4c37fd1", "#602"]
     effort: {commits: 2, files: 13, insertions: 3807, deletions: 26}
-  spent_min: 392
-  session_count: 1
+  - start: "2026-11-13T13:41:28Z"
+    end: "2026-11-13T13:42:24Z"
+    measured: true
+    note: "Follow-up session: the archive replay no longer needs 7-Zip. The script offers to install it (exact command shown, asked first, printed again on failure so it can be run by hand) and otherwise falls back to a Python 3 program carried inside the script, which rebuilds the archive atomically with the standard library. The folder replay never looks for an engine; an archive with nothing to change exits before the engine check. Gates: tsc 0, lint 0 errors, bun run test 2086+270 pass 0 fail, bun run build OK, migrations verify OK; the Python engine replays the same swap/rename/delete with 7-Zip hidden from PATH."
+    proof: ["27e3bd9"]
+    effort: {commits: 1, files: 7, insertions: 3627, deletions: 23}
+  spent_min: 393
+  session_count: 2
