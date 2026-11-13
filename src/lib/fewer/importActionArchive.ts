@@ -43,6 +43,10 @@ export async function runArchiveImport(
         error: "All entries were filtered out by the import options.",
       };
     }
+    // The root of an archive listing IS the archive (its children are the
+    // entries inside it), so it is flagged as one: the changes script then
+    // knows to replay into the archive rather than onto a folder.
+    tree.isArchive = true;
 
     const { nodes, edges, hiddenFileIds } = await chunkTreeToGraph(
       tree,

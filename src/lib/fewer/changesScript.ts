@@ -1,8 +1,11 @@
 import type { FewerNode } from "./types";
 import { rootLabelOf, stripRoot, type BaselineEntry } from "./importBaseline";
 import { BASH_APPLY, BASH_CHECKS, BASH_PREAMBLE } from "./changesScriptBash";
+import { BASH_ARCHIVE_APPLY, BASH_ARCHIVE_CHECKS, BASH_ARCHIVE_PREAMBLE } from "./changesScriptArchiveBash";
 
-/** What the replay would do, in one line of prose. */
+/**
+ * What the replay would do, in one line of prose.
+ */
 export interface ChangesSummary {
   /** Entries whose path changed (a rename and/or a move). */
   renamed: number;
@@ -22,6 +25,8 @@ export interface ChangesScriptResult {
   summary: ChangesSummary;
   /** Things the script could not express (skipped paths, conflicts). */
   warnings: string[];
+  /** "folder" replays onto a directory; "archive" replays inside an archive. */
+  target: "folder" | "archive";
 }
 
 /** One entry of the graph, as the plan sees it: paths relative to the root. */
@@ -32,6 +37,8 @@ interface Entry {
   symlink?: string;
   /** Id of the entry this one was duplicated from, so a copy can replay as `cp`. */
   copyOf?: string;
+  /** True for an archive card (the archive file itself). */
+  isArchive?: boolean;
 }
 
 /** A rename and/or a move: same id, different path. */
@@ -52,8 +59,11 @@ interface Link {
 }
 
 export interface ChangesPlan {
+  /** The folder the replay runs in, or the archive file it replays into. */
   rootName: string;
   baselineCount: number;
+  /** "folder" replays onto a directory; "archive" replays inside an archive. */
+  target: "folder" | "archive";
   /** Moves in stage order (deepest source first). */
   moves: Move[];
   /** Indices into `moves`, in commit order (parents first). */
@@ -123,6 +133,7 @@ function currentEntries(nodes: FewerNode[], root: string | null): Entry[] {
     if (typeof link === "string" && link) entry.symlink = link;
     const copyOf = node.data.copyOf;
     if (typeof copyOf === "string" && copyOf) entry.copyOf = copyOf;
+    if (node.data.isArchive) entry.isArchive = true;
     out.push(entry);
   }
   return out;
@@ -133,7 +144,9 @@ function baselineEntries(baseline: BaselineEntry[], root: string | null): Entry[
   for (const entry of baseline) {
     const path = stripRoot(entry.path, root).replace(/^\/+/, "");
     if (!path) continue;
-    out.push({ id: entry.id, path, type: entry.type, symlink: entry.symlink });
+    const item: Entry = { id: entry.id, path, type: entry.type, symlink: entry.symlink };
+    if (entry.isArchive) item.isArchive = true;
+    out.push(item);
   }
   return out;
 }
@@ -159,22 +172,60 @@ export function planChanges(
   includeDeletions = false,
 ): ChangesPlan {
   const warnings: string[] = [];
-  const rootName = rootLabelOf(nodes) ?? "";
-  const baseRoot = baseline.find((entry) => entry.isRoot)?.path ?? null;
-  const current = currentEntries(nodes, rootName);
+
+  // ── what are we replaying onto? ─────────────────────────────────────────
+  // An archive import's root IS the archive (`backup.zip`); a folder import's
+  // root is the directory. A zip expanded INSIDE a folder is a card in that
+  // folder — the zip is one file, so the entries inside it are not files on
+  // disk and cannot be replayed there.
+  const baselineRoot = baseline.find((entry) => entry.isRoot);
+  const target: "folder" | "archive" = baselineRoot?.isArchive ? "archive" : "folder";
+
+  // The current graph's root name (what the card is called now) and the
+  // imported one (what the folder or archive file was called then). Each side
+  // is stripped against its own root, so renaming the root card does not make
+  // every child look like it moved.
+  const currentRoot = rootLabelOf(nodes) ?? "";
+  const baseRoot = baselineRoot?.path ?? null;
+  const current = currentEntries(nodes, currentRoot);
   const base = baselineEntries(baseline, baseRoot);
 
-  const baseById = new Map(base.map((entry) => [entry.id, entry]));
+  // The folder the script runs in, or the archive file it replays into.
+  const rootName = target === "archive" ? (baselineRoot?.path ?? "") : currentRoot;
+
+  // Archives that are NOT the root live inside the folder: their members are
+  // out of scope for a folder replay.
+  const archivePaths = new Set<string>();
+  for (const entry of base) if (entry.isArchive) archivePaths.add(entry.path);
+  for (const entry of current) if (entry.isArchive) archivePaths.add(entry.path);
+  archivePaths.delete("");
+
+  const insideArchive = (path: string) =>
+    [...archivePaths].some((prefix) => path.startsWith(`${prefix}/`));
+
+  if (archivePaths.size > 0) {
+    warnings.push(
+      `Skipped the entries inside ${archivePaths.size} archive(s) in the graph — an archive is one file, so its members cannot be replayed on disk.`,
+    );
+  }
+
+  // The members of an expanded archive never reach the disk, so they are out
+  // of the plan on both sides.
+  const inScope = (entry: Entry) => !insideArchive(entry.path);
+  const scopedBase = base.filter(inScope);
+  const scopedCurrent = current.filter(inScope);
+
+  const baseById = new Map(scopedBase.map((entry) => [entry.id, entry]));
   const idMatched = new Set<string>();
-  for (const entry of current) if (baseById.has(entry.id)) idMatched.add(entry.id);
-  const baseByPath = new Map(base.map((entry) => [entry.path, entry]));
+  for (const entry of scopedCurrent) if (baseById.has(entry.id)) idMatched.add(entry.id);
+  const baseByPath = new Map(scopedBase.map((entry) => [entry.path, entry]));
 
   const matched = new Set<string>();
   const rawMoves: Move[] = [];
   const creates: Entry[] = [];
   const relinks: Link[] = [];
 
-  for (const entry of current) {
+  for (const entry of scopedCurrent) {
     const counterpart = baseById.get(entry.id);
     if (counterpart) {
       matched.add(counterpart.id);
@@ -195,7 +246,7 @@ export function planChanges(
     creates.push(entry);
   }
 
-  const deleted = base.filter((entry) => !matched.has(entry.id));
+  const deleted = scopedBase.filter((entry) => !matched.has(entry.id));
   let moves = reduceMoves(rawMoves);
   const remap = makeRemapper(moves);
 
@@ -305,6 +356,7 @@ export function planChanges(
 
   return {
     rootName,
+    target,
     baselineCount: baseline.length,
     moves: stageOrder,
     commitOrder: commitSequence,
@@ -328,7 +380,7 @@ function shArray(values: string[]): string {
   return values.map(shq).join(" ");
 }
 
-/** The plan as the shell arrays the template expects. */
+/** The plan as the shell arrays the folder template expects. */
 function renderPlan(plan: ChangesPlan): string {
   return [
     `MOVES=(${shArray(plan.moves.flatMap((move) => [move.from, move.to]))})`,
@@ -345,6 +397,48 @@ function renderPlan(plan: ChangesPlan): string {
     `N_TOUCHES=${plan.touches.length}`,
     `N_LINKS=${plan.links.length}`,
     `N_COPIES=${plan.copies.length}`,
+    `N_PRE_DELETES=${plan.preDeletes.length}`,
+    `N_DELETES=${plan.deletes.length}`,
+    `N_FINGERPRINT=${plan.fingerprint.length}`,
+    `FINGERPRINT_MIN=${Math.ceil(plan.fingerprint.length / 2)}`,
+  ].join("\n");
+}
+
+/**
+ * The plan as the shell arrays the ARCHIVE template expects.
+ *
+ * A zip holds entries, not directories, so a new folder is added as an empty
+ * directory entry and a new file as an empty file — and a copy is taken out
+ * of the archive first, so it keeps its bytes.
+ */
+function renderArchivePlan(plan: ChangesPlan): string {
+  const adds = [
+    ...plan.mkdirs,
+    ...plan.touches,
+    ...plan.copies.map((copy) => copy.to),
+  ].sort();
+  // `plan.moves` is in stage order (deepest source first) and `commitOrder`
+  // holds the indices into it, in commit order (parents first). The script
+  // stages each source to ".fewer-tmp-<index>" and then commits it, so it
+  // needs both lists — and the index that links them.
+  const stageFrom = plan.moves.map((move) => move.from);
+  const commitTo = plan.commitOrder.map((index) => plan.moves[index]?.to ?? "");
+  return [
+    `STAGE_FROM=(${shArray(stageFrom)})`,
+    `COMMIT_TO=(${shArray(commitTo)})`,
+    `COMMIT_IDX=(${plan.commitOrder.join(" ")})`,
+    `ADDS=(${shArray(adds)})`,
+    `ADD_DIRS=(${shArray(plan.mkdirs)})`,
+    `ADD_FILES=(${shArray(plan.touches)})`,
+    `ADD_COPIES=(${shArray(plan.copies.flatMap((copy) => [copy.from, copy.to]))})`,
+    `PRE_DELETES=(${shArray(plan.preDeletes)})`,
+    `DELETE_PATHS=(${shArray(plan.deletes)})`,
+    `FINGERPRINT=(${shArray(plan.fingerprint)})`,
+    `N_MOVES=${plan.moves.length}`,
+    `N_ADDS=${adds.length}`,
+    `N_ADD_DIRS=${plan.mkdirs.length}`,
+    `N_ADD_FILES=${plan.touches.length}`,
+    `N_ADD_COPIES=${plan.copies.length}`,
     `N_PRE_DELETES=${plan.preDeletes.length}`,
     `N_DELETES=${plan.deletes.length}`,
     `N_FINGERPRINT=${plan.fingerprint.length}`,
@@ -398,6 +492,26 @@ export function buildChangesScript(args: {
   const branding = includeBranding ? ["# Created with fewer"] : [];
   const header = [...branding, `# ${summaryLine(summary)}`].join("\n");
 
+  if (plan.target === "archive") {
+    // The archive is the target: one file, replayed with 7-Zip. Its card in
+    // the graph is the archive file itself, so its path IS the file name.
+    const archiveName = plan.rootName.replace(/'/g, `'\\''`);
+    const preamble = BASH_ARCHIVE_PREAMBLE.replace("# __SUMMARY__", header)
+      .replaceAll("__ROOT__", archiveName)
+      .replaceAll("__DATE__", generatedAt)
+      .replaceAll("__CHANGES__", String(summary.total))
+      .replaceAll("__DELETES__", String(summary.deleted))
+      .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh");
+
+    const script = [
+      preamble,
+      BASH_ARCHIVE_CHECKS.replace("__PLAN__", renderArchivePlan(plan)),
+      BASH_ARCHIVE_APPLY,
+    ].join("");
+
+    return { script, summary, warnings: plan.warnings, target: "archive" };
+  }
+
   const preamble = BASH_PREAMBLE.replace("# __SUMMARY__", header)
     .replaceAll("__BASELINE__", String(plan.baselineCount))
     .replaceAll("__ROOT__", plan.rootName.replace(/'/g, `'\\''`))
@@ -412,5 +526,5 @@ export function buildChangesScript(args: {
     BASH_APPLY,
   ].join("");
 
-  return { script, summary, warnings: plan.warnings };
+  return { script, summary, warnings: plan.warnings, target: "folder" };
 }

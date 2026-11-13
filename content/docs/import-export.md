@@ -298,6 +298,18 @@ Entries the import never saw (excluded by the import options) are not touched.
 panel to list them in the script; the script still asks before removing
 anything.
 
+**Archives.** When the graph *is* an archive (you imported `backup.zip`), the
+script replays your edits **inside** that archive instead of onto a folder —
+renames, moves, new entries and deletions all land in the zip. It needs
+**7-Zip** on the machine (`apt install p7zip-full`, `brew install p7zip`) and
+says so if it is missing. RAR archives, multi-volume archives and
+self-extracting archives are left untouched: 7-Zip can read them but not
+rewrite them.
+
+A zip that was *expanded inside* a folder import is a different thing: the zip
+is one file on disk, so the entries inside it cannot be replayed there. Those
+are skipped, and the script says how many.
+
 **Windows** runs the script through WSL or Git Bash — the script is bash.
 
 ### FWR: the document, JSON: the structure

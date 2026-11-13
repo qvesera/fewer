@@ -38,6 +38,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pricing page: Free, Pro and Enterprise, with the Pro price in USD, GBP, EUR and INR, an introductory price and a yearly plan at ten months for the price of twelve
 - Contact form on the pricing page: enquiries go to the inbox with the sender in reply-to, so no address is published
 - Export Changes: a script that replays the edits you made in the graph (renames, moves, new folders and files, duplicates) onto the folder you imported. It checks the folder first, stages the moves so swaps and cycles work, and asks before it deletes.
+- Export Changes now replays edits inside an archive: import a zip, rearrange it in the graph, and the script applies the changes to the zip itself with 7-Zip (renames, moves, new entries, deletions). Archives that 7-Zip cannot rewrite (RAR, multi-volume, self-extracting) are left untouched, and a zip expanded inside a folder import is skipped with a note.
 
 ### Performance
 

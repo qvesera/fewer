@@ -320,7 +320,7 @@ export function ExportPanel() {
         });
         return;
       }
-      const { summary, warnings } = exportChangesScript(
+      const { summary, warnings, target } = exportChangesScript(
         nodes,
         baseline,
         settings.includeDeletions,
@@ -330,8 +330,8 @@ export function ExportPanel() {
       toast({
         title: "Exported",
         description:
-          `${summary.total} change(s): ${summary.renamed} renamed or moved, ` +
-          `${summary.created} created, ${summary.deleted} deleted.` +
+          `${summary.total} change(s) ${target === "archive" ? "inside the archive" : "on disk"}: ` +
+          `${summary.renamed} renamed or moved, ${summary.created} created, ${summary.deleted} deleted.` +
           (warnings.length > 0 ? ` ${warnings.length} note(s) in the script.` : ""),
       });
       return;

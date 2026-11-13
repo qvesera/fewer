@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, readdirSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildChangesScript, planChanges } from "./changesScript";
@@ -27,12 +27,28 @@ function tree(paths: [string, "file" | "folder"][]): FewerNode[] {
   return nodes;
 }
 
+/** An archive import: the root card IS the archive file. */
+function archiveTree(paths: [string, "file" | "folder"][]): FewerNode[] {
+  const nodes = paths.map(([path, type]) => node(path, `backup.zip/${path}`, type));
+  nodes.unshift(node("root", "backup.zip", "folder", { isRoot: true, isArchive: true }));
+  return nodes;
+}
+
 function baselineOf(nodes: FewerNode[]): BaselineEntry[] {
   return captureBaseline(nodes);
 }
 
 function bashAvailable(): boolean {
   return existsSync("/bin/bash") || existsSync("/usr/bin/bash");
+}
+
+/** 7-Zip is the tool the archive replay uses; the tests skip without it. */
+function sevenZipAvailable(): boolean {
+  for (const candidate of ["7z", "7zz", "7za"]) {
+    const found = Bun.spawnSync(["which", candidate]);
+    if (found.exitCode === 0) return true;
+  }
+  return false;
 }
 
 /** Every file under a directory, as sorted relative paths. */
@@ -181,6 +197,160 @@ test("a new folder and file are created, a new file is empty", () => {
     const plan = planChanges(baselineOf(before), after);
     expect(plan.touches).toHaveLength(0);
     expect(plan.warnings.join(" ")).toContain("not safe");
+  });
+});
+
+describe("archive replay", () => {
+  test("an archive import targets the archive, not a folder", () => {
+    const before = archiveTree([["src/a.txt", "file"]]);
+    const after = archiveTree([["src/b.txt", "file"]]);
+    after[1].id = before[1].id;
+    const plan = planChanges(captureBaseline(before), after);
+    expect(plan.target).toBe("archive");
+    expect(plan.moves).toEqual([{ id: before[1].id, from: "src/a.txt", to: "src/b.txt" }]);
+  });
+
+  test("the archive script uses 7-Zip and checks the archive file", () => {
+    const before = archiveTree([["src/a.txt", "file"]]);
+    const after = archiveTree([["src/b.txt", "file"]]);
+    after[1].id = before[1].id;
+    const { script, target } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+    });
+    expect(target).toBe("archive");
+    expect(script).toContain("7-Zip is not installed");
+    expect(script).toContain("ARCHIVE_NAME='backup.zip'");
+    expect(script).toContain("STAGE_FROM=('src/a.txt')");
+    expect(script).toContain("COMMIT_TO=('src/b.txt')");
+  });
+
+  test("a folder graph with an expanded zip skips the zip's members", () => {
+    const before = tree([
+      ["project/src", "folder"],
+      ["project/src/a.txt", "file"],
+      ["project/release.zip", "folder"],
+      ["project/release.zip/inner.txt", "file"],
+    ]);
+    before[3].data.isArchive = true;
+    const after = tree([
+      ["project/src", "folder"],
+      ["project/src/b.txt", "file"],
+      ["project/release.zip", "folder"],
+      ["project/release.zip/inner.txt", "file"],
+    ]);
+    after[3].data.isArchive = true;
+    after[2].id = before[2].id;
+    after[3].id = before[3].id;
+    const plan = planChanges(captureBaseline(before), after);
+    expect(plan.target).toBe("folder");
+    // Only the real file moved; the zip's member is out of scope.
+    expect(plan.moves).toHaveLength(1);
+    expect(plan.moves[0].to).toBe("src/b.txt");
+    expect(plan.warnings.join(" ")).toContain("archive");
+  });
+
+  test("the archive script replays a rename, a swap and a deletion", () => {
+    if (!sevenZipAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-archive-"));
+    const archive = join(root, "backup.zip");
+    // Build the archive the way the browser would see it.
+    const stage = join(root, "stage");
+    mkdirSync(join(stage, "src", "deep"), { recursive: true });
+    writeFileSync(join(stage, "src", "a.txt"), "A");
+    writeFileSync(join(stage, "src", "b.txt"), "B");
+    writeFileSync(join(stage, "src", "deep", "c.txt"), "C");
+    writeFileSync(join(stage, "gone.txt"), "GONE");
+    const pack = Bun.spawnSync(
+      ["7z", "a", "-bso0", "-bsp0", archive, "src", "gone.txt"],
+      { cwd: stage },
+    );
+    expect(pack.exitCode).toBe(0);
+
+    const before = archiveTree([
+      ["src", "folder"],
+      ["src/a.txt", "file"],
+      ["src/b.txt", "file"],
+      ["src/deep", "folder"],
+      ["src/deep/c.txt", "file"],
+      ["gone.txt", "file"],
+    ]);
+    const ids = before.slice(1).map((n) => n.id);
+
+    // a.txt → b.txt and b.txt → a.txt (a swap), c.txt renamed, gone.txt deleted.
+    const after = archiveTree([
+      ["src", "folder"],
+      ["src/b.txt", "file"],
+      ["src/a.txt", "file"],
+      ["src/deep", "folder"],
+      ["src/deep/renamed.txt", "file"],
+    ]);
+    after[1].id = ids[0];
+    after[2].id = ids[1];
+    after[3].id = ids[2];
+    after[4].id = ids[3];
+    after[5].id = ids[4];
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      includeDeletions: true,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes", "--allow-delete"], { cwd: root });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    const out = join(root, "out");
+    mkdirSync(out);
+    Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, archive]);
+    // The swap kept each file's bytes, the rename landed, the delete is gone.
+    expect(readFileSync(join(out, "src", "a.txt"), "utf8")).toBe("B");
+    expect(readFileSync(join(out, "src", "b.txt"), "utf8")).toBe("A");
+    expect(readFileSync(join(out, "src", "deep", "renamed.txt"), "utf8")).toBe("C");
+    expect(existsSync(join(out, "gone.txt"))).toBe(false);
+  });
+
+  test("the archive script adds a new file", () => {
+    if (!sevenZipAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-archive-add-"));
+    const archive = join(root, "backup.zip");
+    const stage = join(root, "stage");
+    mkdirSync(join(stage, "src"), { recursive: true });
+    writeFileSync(join(stage, "src", "a.txt"), "A");
+    Bun.spawnSync(["7z", "a", "-bso0", "-bsp0", archive, "src"], { cwd: stage });
+
+    const before = archiveTree([
+      ["src", "folder"],
+      ["src/a.txt", "file"],
+    ]);
+    const after = archiveTree([
+      ["src", "folder"],
+      ["src/a.txt", "file"],
+      ["src/new.txt", "file"],
+    ]);
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: root });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    const out = join(root, "out");
+    mkdirSync(out);
+    Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, archive]);
+    expect(existsSync(join(out, "src", "new.txt"))).toBe(true);
   });
 });
 

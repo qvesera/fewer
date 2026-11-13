@@ -143,6 +143,16 @@ cleanup() {
 }
 trap cleanup EXIT
 
+# A deletion that frees the path another entry moves into has to happen first,
+# or that move would land inside the folder that is still there.
+i=0
+while [ "$i" -lt "$N_PRE_DELETES" ]; do
+  p="\${PRE_DELETES[$i]}"
+  say "· delete $p"
+  if [ -e "$p" ]; then rm -rf -- "$p"; fi
+  i=$((i+1))
+done
+
 if [ "$N_MOVES" -gt 0 ]; then
   if [ "$DRY_RUN" = 1 ]; then
     j=0
@@ -174,14 +184,6 @@ if [ "$N_MOVES" -gt 0 ]; then
     done
   fi
 fi
-
-i=0
-while [ "$i" -lt "$N_PRE_DELETES" ]; do
-  p="\${PRE_DELETES[$i]}"
-  say "· delete $p"
-  if [ -e "$p" ]; then rm -rf -- "$p"; fi
-  i=$((i+1))
-done
 
 i=0
 while [ "$i" -lt "$N_MKDIRS" ]; do
