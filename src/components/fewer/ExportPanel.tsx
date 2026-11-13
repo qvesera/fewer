@@ -334,8 +334,8 @@ export function ExportPanel() {
         toast({
           title: "Nothing to replay",
           description:
-            `Your ${skippedInArchives} change(s) are inside an archive, and an archive is one file — ` +
-            "open the .zip itself and export the changes from there.",
+            `Your ${skippedInArchives} change(s) cross an archive boundary, and a script ` +
+            "cannot move entries in or out of an archive.",
           variant: "destructive",
         });
         return;
@@ -344,7 +344,9 @@ export function ExportPanel() {
         title: "Exported",
         description:
           `${summary.total} change(s) ${target === "archive" ? "inside the archive" : "on disk"}: ` +
-          `${summary.renamed} renamed or moved, ${summary.created} created, ${summary.deleted} deleted.` +
+          `${summary.renamed} renamed or moved, ${summary.created} created, ${summary.deleted} deleted` +
+          (summary.inArchives ? `, ${summary.inArchives} inside an archive` : "") +
+          "." +
           (warnings.length > 0 ? ` ${warnings.length} note(s) in the script.` : ""),
       });
       return;

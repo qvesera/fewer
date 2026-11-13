@@ -21,9 +21,9 @@ function node(
 }
 
 /** The root card plus its children, as an import would produce them. */
-function tree(paths: [string, "file" | "folder"][]): FewerNode[] {
+function tree(paths: [string, "file" | "folder"][], root = "project"): FewerNode[] {
   const nodes = paths.map(([path, type]) => node(path, path, type));
-  nodes.unshift(node("root", "project", "folder", { isRoot: true }));
+  nodes.unshift(node("root", root, "folder", { isRoot: true }));
   return nodes;
 }
 
@@ -264,49 +264,28 @@ describe("archive replay", () => {
     expect(script).toContain("COMMIT_TO=('src/b.txt')");
   });
 
-  test("a folder graph with an expanded zip skips the zip's members", () => {
-    const before = tree([
-      ["project/src", "folder"],
-      ["project/src/a.txt", "file"],
-      ["project/release.zip", "folder"],
-      ["project/release.zip/inner.txt", "file"],
-    ]);
-    before[3].data.isArchive = true; // the zip card
-    const after = tree([
-      ["project/src", "folder"],
-      ["project/src/b.txt", "file"],
-      ["project/release.zip", "folder"],
-      ["project/release.zip/renamed.txt", "file"],
-    ]);
-    after[3].data.isArchive = true;
-    after[1].id = before[1].id;
-    after[2].id = before[2].id;
-    after[3].id = before[3].id;
-    after[4].id = before[4].id;
-    const plan = planChanges(captureBaseline(before), after);
-    expect(plan.target).toBe("folder");
-    // The real file moved; the zip's member did not — it cannot.
-    expect(plan.moves).toHaveLength(1);
-    expect(plan.moves[0].to).toBe("src/b.txt");
-    expect(plan.skippedInArchives).toBe(1);
-  });
-
-  test("a rename inside an expanded zip is reported as skipped, not lost", () => {
+  test("an expanded zip is edited as an archive, not skipped", () => {
     // The shape from a real export: a folder of zips, edited inside one of
-    // them. Nothing can be replayed onto the folder, and the script has to say
-    // so instead of looking like it forgot the work.
-    const before = tree([
-      ["test zips/Logos.zip", "folder"],
-      ["test zips/Logos.zip/Logos/Logo.eps", "file"],
-      ["test zips/Other.zip", "folder"],
-    ]);
+    // them. The zip is a real file in that folder, so the edit belongs to
+    // the zip — it is applied to the archive with 7-Zip.
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+        ["test zips/Other.zip", "folder"],
+      ],
+      "test zips",
+    );
     before[1].data.isArchive = true; // the zip card
     before[3].data.isArchive = true;
-    const after = tree([
-      ["test zips/Logos.zip", "folder"],
-      ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
-      ["test zips/Other.zip", "folder"],
-    ]);
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
+        ["test zips/Other.zip", "folder"],
+      ],
+      "test zips",
+    );
     after[1].data.isArchive = true;
     after[3].data.isArchive = true;
     after[1].id = before[1].id;
@@ -314,10 +293,15 @@ describe("archive replay", () => {
     after[3].id = before[3].id;
 
     const plan = planChanges(captureBaseline(before), after);
+    // Nothing happens in the folder itself…
     expect(plan.moves).toHaveLength(0);
-    expect(plan.skippedInArchives).toBe(1);
-    expect(plan.warnings.join(" ")).toContain("inside");
-    expect(plan.warnings.join(" ")).toContain("Open the archive itself");
+    expect(plan.skippedInArchives).toBe(0);
+    // …the zip is edited instead, with the paths inside it.
+    expect(plan.archivePlans).toHaveLength(1);
+    expect(plan.archivePlans[0].archive).toBe("Logos.zip");
+    expect(plan.archivePlans[0].moves).toEqual([
+      { from: "Logos/Logo.eps", to: "Logos/Renamed.eps" },
+    ]);
   });
 
   test("the fingerprint never samples a path inside an archive", () => {
@@ -334,16 +318,22 @@ describe("archive replay", () => {
     expect(plan.fingerprint).toContain("real.txt");
   });
 
-  test("a script whose only changes are inside archives says so and does nothing", () => {
-    const before = tree([
-      ["test zips/Logos.zip", "folder"],
-      ["test zips/Logos.zip/Logos/Logo.eps", "file"],
-    ]);
-    before[1].data.isArchive = true; // the zip card
-    const after = tree([
-      ["test zips/Logos.zip", "folder"],
-      ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
-    ]);
+  test("a folder script with archive work carries the archive plan and the engine", () => {
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
+      ],
+      "test zips",
+    );
     after[1].data.isArchive = true;
     after[1].id = before[1].id;
     after[2].id = before[2].id;
@@ -352,15 +342,17 @@ describe("archive replay", () => {
       baseline: captureBaseline(before),
       nodes: after,
     });
-    expect(summary.total).toBe(0);
-    expect(skippedInArchives).toBe(1);
-    // The script explains itself, in the file the user runs.
-    expect(script).toContain("# Notes:");
-    expect(script).toContain("inside an archive");
-    expect(script).toContain("Open the archive itself");
-    // And it exits before doing anything.
-    expect(script).toContain("Nothing to replay");
-    expect(script).toContain("NOTES_COUNT=1");
+    expect(summary.total).toBe(1);
+    expect(summary.inArchives).toBe(1);
+    expect(skippedInArchives).toBe(0);
+    // The script carries the engine and the plan for the archive.
+    expect(script).toContain("archive_engine");
+    expect(script).toContain("ARCHIVE_NAMES[0]='Logos.zip'");
+    expect(script).toContain("Logos/Logo.eps");
+    expect(script).toContain("apply_archive_plan");
+    // The work is counted, so the script does not stop at "nothing to do".
+    expect(script).toContain("CHANGES=1");
+    expect(script).toContain("1 inside an archive");
   });
 
   test("the archive script replays a rename, a swap and a deletion", () => {
@@ -522,7 +514,63 @@ test("the Python fallback replays the same changes when 7-Zip is missing", () =>
     expect(existsSync(join(out, "gone.txt"))).toBe(false);
   });
 
-  test("the folder script never talks about 7-Zip or Python", () => {
+  test("the generated script edits the archive in place", () => {
+    if (!sevenZipAvailable()) return;
+    // A folder with a zip in it, and a rename inside that zip: the script
+    // must edit the zip, not the folder.
+    const root = mkdtempSync(join(tmpdir(), "fewer-zip-folder-"));
+    const folder = join(root, "test zips");
+    mkdirSync(folder, { recursive: true });
+    const stage = join(root, "stage");
+    mkdirSync(join(stage, "Logos"), { recursive: true });
+    writeFileSync(join(stage, "Logos", "Logo.eps"), "EPS");
+    writeFileSync(join(stage, "Logos", "Other.eps"), "OTHER");
+    Bun.spawnSync(["7z", "a", "-bso0", "-bsp0", join(folder, "Logos.zip"), "Logos"], { cwd: stage });
+
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+        ["test zips/Logos.zip/Logos/Other.eps", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Renamed.eps", "file"],
+        ["test zips/Logos.zip/Logos/Other.eps", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+    after[3].id = before[3].id;
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: folder });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    // The zip now holds the renamed entry — the zip was edited in place.
+    const out = join(root, "out");
+    mkdirSync(out);
+    Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, join(folder, "Logos.zip")]);
+    expect(existsSync(join(out, "Logos", "Renamed.eps"))).toBe(true);
+    expect(existsSync(join(out, "Logos", "Logo.eps"))).toBe(false);
+    expect(readFileSync(join(out, "Logos", "Renamed.eps"), "utf8")).toBe("EPS");
+  });
+
+  test("a folder script only reaches for an archive engine when it has archive work", () => {
     const before = tree([["project/a.txt", "file"]]);
     const after = tree([["project/b.txt", "file"]]);
     after[1].id = before[1].id;
@@ -531,11 +579,11 @@ test("the Python fallback replays the same changes when 7-Zip is missing", () =>
       nodes: after,
     });
     expect(target).toBe("folder");
-    // The folder replay needs nothing but bash — no archive engine is even
-    // looked for.
-    expect(script).not.toContain("7-Zip");
-    expect(script).not.toContain("python");
+    // A folder replay with no archives needs nothing but bash: no archive
+    // engine is looked for, and 7-Zip is never mentioned.
     expect(script).not.toContain("7z ");
+    expect(script).not.toContain("python3");
+    expect(script).not.toContain("archive_engine");
   });
 
   test("an archive script with nothing to change never asks about an engine", () => {

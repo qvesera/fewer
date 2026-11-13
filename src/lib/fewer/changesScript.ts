@@ -1,7 +1,8 @@
 import type { FewerNode } from "./types";
 import { rootLabelOf, stripRoot, type BaselineEntry } from "./importBaseline";
-import { BASH_APPLY, BASH_CHECKS, BASH_PREAMBLE } from "./changesScriptBash";
+import { BASH_APPLY, BASH_ARCHIVE_SECTION, BASH_CHECKS, BASH_PREAMBLE } from "./changesScriptBash";
 import { BASH_ARCHIVE_APPLY, BASH_ARCHIVE_CHECKS, BASH_ARCHIVE_PREAMBLE } from "./changesScriptArchiveBash";
+import { BASH_ARCHIVE_ENGINE } from "./changesScriptArchiveEngine";
 import { ARCHIVE_PYTHON_PROGRAM } from "./changesScriptArchivePython";
 
 /**
@@ -16,6 +17,8 @@ export interface ChangesSummary {
   deleted: number;
   /** Created entries that replay as a copy of an existing one. */
   copied: number;
+  /** Changes made inside an archive (the archive itself is edited in place). */
+  inArchives: number;
   /** Total operations the script performs. */
   total: number;
 }
@@ -61,6 +64,20 @@ interface Link {
   target: string;
 }
 
+/** One archive inside a folder, and the edits to make inside it. */
+export interface ArchivePlan {
+  /** The archive file, relative to the folder root ("Logos.zip"). */
+  archive: string;
+  /** Renames and moves inside the archive, relative to the archive root. */
+  moves: { from: string; to: string }[];
+  /** Entries to delete from the archive. */
+  deletes: string[];
+  /** Entries to add to the archive. */
+  adds: { path: string; kind: "file" | "dir" }[];
+  /** Entries to copy inside the archive. */
+  copies: { from: string; to: string }[];
+}
+
 export interface ChangesPlan {
   /** The folder the replay runs in, or the archive file it replays into. */
   rootName: string;
@@ -80,6 +97,8 @@ export interface ChangesPlan {
   fingerprint: string[];
   /** Changes that live inside an archive and cannot be replayed onto a folder. */
   skippedInArchives: number;
+  /** Per-archive edits: an archive is a real file, so its entries are edited in place. */
+  archivePlans: ArchivePlan[];
   warnings: string[];
 }
 
@@ -246,14 +265,92 @@ export function planChanges(
 
   const deleted = base.filter((entry) => !matched.has(entry.id));
 
-  // ── what cannot be replayed onto a folder ───────────────────────────────
+  // ── the archives inside the folder ───────────────────────────────────────
+  // An archive inside the folder is a REAL FILE: `Logos.zip` sits on disk
+  // next to everything else. So an edit to one of its entries is not lost —
+  // it becomes an edit of the zip itself, applied in place with 7-Zip.
+  //
+  // Archives are keyed by their card id, not by their path: a zip that was
+  // renamed in the graph is still the same archive, and its members keep
+  // their paths *inside* it either way.
+  interface ArchiveRef {
+    id: string;
+    /** The archive's path in the import ("Logos.zip"). */
+    basePath: string;
+    /** The archive's path now ("Logos.zip", or its new name). */
+    currentPath: string | null;
+  }
+  const archives = new Map<string, ArchiveRef>();
+  for (const entry of base) {
+    if (!entry.isArchive) continue;
+    archives.set(entry.id, { id: entry.id, basePath: entry.path, currentPath: null });
+  }
+  for (const entry of current) {
+    const ref = archives.get(entry.id);
+    if (ref) ref.currentPath = entry.path;
+  }
+  // An archive that is gone from the graph (the zip was deleted) is not worth
+  // editing — the file itself is on its way out.
+  const goneArchives = new Set(
+    [...archives.values()].filter((ref) => ref.currentPath === null).map((ref) => ref.id),
+  );
+
+  /** The archive a baseline path belongs to, and the path inside it. */
+  const archiveOfBase = (path: string): { ref: ArchiveRef; inside: string } | null => {
+    let best: ArchiveRef | null = null;
+    for (const ref of archives.values()) {
+      if (!path.startsWith(`${ref.basePath}/`)) continue;
+      if (!best || ref.basePath.length > best.basePath.length) best = ref;
+    }
+    if (!best) return null;
+    return { ref: best, inside: path.slice(best.basePath.length + 1) };
+  };
+
+  /** The archive a current path belongs to, and the path inside it. */
+  const archiveOfCurrent = (path: string): { ref: ArchiveRef; inside: string } | null => {
+    let best: { ref: ArchiveRef; currentPath: string } | null = null;
+    for (const ref of archives.values()) {
+      if (ref.currentPath === null) continue;
+      if (!path.startsWith(`${ref.currentPath}/`)) continue;
+      if (!best || ref.currentPath.length > best.currentPath.length) {
+        best = { ref, currentPath: ref.currentPath };
+      }
+    }
+    if (!best) return null;
+    return { ref: best.ref, inside: path.slice(best.currentPath.length + 1) };
+  };
+
+  // ── where each change belongs ───────────────────────────────────────────
+  // A change inside an archive is an edit OF that archive; everything else is
+  // an edit of the folder. The two are replayed by different tools (7-Zip for
+  // the archive, mv/rm/cp for the folder), so they are planned separately.
   const skippedInArchives: string[] = [];
-  const isArchiveChange = (path: string) => insideArchive(path);
+  const archivePlans = new Map<string, ArchivePlan>();
+  const planFor = (archive: string): ArchivePlan => {
+    let plan = archivePlans.get(archive);
+    if (!plan) {
+      plan = { archive, moves: [], deletes: [], adds: [], copies: [] };
+      archivePlans.set(archive, plan);
+    }
+    return plan;
+  };
 
   let moves = reduceMoves(
     rawMoves.filter((move) => {
-      if (!isArchiveChange(move.from) && !isArchiveChange(move.to)) return true;
+      const from = archiveOfBase(move.from);
+      const to = archiveOfCurrent(move.to);
+      if (!from && !to) return true; // a plain move in the folder
+      if (from && to && from.ref.id === to.ref.id && !goneArchives.has(from.ref.id)) {
+        // A rename inside an archive: the archive itself is edited in place.
+        planFor(to.ref.currentPath!).moves.push({ from: from.inside, to: to.inside });
+        return false;
+      }
+      // Moved in or out of an archive: the bytes have to cross the archive
+      // boundary, which no simple rename can do.
       skippedInArchives.push(`${move.from} → ${move.to}`);
+      warnings.push(
+        `Skipped "${move.from}": moving an entry in or out of an archive is not something a script can do.`,
+      );
       return false;
     }),
   );
@@ -270,8 +367,12 @@ export function planChanges(
   const notReplayed: string[] = [];
 
   for (const entry of deletedTop) {
-    if (isArchiveChange(entry.path)) {
-      skippedInArchives.push(`deleted ${entry.path}`);
+    const owner = archiveOfBase(entry.path);
+    if (owner) {
+      // A deletion inside an archive: the archive is edited in place.
+      if (!goneArchives.has(owner.ref.id)) {
+        planFor(owner.ref.currentPath!).deletes.push(owner.inside);
+      }
       continue;
     }
     if (moveDests.has(entry.path)) {
@@ -319,8 +420,14 @@ export function planChanges(
     if (covered.some((prefix) => entry.path === prefix || entry.path.startsWith(`${prefix}/`))) {
       continue; // already copied as part of a copied folder
     }
-    if (isArchiveChange(entry.path)) {
-      skippedInArchives.push(`created ${entry.path}`);
+    const owner = archiveOfCurrent(entry.path);
+    if (owner) {
+      // A new entry inside an archive: the archive is edited in place.
+      if (!goneArchives.has(owner.ref.id)) {
+        const plan = planFor(owner.ref.currentPath!);
+        if (entry.type === "folder") plan.adds.push({ path: owner.inside, kind: "dir" });
+        else plan.adds.push({ path: owner.inside, kind: "file" });
+      }
       continue;
     }
     if (!isSafePath(entry.path)) {
@@ -371,7 +478,7 @@ export function planChanges(
     const shown = skippedInArchives.slice(0, 3).join(", ");
     const more = skippedInArchives.length > 3 ? `, +${skippedInArchives.length - 3} more` : "";
     warnings.push(
-      `Skipped ${skippedInArchives.length} change(s) inside ${archivePaths.size} archive(s) (${shown}${more}) — an archive is one file, so its members cannot be replayed onto the folder. Open the archive itself and export the changes from there.`,
+      `Skipped ${skippedInArchives.length} change(s) that cross an archive boundary (${shown}${more}) — a script cannot move entries in or out of an archive.`,
     );
   }
 
@@ -381,9 +488,17 @@ export function planChanges(
   // on a folder that is perfectly fine.
   const stable = base.filter(
     (entry) =>
-      !movedIds.has(entry.id) && !deletedIds.has(entry.id) && !insideArchive(entry.path),
+      !movedIds.has(entry.id) && !deletedIds.has(entry.id) && !archiveOfBase(entry.path),
   );
   const fingerprint = pickFingerprint(stable).filter(isSafePath);
+
+  // The archives that really have work to do, in a stable order.
+  const archivePlansList = [...archivePlans.values()]
+    .filter(
+      (plan) =>
+        plan.moves.length > 0 || plan.deletes.length > 0 || plan.adds.length > 0 || plan.copies.length > 0,
+    )
+    .sort((a, b) => a.archive.localeCompare(b.archive));
 
   return {
     rootName,
@@ -399,6 +514,7 @@ export function planChanges(
     deletes: safeDeletes.sort((a, b) => b.length - a.length),
     fingerprint,
     skippedInArchives: skippedInArchives.length,
+    archivePlans: archivePlansList,
     warnings,
   };
 }
@@ -408,8 +524,55 @@ function shq(value: string): string {
   return `'${value.replace(/'/g, `'\\''`)}'`;
 }
 
+/**
+ * Single-quote a value for bash's `$'…'` form, where a tab and a newline can
+ * be written as escapes — the archive plan rows are tab separated, and a raw
+ * newline inside a quoted string would end the line.
+ */
+function shqEscaped(value: string): string {
+  return `$'${value
+    .replace(/\\/g, "\\\\")
+    .replace(/'/g, "\\'")
+    .replace(/\t/g, "\\t")
+    .replace(/\n/g, "\\n")}'`;
+}
+
 function shArray(values: string[]): string {
   return values.map(shq).join(" ");
+}
+
+/**
+ * The plan for one archive, as the tab-separated rows the script reads:
+ *
+ *   MOVE<TAB>from<TAB>to<TAB>temp    phase 1: rename the source aside
+ *   COMMIT<TAB>temp<TAB>to           phase 2: put it where it belongs
+ *   DELETE<TAB>path
+ *   ADDFILE<TAB>path
+ *   ADDDIR<TAB>path
+ *
+ * The paths are relative to the archive's own root ("Logos/Logo.eps"), which
+ * is what 7-Zip addresses.
+ */
+function renderArchivePlanRows(plan: ArchivePlan): string[] {
+  const rows: string[] = [];
+  // Phase 1: every source is renamed aside, deepest source first.
+  const stageOrder = [...plan.moves].sort((a, b) => b.from.length - a.from.length);
+  const tempNames = new Map<string, string>();
+  stageOrder.forEach((move, index) => {
+    const temp = `.fewer-tmp-${index}`;
+    tempNames.set(`${move.from}\n${move.to}`, temp);
+    rows.push(`MOVE\t${move.from}\t${move.to}\t${temp}`);
+  });
+  // Phase 2: each temporary name goes to its destination, parents first.
+  const commitOrder = [...plan.moves].sort((a, b) => a.to.length - b.to.length);
+  for (const move of commitOrder) {
+    rows.push(`COMMIT\t${tempNames.get(`${move.from}\n${move.to}`)}\t${move.to}`);
+  }
+  for (const path of plan.deletes) rows.push(`DELETE\t${path}`);
+  for (const add of plan.adds) {
+    rows.push(`${add.kind === "dir" ? "ADDDIR" : "ADDFILE"}\t${add.path}`);
+  }
+  return rows;
 }
 
 /** The plan as the shell arrays the folder template expects. */
@@ -486,6 +649,7 @@ function summaryLine(summary: ChangesSummary): string {
   if (summary.created) parts.push(`${summary.created} created`);
   if (summary.copied) parts.push(`(${summary.copied} copied)`);
   if (summary.deleted) parts.push(`${summary.deleted} deleted`);
+  if (summary.inArchives) parts.push(`${summary.inArchives} inside an archive`);
   return parts.length ? parts.join(", ") : "nothing to change";
 }
 
@@ -520,11 +684,20 @@ export function buildChangesScript(args: {
   const generatedAt = args.generatedAt ?? new Date().toISOString();
   const plan = planChanges(args.baseline, args.nodes, includeDeletions);
 
+  // The changes inside archives count as changes: the archive is a file in the
+  // folder, and the script edits it.
+  const archiveOps = plan.archivePlans.reduce(
+    (sum, archive) =>
+      sum + archive.moves.length + archive.deletes.length + archive.adds.length + archive.copies.length,
+    0,
+  );
+
   const summary: ChangesSummary = {
     renamed: plan.moves.length,
     created: plan.mkdirs.length + plan.touches.length + plan.links.length + plan.copies.length,
     deleted: plan.deletes.length + plan.preDeletes.length,
     copied: plan.copies.length,
+    inArchives: archiveOps,
     total:
       plan.moves.length +
       plan.mkdirs.length +
@@ -532,7 +705,8 @@ export function buildChangesScript(args: {
       plan.links.length +
       plan.copies.length +
       plan.deletes.length +
-      plan.preDeletes.length,
+      plan.preDeletes.length +
+      archiveOps,
   };
 
   const branding = includeBranding ? ["# Created with fewer"] : [];
@@ -543,20 +717,20 @@ export function buildChangesScript(args: {
     // The archive is the target: one file, replayed with 7-Zip. Its card in
     // the graph is the archive file itself, so its path IS the file name.
     const archiveName = plan.rootName.replace(/'/g, `'\\''`);
-    const preamble = BASH_ARCHIVE_PREAMBLE.replace("# __SUMMARY__", header)
-      .replaceAll("__ROOT__", archiveName)
-      .replaceAll("__DATE__", generatedAt)
-      .replaceAll("__CHANGES__", String(summary.total))
-      .replaceAll("__DELETES__", String(summary.deleted))
-      .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh")
-      .replace("__NOTES__", notes)
+    const preamble = BASH_ARCHIVE_PREAMBLE.replace("# __SUMMARY__", () => header)
+      .replaceAll("__ROOT__", () => archiveName)
+      .replaceAll("__DATE__", () => generatedAt)
+      .replaceAll("__CHANGES__", () => String(summary.total))
+      .replaceAll("__DELETES__", () => String(summary.deleted))
+      .replaceAll("__FILE__", () => args.fileName ?? "fewer-changes.sh")
+      .replace("__NOTES__", () => notes)
       // The Python fallback travels with the script, so the file the user runs
       // needs nothing beside it.
-      .replace("__PYTHON__", ARCHIVE_PYTHON_PROGRAM);
+      .replace("__PYTHON__", () => ARCHIVE_PYTHON_PROGRAM);
 
     const script = [
       preamble,
-      BASH_ARCHIVE_CHECKS.replace("__PLAN__", renderArchivePlan(plan)),
+      BASH_ARCHIVE_CHECKS.replace("__PLAN__", () => renderArchivePlan(plan)),
       BASH_ARCHIVE_APPLY,
     ].join("");
 
@@ -569,20 +743,50 @@ export function buildChangesScript(args: {
     };
   }
 
-  const preamble = BASH_PREAMBLE.replace("# __SUMMARY__", header)
-    .replaceAll("__BASELINE__", String(plan.baselineCount))
-    .replaceAll("__ROOT__", plan.rootName.replace(/'/g, `'\\''`))
-    .replaceAll("__DATE__", generatedAt)
-    .replaceAll("__CHANGES__", String(summary.total))
-    .replaceAll("__DELETES__", String(summary.deleted))
-    .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh")
-    .replace("__NOTES__", notes)
-    .replaceAll("__NOTES_COUNT__", String(plan.skippedInArchives));
+  const preamble = BASH_PREAMBLE.replace("# __SUMMARY__", () => header)
+    .replaceAll("__BASELINE__", () => String(plan.baselineCount))
+    .replaceAll("__ROOT__", () => plan.rootName.replace(/'/g, `'\\''`))
+    .replaceAll("__DATE__", () => generatedAt)
+    .replaceAll("__CHANGES__", () => String(summary.total))
+    .replaceAll("__DELETES__", () => String(summary.deleted))
+    .replaceAll("__FILE__", () => args.fileName ?? "fewer-changes.sh")
+    .replace("__NOTES__", () => notes)
+    .replaceAll("__NOTES_COUNT__", () => String(plan.skippedInArchives));
+
+  // The archives in this folder: each one gets a plan, and the engine that
+  // applies it travels with the script.
+  const archiveNames = plan.archivePlans.map((archive) => archive.archive);
+  const archiveRows = plan.archivePlans.map((archive) =>
+    renderArchivePlanRows(archive).join("\n"),
+  );
+  const archiveSection = plan.archivePlans
+    .map(
+      (archive, index) =>
+        `ARCHIVE_NAMES[${index}]=${shq(archive.archive)}\n` +
+        `ARCHIVE_ROWS[${index}]=${shqEscaped(archiveRows[index])}`,
+    )
+    .join("\n");
+
+  const checks = BASH_CHECKS.replace("__PLAN__", () => renderPlan(plan))
+    .replaceAll("__ARCHIVE_COUNT__", () => String(plan.archivePlans.length))
+    .replace("__ARCHIVE_PLANS__", () => archiveSection);
+
+  // The archive engine (7-Zip, or Python when 7-Zip is missing) and the
+  // program that goes with it travel with the script ONLY when the plan
+  // actually has archive work: a folder without archives needs nothing but
+  // bash, and saying so keeps the script honest.
+  const hasArchiveWork = plan.archivePlans.length > 0;
+  const engine = hasArchiveWork
+    ? BASH_ARCHIVE_ENGINE.replace("__PYTHON__", () => ARCHIVE_PYTHON_PROGRAM)
+    : "";
+  const archiveApply = hasArchiveWork ? BASH_ARCHIVE_SECTION : "";
 
   const script = [
     preamble,
-    BASH_CHECKS.replace("__PLAN__", renderPlan(plan)),
+    engine,
+    checks,
     BASH_APPLY,
+    archiveApply,
   ].join("");
 
   return {

@@ -97,6 +97,13 @@ fi
 export const BASH_CHECKS = `# ── 3. the plan ──────────────────────────────────────────────────────────
 __PLAN__
 
+# ── the archives in this folder ───────────────────────────────────────────
+# An archive is a real file: the edits you made inside it are applied to the
+# archive itself, with 7-Zip (or Python). Each archive gets its own plan file.
+ARCHIVE_COUNT=__ARCHIVE_COUNT__
+ARCHIVE_PLANS=''
+__ARCHIVE_PLANS__
+
 is_move_source() {
   local i=0
   while [ "$i" -lt "$((N_MOVES * 2))" ]; do
@@ -257,4 +264,27 @@ fi
 done_ok=1
 say ""
 say "Done — $CHANGES change(s) applied to $(pwd)."
+`;
+
+/**
+ * The folder script's archive section: one plan file per archive, and the
+ * call that applies them with 7-Zip (or Python).
+ */
+export const BASH_ARCHIVE_SECTION = `
+# ── 6. the archives ───────────────────────────────────────────────────────
+# An archive is a real file in this folder: the edits you made inside it are
+# applied to the archive itself, in place.
+if [ "$ARCHIVE_COUNT" -gt 0 ]; then
+  ARCHIVE_WORK="$(mktemp -d)"
+  j=0
+  while [ "$j" -lt "$ARCHIVE_COUNT" ]; do
+    archive="\${ARCHIVE_NAMES[$j]}"
+    plan="$ARCHIVE_WORK/plan-$j.tsv"
+    printf '%s\\n' "\${ARCHIVE_ROWS[$j]}" > "$plan"
+    say "· editing $archive"
+    apply_archive_plan "$archive" "$plan"
+    j=$((j+1))
+  done
+  rm -rf "$ARCHIVE_WORK"
+fi
 `;
