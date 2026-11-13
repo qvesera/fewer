@@ -7501,3 +7501,32 @@ tasks:
     effort: {commits: 2, files: 21, insertions: 4464, deletions: 15}
   spent_min: 17
   session_count: 1
+- id: "T-260"
+  title: "Export Changes for archives: replay graph edits inside a zip with 7z"
+  status: "in-progress"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 601
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#601"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-13T06:32:35Z"
+  notes: ["2026-11-13T06:32:41Z · Follow-up to T-259: the archive renderer for Export Changes. Same plan engine, a 7z-based renderer (rn/d/a), 7z availability check, archive-listing preflight, and the archive-root detection in the panel. Passwords, multi-volume and self-extracting archives are refused; rar needs the proprietary rar binary."]
+  sessions:
+  - start: "2026-11-13T06:33:21Z"
+    end: null
+    measured: true
+    note: ""
+    proof: []
+    effort: null
+  spent_min: 0
+  session_count: 1
