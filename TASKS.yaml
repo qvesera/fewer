@@ -7503,30 +7503,30 @@ tasks:
   session_count: 1
 - id: "T-260"
   title: "Export Changes for archives: replay graph edits inside a zip with 7z"
-  status: "in-progress"
+  status: "review"
   type: "feat"
   area: "export"
   tier: 1
   estimate_min: 240
   estimate_basis: "cli"
   issue: 601
-  pr: null
+  pr: 602
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: "gh#601"
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-13T06:32:35Z"
   notes: ["2026-11-13T06:32:41Z · Follow-up to T-259: the archive renderer for Export Changes. Same plan engine, a 7z-based renderer (rn/d/a), 7z availability check, archive-listing preflight, and the archive-root detection in the panel. Passwords, multi-volume and self-extracting archives are refused; rar needs the proprietary rar binary."]
   sessions:
   - start: "2026-11-13T06:33:21Z"
-    end: null
+    end: "2026-11-13T13:05:07Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Shipped the archive renderer for Export Changes: the archive import flags its root, the plan targets 'archive', and a new 7-Zip program (rn/d/a) replays renames, moves, swaps, chains, deletions, new entries and duplicates inside the zip. 7-Zip renames one pair per call, so the moves use the same two-phase staging as the folder script. RAR, multi-volume and self-extracting archives are refused; a zip expanded inside a folder import is skipped with a note. Also fixed: a deletion that frees a move's destination now runs before the move. Gates: tsc 0, lint 0 errors, bun run test 2083+270 pass 0 fail, bun run build OK, migrations verify OK; two real 7z round-trips (swap+rename+delete, and adding a file) asserted byte for byte."
+    proof: ["ec2c01c", "4c37fd1", "#602"]
+    effort: {commits: 2, files: 13, insertions: 3807, deletions: 26}
+  spent_min: 392
   session_count: 1
