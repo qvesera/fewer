@@ -1,5 +1,5 @@
 import { describe, expect, test } from "bun:test";
-import { mkdtempSync, writeFileSync, existsSync, mkdirSync, readdirSync, readFileSync } from "node:fs";
+import { mkdtempSync, writeFileSync, existsSync, mkdirSync, readdirSync, readFileSync, symlinkSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { buildChangesScript, planChanges } from "./changesScript";
@@ -49,6 +49,45 @@ function sevenZipAvailable(): boolean {
     if (found.exitCode === 0) return true;
   }
   return false;
+}
+
+/** Python 3 is the fallback engine. */
+function pythonAvailable(): boolean {
+  return Bun.spawnSync(["which", "python3"]).exitCode === 0;
+}
+
+/**
+ * Run the script with 7-Zip hidden, so the Python fallback engine is the one
+ * that has to do the work.
+ *
+ * The PATH is rebuilt from symlinks to everything that was on it, minus the
+ * 7-Zip binaries — a plain empty PATH would take bash and python3 with it.
+ */
+function runWithout7z(file: string, cwd: string, args: string[]) {
+  const bin = join(mkdtempSync(join(tmpdir(), "fewer-nopath-")), "bin");
+  mkdirSync(bin, { recursive: true });
+  const hidden = new Set(["7z", "7za", "7zz", "7zr"]);
+  for (const dir of (process.env.PATH ?? "").split(":")) {
+    if (!dir) continue;
+    let entries: string[] = [];
+    try {
+      entries = readdirSync(dir);
+    } catch {
+      continue;
+    }
+    for (const entry of entries) {
+      if (hidden.has(entry)) continue;
+      const link = join(bin, entry);
+      if (existsSync(link)) continue;
+      try {
+        symlinkSync(join(dir, entry), link);
+      } catch {
+        /* a file we cannot link is a file we do not need */
+      }
+    }
+  }
+  const env = { ...process.env, PATH: bin };
+  return Bun.spawnSync(["bash", file, ...args], { cwd, env });
 }
 
 /** Every file under a directory, as sorted relative paths. */
@@ -351,6 +390,90 @@ describe("archive replay", () => {
     mkdirSync(out);
     Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, archive]);
     expect(existsSync(join(out, "src", "new.txt"))).toBe(true);
+  });
+test("the Python fallback replays the same changes when 7-Zip is missing", () => {
+    if (!pythonAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-archive-py-"));
+    const archive = join(root, "backup.zip");
+    const stage = join(root, "stage");
+    mkdirSync(join(stage, "src", "deep"), { recursive: true });
+    writeFileSync(join(stage, "src", "a.txt"), "A");
+    writeFileSync(join(stage, "src", "b.txt"), "B");
+    writeFileSync(join(stage, "src", "deep", "c.txt"), "C");
+    writeFileSync(join(stage, "gone.txt"), "GONE");
+    Bun.spawnSync(["7z", "a", "-bso0", "-bsp0", archive, "src", "gone.txt"], { cwd: stage });
+
+    const before = archiveTree([
+      ["src", "folder"],
+      ["src/a.txt", "file"],
+      ["src/b.txt", "file"],
+      ["src/deep", "folder"],
+      ["src/deep/c.txt", "file"],
+      ["gone.txt", "file"],
+    ]);
+    const ids = before.slice(1).map((n) => n.id);
+    const after = archiveTree([
+      ["src", "folder"],
+      ["src/b.txt", "file"],
+      ["src/a.txt", "file"],
+      ["src/deep", "folder"],
+      ["src/deep/renamed.txt", "file"],
+    ]);
+    after[1].id = ids[0];
+    after[2].id = ids[1];
+    after[3].id = ids[2];
+    after[4].id = ids[3];
+    after[5].id = ids[4];
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      includeDeletions: true,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    // No 7-Zip on PATH: the script has to fall back to Python.
+    const run = runWithout7z(file, root, ["--yes", "--allow-delete"]);
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    const out = join(root, "out");
+    mkdirSync(out);
+    Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, archive]);
+    expect(readFileSync(join(out, "src", "a.txt"), "utf8")).toBe("B");
+    expect(readFileSync(join(out, "src", "b.txt"), "utf8")).toBe("A");
+    expect(readFileSync(join(out, "src", "deep", "renamed.txt"), "utf8")).toBe("C");
+    expect(existsSync(join(out, "gone.txt"))).toBe(false);
+  });
+
+  test("the folder script never talks about 7-Zip or Python", () => {
+    const before = tree([["project/a.txt", "file"]]);
+    const after = tree([["project/b.txt", "file"]]);
+    after[1].id = before[1].id;
+    const { script, target } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+    });
+    expect(target).toBe("folder");
+    // The folder replay needs nothing but bash — no archive engine is even
+    // looked for.
+    expect(script).not.toContain("7-Zip");
+    expect(script).not.toContain("python");
+    expect(script).not.toContain("7z ");
+  });
+
+  test("an archive script with nothing to change never asks about an engine", () => {
+    const before = archiveTree([["src/a.txt", "file"]]);
+    const after = archiveTree([["src/a.txt", "file"]]);
+    after[1].id = before[1].id;
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+    });
+    // The engine check comes after the "nothing to change" exit.
+    expect(script.indexOf("Nothing to change")).toBeLessThan(script.indexOf("pick the engine"));
   });
 });
 

@@ -2,6 +2,7 @@ import type { FewerNode } from "./types";
 import { rootLabelOf, stripRoot, type BaselineEntry } from "./importBaseline";
 import { BASH_APPLY, BASH_CHECKS, BASH_PREAMBLE } from "./changesScriptBash";
 import { BASH_ARCHIVE_APPLY, BASH_ARCHIVE_CHECKS, BASH_ARCHIVE_PREAMBLE } from "./changesScriptArchiveBash";
+import { ARCHIVE_PYTHON_PROGRAM } from "./changesScriptArchivePython";
 
 /**
  * What the replay would do, in one line of prose.
@@ -422,9 +423,11 @@ function renderArchivePlan(plan: ChangesPlan): string {
   // stages each source to ".fewer-tmp-<index>" and then commits it, so it
   // needs both lists — and the index that links them.
   const stageFrom = plan.moves.map((move) => move.from);
+  const moveTo = plan.moves.map((move) => move.to);
   const commitTo = plan.commitOrder.map((index) => plan.moves[index]?.to ?? "");
   return [
     `STAGE_FROM=(${shArray(stageFrom)})`,
+    `MOVE_TO=(${shArray(moveTo)})`,
     `COMMIT_TO=(${shArray(commitTo)})`,
     `COMMIT_IDX=(${plan.commitOrder.join(" ")})`,
     `ADDS=(${shArray(adds)})`,
@@ -501,7 +504,10 @@ export function buildChangesScript(args: {
       .replaceAll("__DATE__", generatedAt)
       .replaceAll("__CHANGES__", String(summary.total))
       .replaceAll("__DELETES__", String(summary.deleted))
-      .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh");
+      .replaceAll("__FILE__", args.fileName ?? "fewer-changes.sh")
+      // The Python fallback travels with the script, so the file the user runs
+      // needs nothing beside it.
+      .replace("__PYTHON__", ARCHIVE_PYTHON_PROGRAM);
 
     const script = [
       preamble,

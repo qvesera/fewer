@@ -300,11 +300,24 @@ anything.
 
 **Archives.** When the graph *is* an archive (you imported `backup.zip`), the
 script replays your edits **inside** that archive instead of onto a folder —
-renames, moves, new entries and deletions all land in the zip. It needs
-**7-Zip** on the machine (`apt install p7zip-full`, `brew install p7zip`) and
-says so if it is missing. RAR archives, multi-volume archives and
-self-extracting archives are left untouched: 7-Zip can read them but not
-rewrite them.
+renames, moves, new entries and deletions all land in the zip.
+
+It needs an **archive engine**, and it finds one:
+
+- **7-Zip**, when it is installed (`apt install p7zip-full`, `brew install
+  p7zip`). If it is missing, the script **offers to install it**: it shows the
+  exact command, asks first, and prints the command again if the install does
+  not work — so you can install it yourself and run the script again.
+- **Python 3**, when 7-Zip is not there. The script carries a small Python
+  program with it and rebuilds the archive with the standard library. The
+  rebuild is atomic (the new archive is moved into place only when it is
+  complete) and every entry it does not touch keeps its original compression
+  and timestamps.
+
+If neither is available, the script says so and leaves the archive alone.
+
+RAR archives, multi-volume archives and self-extracting archives are left
+untouched: 7-Zip can read them but not rewrite them.
 
 A zip that was *expanded inside* a folder import is a different thing: the zip
 is one file on disk, so the entries inside it cannot be replayed there. Those
