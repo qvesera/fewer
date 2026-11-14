@@ -923,7 +923,7 @@ export interface ChangesBatchScriptResult {
 export function buildChangesBatchScript(
   plan: ChangesPlan,
   generatedAt: string,
-  includeBranding: boolean,
+  includeBranding: boolean = true,
 ): ChangesBatchScriptResult {
   const quote = (value: string): string => `"${value.replace(/"/g, '""')}"`;
   const lines: string[] = [];
