@@ -46,6 +46,8 @@ import {
   filterVisibleEdges,
   filterVisibleNodes,
 } from "@/hooks/use-canvas-visible-graph";
+import { isWindowsPlatform } from "@/lib/fewer/platform";
+import { changesFormatDesc, folderFormatDesc } from "@/lib/fewer/exportPanelModel";
 import { exportGraph, type PngRasterResult } from "@/lib/fewer/exportUtils";
 import {
   exportChangesScript,
@@ -90,6 +92,10 @@ const BASIC_FORMATS: {
   },
 ];
 
+// Platform sniff computed once at module level so the format tiles show
+// the right extension (.bat on Windows, .sh elsewhere).
+const IS_WINDOWS = isWindowsPlatform();
+
 const ADVANCED_FORMATS: {
   value: ExportSettings["format"];
   label: string;
@@ -102,20 +108,8 @@ const ADVANCED_FORMATS: {
   { value: "fwr", label: "FWR", desc: "Fewer graph (.fwr)", icon: FileJson, info: "Fewer's graph document: cards with positions, tags and groups exactly as saved. Re-import restores the whole graph on desktop or web." },
   { value: "csv", label: "CSV", desc: "Spreadsheet data", icon: FileSpreadsheet, info: "Best for opening in Excel, Google Sheets, or data analysis." },
   { value: "dot", label: "DOT", desc: "Graphviz format", icon: FileText, info: "Use with Graphviz tools for automatic graph layout." },
-  {
-    value: "script",
-    label: "Export Folders",
-    desc: "Folder structure (.sh)",
-    icon: Files,
-    info: "Recreate your folder structure anywhere with a single script.",
-  },
-  {
-    value: "changes",
-    label: "Export Changes",
-    desc: "Replay your edits (.sh)",
-    icon: FileDiff,
-    info: "A script that replays the renames, moves and new folders you made in the graph onto the folder you imported. It checks the folder first and asks before it deletes.",
-  },
+  { value: "script", label: "Export Folders", desc: folderFormatDesc(IS_WINDOWS), icon: Files, info: "Recreate your folder structure anywhere with a single script — double-click it on Windows, run it from a terminal elsewhere." },
+  { value: "changes", label: "Export Changes", desc: changesFormatDesc(IS_WINDOWS), icon: FileDiff, info: "A script that replays the renames, moves and new folders you made in the graph onto the folder you imported. It checks the folder first and asks before it deletes. On Windows the .bat runs by double-clicking; archives need 7-Zip or WSL/Git Bash." },
 ];
 
 export function ExportPanel() {
@@ -320,18 +314,33 @@ export function ExportPanel() {
         });
         return;
       }
-      const { summary, warnings } = exportChangesScript(
+      const { summary, warnings, target, skippedInArchives } = exportChangesScript(
         nodes,
         baseline,
         settings.includeDeletions,
         includeBranding,
       );
       setOpen(false);
+      // The reason a script does nothing belongs in front of the user, not
+      // only in a comment inside the file: "0 changes" with no reason is the
+      // one answer that teaches nothing.
+      if (summary.total === 0 && skippedInArchives > 0) {
+        toast({
+          title: "Nothing to replay",
+          description:
+            `Your ${skippedInArchives} change(s) cross an archive boundary, and a script ` +
+            "cannot move entries in or out of an archive.",
+          variant: "destructive",
+        });
+        return;
+      }
       toast({
         title: "Exported",
         description:
-          `${summary.total} change(s): ${summary.renamed} renamed or moved, ` +
-          `${summary.created} created, ${summary.deleted} deleted.` +
+          `${summary.total} change(s) ${target === "archive" ? "inside the archive" : "on disk"}: ` +
+          `${summary.renamed} renamed or moved, ${summary.created} created, ${summary.deleted} deleted` +
+          (summary.inArchives ? `, ${summary.inArchives} inside an archive` : "") +
+          "." +
           (warnings.length > 0 ? ` ${warnings.length} note(s) in the script.` : ""),
       });
       return;
@@ -439,7 +448,7 @@ export function ExportPanel() {
                     <div
                       className={cn(
                         "flex h-10 w-10 shrink-0 items-center justify-center rounded-lg transition-colors",
-                        active ? "bg-fewer-file-icon text-white" : "bg-muted text-muted-foreground/70 group-hover:text-foreground"
+                        active ? "bg-fewer-file-icon text-fewer-file-icon-fg" : "bg-muted text-muted-foreground/70 group-hover:text-foreground"
                       )}
                     >
                       <Icon className="h-5 w-5" />
@@ -469,150 +478,128 @@ export function ExportPanel() {
             </div>
           </div>
 
-          {settings.format === "changes" && (
-            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Include deletions</Label>
-                <p className="text-xs text-muted-foreground leading-snug">
-                  Off: the script never removes anything. On: it lists what it would
-                  delete, and still asks you before it does.
-                </p>
-              </div>
-              <Switch
-                checked={settings.includeDeletions ?? false}
-                onCheckedChange={(v) => setSettings({ includeDeletions: v })}
-              />
-            </div>
-          )}
-
-          {/* Action Buttons (Standard shadcn Button) */}
-          {imageBlocked && (
-            <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
-              Every card that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide cards
-              (Hidden panel → Reveal All) to export an image.
-            </div>
-          )}
-          <Button
-            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r bg-fewer-file-icon text-white hover:opacity-90 shadow-sm active:scale-[0.96] transition-all h-11"
-            onClick={handleExport}
-            disabled={nodes.length === 0 || imageBlocked}
-            data-all-nodes-hidden={imageBlocked ? "true" : undefined}
-          >
-            <Download className="h-4.5 w-4.5" />
-            Download
-          </Button>
-
-          <Button
-            variant="outline"
-            className="w-full gap-2 border-border/80 hover:bg-muted/40 text-sm font-semibold h-11"
-            onClick={() => useGraphStore.getState().setShareOpen(true)}
-            disabled={nodes.length === 0}
-          >
-            <Link className="h-4.5 w-4.5" />
-            Generate Share Link
-          </Button>
-
-          {!singleFileSelected && settings.format !== "changes" && (
-            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-              <div className="flex items-center gap-3 min-w-0">
-                <MousePointerClick className="h-4 w-4 text-muted-foreground/85 shrink-0" />
-                <div className="min-w-0">
-                  <Label className="text-xs font-semibold">Export Selected</Label>
-                  <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
-                    {canExportSelected
-                      ? `${plural(selectedNodeIds.length, "card")} + descendants`
-                      : "Select cards first"}
-                  </p>
-                </div>
-              </div>
-              <Switch
-                checked={exportSelected && canExportSelected}
-                onCheckedChange={(v) => setExportSelected(v)}
-                disabled={!canExportSelected}
-              />
-            </div>
-          )}
-
-          {/* A `.fwr` document carries no meta/credit line (it is a document,
-              not an export payload), so the branding control would promise a
-              watermark it does not write; hide it there (T-145).
-              */}
-          {settings.format !== "fwr" && (
-            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Include fewer branding</Label>
-                <p className="text-xs text-muted-foreground">
-                  {!canRemoveBranding
-                    ? "Exports carry the fewer watermark until you are on Pro."
-                    : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
-                </p>
-              </div>
-              <Switch
-                checked={includeBranding}
-                onCheckedChange={(v) => setSettings({ includeBranding: v })}
-                disabled={!canRemoveBranding}
-              />
-            </div>
-          )}
-
-          {isRaster && (
-            <div className="space-y-3 rounded-xl border border-border/40 bg-muted/20 p-4 transition-colors">
-              <div className="flex items-center justify-between">
-                <div className="space-y-0.5">
-                  <Label className="text-xs font-semibold text-muted-foreground">Resolution</Label>
+          {/* The options for the chosen format live in one group: the panel
+              reads as "pick a format, adjust it, download", and the buttons
+              sit at the very bottom where the action belongs. */}
+          <div className="rounded-xl border border-border/40 bg-card/10 divide-y divide-border/40 overflow-hidden">
+            {settings.format === "changes" && (
+              <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="text-xs font-semibold">Include deletions</Label>
                   <p className="text-xs text-muted-foreground leading-snug">
-                    Canvas pixels per output pixel. Too large for this browser to encode, and the export says it stepped down.
+                    Off: the script never removes anything. On: it lists what it would
+                    delete, and still asks you before it does.
                   </p>
                 </div>
-                <span className="text-xs font-mono font-semibold text-foreground/80">
-                  <EditableNumber
-                    value={qualityToScale(settings.quality)}
-                    onCommit={(v) => setSettings({ quality: scaleToQuality(v) })}
-                    labelFn={(v) => `${formatScale(v)}×`}
-                  />
-                </span>
+                <Switch
+                  checked={settings.includeDeletions ?? false}
+                  onCheckedChange={(v) => setSettings({ includeDeletions: v })}
+                />
               </div>
-              <Slider
-                value={[settings.quality]}
-                onValueChange={([v]) => setSettings({ quality: v })}
-                min={QUALITY_MIN}
-                max={QUALITY_MAX}
-                step={5}
-              />
-            </div>
-          )}
+            )}
 
-          {(settings.format === "png" || settings.format === "svg") && (
-            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Transparent Background</Label>
-                <p className="text-xs text-muted-foreground">
-                  Remove background fill.
-                </p>
+            {!singleFileSelected && settings.format !== "changes" && (
+              <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                <div className="flex items-center gap-3 min-w-0">
+                  <MousePointerClick className="h-4 w-4 text-muted-foreground/85 shrink-0" />
+                  <div className="min-w-0">
+                    <Label className="text-xs font-semibold">Export Selected</Label>
+                    <p className="text-xs text-muted-foreground truncate max-w-[220px] mt-0.5">
+                      {canExportSelected
+                        ? `${plural(selectedNodeIds.length, "card")} + descendants`
+                        : "Select cards first"}
+                    </p>
+                  </div>
+                </div>
+                <Switch
+                  checked={exportSelected && canExportSelected}
+                  onCheckedChange={(v) => setExportSelected(v)}
+                  disabled={!canExportSelected}
+                />
               </div>
-              <Switch
-                checked={settings.transparentBackground}
-                onCheckedChange={(v) =>
-                  setSettings({ transparentBackground: v })
-                }
-              />
-            </div>
-          )}
+            )}
 
-          {settings.format === "json" && (
-            <div className="flex items-center justify-between rounded-xl border border-border/40 bg-card/10 p-3.5 hover:border-border/80 transition-colors">
-              <div className="space-y-0.5">
-                <Label className="text-xs font-semibold">Include Stats</Label>
-                <p className="text-xs text-muted-foreground">
-                  Include stats in JSON.
-                </p>
+            {/* A `.fwr` document carries no meta/credit line (it is a document,
+                not an export payload), so the branding control would promise a
+                watermark it does not write; hide it there (T-145).
+                */}
+            {settings.format !== "fwr" && (
+              <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="text-xs font-semibold">Include fewer branding</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    {!canRemoveBranding
+                      ? "Exports carry the fewer watermark until you are on Pro."
+                      : "Adds a linked fewer logo watermark to PNG/SVG exports and a credit line to other formats."}
+                  </p>
+                </div>
+                <Switch
+                  checked={includeBranding}
+                  onCheckedChange={(v) => setSettings({ includeBranding: v })}
+                  disabled={!canRemoveBranding}
+                />
               </div>
-              <Switch
-                checked={settings.includeStats}
-                onCheckedChange={(v) => setSettings({ includeStats: v })}
-              />
-            </div>
-          )}
+            )}
+
+            {(settings.format === "png" || settings.format === "svg") && (
+              <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="text-xs font-semibold">Transparent Background</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Remove background fill.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.transparentBackground}
+                  onCheckedChange={(v) =>
+                    setSettings({ transparentBackground: v })
+                  }
+                />
+              </div>
+            )}
+
+            {settings.format === "json" && (
+              <div className="flex items-center justify-between gap-3 px-3.5 py-3">
+                <div className="min-w-0 space-y-0.5">
+                  <Label className="text-xs font-semibold">Include Stats</Label>
+                  <p className="text-xs text-muted-foreground leading-snug">
+                    Include stats in JSON.
+                  </p>
+                </div>
+                <Switch
+                  checked={settings.includeStats}
+                  onCheckedChange={(v) => setSettings({ includeStats: v })}
+                />
+              </div>
+            )}
+
+            {isRaster && (
+              <div className="space-y-3 px-3.5 py-3">
+                <div className="flex items-center justify-between gap-3">
+                  <div className="min-w-0 space-y-0.5">
+                    <Label className="text-xs font-semibold text-muted-foreground">Resolution</Label>
+                    <p className="text-xs text-muted-foreground leading-snug">
+                      Canvas pixels per output pixel. Too large for this browser to encode, and the export says it stepped down.
+                    </p>
+                  </div>
+                  <span className="text-xs font-mono font-semibold text-foreground/80 shrink-0">
+                    <EditableNumber
+                      value={qualityToScale(settings.quality)}
+                      onCommit={(v) => setSettings({ quality: scaleToQuality(v) })}
+                      labelFn={(v) => `${formatScale(v)}\u00d7`}
+                    />
+                  </span>
+                </div>
+                <Slider
+                  value={[settings.quality]}
+                  onValueChange={([v]) => setSettings({ quality: v })}
+                  min={QUALITY_MIN}
+                  max={QUALITY_MAX}
+                  step={5}
+                />
+              </div>
+            )}
+          </div>
 
           <Collapsible open={summaryOpen} onOpenChange={setSummaryOpen}>
             <div className="rounded-xl border border-border/40 bg-muted/25 p-4 text-xs text-muted-foreground space-y-2">
@@ -652,6 +639,35 @@ export function ExportPanel() {
               </CollapsibleContent>
             </div>
           </Collapsible>
+
+        {/* The action comes last: the panel reads as "pick a format, adjust
+            it, look at what you will get, then download". */}
+          {imageBlocked && (
+            <div className="rounded-xl border border-dashed border-border/60 bg-muted/20 p-3 text-center text-xs text-muted-foreground leading-relaxed">
+              Every card that would be exported for this {settings.format.toUpperCase()} is hidden. Un-hide cards
+              (Hidden panel → Reveal All) to export an image.
+            </div>
+          )}
+
+          <Button
+            className="w-full gap-2 text-sm font-semibold bg-gradient-to-r from-fewer-file-icon to-fewer-file-icon text-fewer-file-icon-fg hover:opacity-90 shadow-sm active:scale-[0.96] transition-all h-11"
+            onClick={handleExport}
+            disabled={nodes.length === 0 || imageBlocked}
+            data-all-nodes-hidden={imageBlocked ? "true" : undefined}
+          >
+            <Download className="h-4.5 w-4.5" />
+            Download
+          </Button>
+
+          <Button
+            variant="outline"
+            className="w-full gap-2 border-border/80 hover:bg-muted/40 text-sm font-semibold h-11"
+            onClick={() => useGraphStore.getState().setShareOpen(true)}
+            disabled={nodes.length === 0}
+          >
+            <Link className="h-4.5 w-4.5" />
+            Generate Share Link
+          </Button>
 
         </div>
       </SheetContent>

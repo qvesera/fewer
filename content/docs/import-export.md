@@ -243,7 +243,7 @@ Notes:
 | CSV            | `.csv`     | Tabular, spreadsheets, re-import                |
 | DOT            | `.dot`     | Graphviz rendering, re-import                   |
 | Export Folders | `.sh` / `.bat` | Reproduce directory structure              |
-| Export Changes | `.sh`      | Replay your edits onto the imported folder      |
+| Export Changes | `.sh` / `.bat` | Replay your edits onto the imported folder      |
 | Tree           | `.txt`     | ASCII tree for docs/README                      |
 
 ### Export Changes: replay your edits on disk
@@ -298,7 +298,57 @@ Entries the import never saw (excluded by the import options) are not touched.
 panel to list them in the script; the script still asks before removing
 anything.
 
-**Windows** runs the script through WSL or Git Bash — the script is bash.
+**Archives.** When the graph *is* an archive (you imported `backup.zip`), the
+script replays your edits **inside** that archive instead of onto a folder —
+renames, moves, new entries and deletions all land in the zip.
+
+It needs an **archive engine**, and it finds one:
+
+- **7-Zip**, when it is installed (`apt install p7zip-full`, `brew install
+  p7zip`). If it is missing, the script **offers to install it**: it shows the
+  exact command, asks first, and prints the command again if the install does
+  not work — so you can install it yourself and run the script again.
+- **Python 3**, when 7-Zip is not there. The script carries a small Python
+  program with it and rebuilds the archive with the standard library. The
+  rebuild is atomic (the new archive is moved into place only when it is
+  complete) and every entry it does not touch keeps its original compression
+  and timestamps.
+
+If neither is available, the script says so and leaves the archive alone.
+
+RAR archives, multi-volume archives and self-extracting archives are left
+untouched: 7-Zip can read them but not rewrite them.
+
+A zip that was *expanded inside* a folder import is a different thing — and it
+works: the zip is a **real file** in that folder, so the edits you made inside
+it are applied to the zip itself, with 7-Zip (or Python), in place:
+
+```
+· editing Logos.zip
+· inside Logos.zip: rename Logos/Logo.eps
+```
+
+The script needs an archive engine for that, and finds one:
+
+- **7-Zip**, when it is installed (`apt install p7zip-full`, `brew install
+  p7zip`). If it is missing, the script **offers to install it**: it shows the
+  exact command, asks first, and prints the command again if the install does
+  not work — so you can install it yourself and run the script again.
+- **Python 3**, when 7-Zip is not there. A small Python program travels
+  *inside* the script and rebuilds the archive with the standard library. The
+  rebuild is atomic (the new archive is moved into place only when it is
+  complete) and every entry it does not touch keeps its original compression
+  and timestamps.
+
+If neither is available, the script says so and leaves the archive alone.
+
+**One thing a script cannot do** is move an entry *in or out* of an archive —
+the bytes would have to cross the archive boundary. Those changes are skipped,
+and the script says how many.
+
+The `.bat` version is a plain cmd script: double-click it in File Explorer (it pauses at the end so the result stays visible) or run it from a terminal the same way.
+
+**Windows** runs the `.sh` script through WSL or Git Bash — the script is bash.
 
 ### FWR: the document, JSON: the structure
 
