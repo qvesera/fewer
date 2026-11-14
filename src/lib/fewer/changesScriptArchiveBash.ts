@@ -317,6 +317,11 @@ if [ "$ENGINE" = "python" ]; then
   done
   if [ "$DRY_RUN" = 1 ]; then
     j=0
+    while [ "$j" -lt "$N_PRE_DELETES" ]; do
+      printf '+ delete %q (frees the renamed-into path) (dry run)\n' "\${PRE_DELETES[$j]}"
+      j=$((j+1))
+    done
+    j=0
     while [ "$j" -lt "$N_MOVES" ]; do
       printf '+ rename %q → %q\\n' "\${STAGE_FROM[$j]}" "\${MOVE_TO[$j]}"
       j=$((j+1))
@@ -361,6 +366,13 @@ cleanup() {
 trap cleanup EXIT
 
 # A deletion that frees the path another entry moves into has to happen first.
+if [ "$DRY_RUN" = 1 ]; then
+  i=0
+  while [ "$i" -lt "$N_PRE_DELETES" ]; do
+    printf '+ 7z d %s %q (frees the renamed-into path) (dry run)\n' "$ARCHIVE" "\${PRE_DELETES[$i]}"
+    i=$((i+1))
+  done
+else
 i=0
 while [ "$i" -lt "$N_PRE_DELETES" ]; do
   p="\${PRE_DELETES[$i]}"
@@ -369,6 +381,7 @@ while [ "$i" -lt "$N_PRE_DELETES" ]; do
     die "7-Zip could not delete '$p'"
   i=$((i+1))
 done
+fi
 
 if [ "$N_MOVES" -gt 0 ]; then
   if [ "$DRY_RUN" = 1 ]; then

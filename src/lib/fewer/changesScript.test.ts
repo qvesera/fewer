@@ -172,6 +172,66 @@ describe("planChanges", () => {
     ]);
   });
 
+  test("dry-run inside an archive changes nothing (7z and Python)", () => {
+    if (!sevenZipAvailable() || !pythonAvailable()) return;
+    // Regression test for dry-run actually renaming and deleting inside the
+    // archive: the embedded archive engine ignored DRY_RUN entirely.
+    const root = mkdtempSync(join(tmpdir(), "fewer-zip-dryrun-"));
+    const folder = join(root, "test zips");
+    mkdirSync(join(root, "stage", "Logos"), { recursive: true });
+    writeFileSync(join(root, "stage", "Logos", "keep.txt"), "KEEP");
+    writeFileSync(join(root, "stage", "Logos", "gone.txt"), "GONE");
+    mkdirSync(folder, { recursive: true });
+    Bun.spawnSync(["7z", "a", "-bso0", "-bsp0", join(folder, "Logos.zip"), "Logos"], { cwd: join(root, "stage") });
+
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/keep.txt", "file"],
+        ["test zips/Logos.zip/Logos/gone.txt", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/renamed.txt", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      includeDeletions: true,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const fingerprint = (dir: string) => {
+      const out = join(root, "out-dry-" + dir);
+      mkdirSync(out);
+      Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, join(folder, "Logos.zip")]);
+      return [existsSync(join(out, "Logos", "keep.txt")), existsSync(join(out, "Logos", "gone.txt"))];
+    };
+    const beforeState = fingerprint("before");
+
+    const dry7z = Bun.spawnSync(["bash", file, "--yes", "--allow-delete", "--dry-run"], { cwd: folder });
+    expect(dry7z.stderr.toString()).toBe("");
+    expect(dry7z.exitCode).toBe(0);
+    expect(fingerprint("dry-7z")).toEqual(beforeState);
+
+    const dryPy = runWithout7z(file, folder, ["--yes", "--allow-delete", "--dry-run"]);
+    expect(dryPy.stderr.toString()).toBe("");
+    expect(dryPy.exitCode).toBe(0);
+    expect(fingerprint("dry-py")).toEqual(beforeState);
+  });
+
   test("a rename landing on a deleted path inside an archive is a pre-delete", () => {
     // b.txt is renamed to a.txt, and a.txt itself was deleted: the old a.txt
     // has to go first, before the rename lands on it.

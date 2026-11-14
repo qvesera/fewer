@@ -129,6 +129,18 @@ apply_archive_plan() {
       effective="$ARCHIVE_WORK/plan-allowed.tsv"
       awk -F'\t' '$1 == "DELETE" { drop[$2] = 1; next } ($1 == "MOVE" || $1 == "COMMIT") && ($3 in drop) { next } { print }' "$plan" > "$effective"
     fi
+    if [ "$DRY_RUN" = 1 ]; then
+      # A dry run only shows what would happen inside the archive.
+      while IFS="	" read -r kind a b _; do
+        case "$kind" in
+          PREDELETE|DELETE) printf '+ python3 fewer_zip.py: delete %q inside %s (dry run)\n' "$a" "$archive" ;;
+          MOVE)             printf '+ python3 fewer_zip.py: rename %q to %q inside %s (dry run)\n' "$a" "$b" "$archive" ;;
+          ADDFILE|ADDDIR)   printf '+ python3 fewer_zip.py: add %q to %s (dry run)\n' "$a" "$archive" ;;
+          COMMIT)           ;;
+        esac
+      done < "$effective"
+      return 0
+    fi
     "$PYTHON" "$ARCHIVE_WORK/fewer_zip.py" --apply "$abs" "$effective" ||
       die "Python could not rewrite '$archive' — it is unchanged"
     return 0
@@ -138,14 +150,22 @@ apply_archive_plan() {
   # entry still sits at its old path, before anything is renamed.
   while IFS="	" read -r kind path _; do
     [ "$kind" = "PREDELETE" ] || continue
-    say "· inside $archive: delete $path"
-    "$SEVENZIP" d -bso0 -bsp0 "$abs" "$path" ||
-      die "7-Zip could not delete '$path' inside '$archive' — it is unchanged"
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z d %s %q (dry run)\n' "$archive" "$path"
+    else
+      say "· inside $archive: delete $path"
+      "$SEVENZIP" d -bso0 -bsp0 "$abs" "$path" ||
+        die "7-Zip could not delete '$path' inside '$archive' — it is unchanged"
+    fi
   done < "$plan"
 
   # Phase 1: every source is renamed aside to a temporary name.
   while IFS="	" read -r kind from to temp; do
     [ "$kind" = "MOVE" ] || continue
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z rn %s %q %q (dry run)\n' "$archive" "$from" "$to"
+      continue
+    fi
     say "· inside $archive: rename $from"
     "$SEVENZIP" rn -bso0 -bsp0 "$abs" "$from" "$temp" ||
       die "7-Zip could not set '$from' aside inside '$archive' — it is unchanged"
@@ -154,6 +174,7 @@ apply_archive_plan() {
   # Phase 2: each temporary name goes to its real destination.
   while IFS="	" read -r kind temp to _; do
     [ "$kind" = "COMMIT" ] || continue
+    if [ "$DRY_RUN" = 1 ]; then continue; fi
     say "· inside $archive: rename $to"
     "$SEVENZIP" rn -bso0 -bsp0 "$abs" "$temp" "$to" ||
       die "7-Zip could not place '$to' inside '$archive' — it holds the entries as '.fewer-tmp-N'"
@@ -161,7 +182,9 @@ apply_archive_plan() {
 
   while IFS="	" read -r kind path _; do
     [ "$kind" = "DELETE" ] || continue
-    if [ "$ALLOW_DELETE" = 1 ]; then
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z d %s %q (dry run)\n' "$archive" "$path"
+    elif [ "$ALLOW_DELETE" = 1 ]; then
       say "· inside $archive: delete $path"
       "$SEVENZIP" d -bso0 -bsp0 "$abs" "$path" ||
         die "7-Zip could not delete '$path' inside '$archive'"
@@ -189,6 +212,10 @@ apply_archive_plan() {
 
   while IFS="	" read -r kind src dest; do
     [ "$kind" = "ADDCOPY" ] || continue
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z copy %s inside %s to %s (dry run)\n' "$src" "$archive" "$dest"
+      continue
+    fi
     staged=1
     mkdir -p -- "$ARCHIVE_WORK/add/$(dirname -- "$dest")"
     rm -rf -- "$ARCHIVE_WORK/copy"
@@ -203,9 +230,13 @@ apply_archive_plan() {
     while IFS="	" read -r kind path _; do
       case "$kind" in
         ADDFILE|ADDDIR)
-          say "· inside $archive: add $path"
-          ( cd "$ARCHIVE_WORK/add" && "$SEVENZIP" a -bso0 -bsp0 "$abs" "$path" ) ||
-            die "7-Zip could not add '$path' to '$archive'"
+          if [ "$DRY_RUN" = 1 ]; then
+            printf '+ 7z a %s %q inside %s (dry run)\n' "$abs" "$path" "$archive"
+          else
+            say "· inside $archive: add $path"
+            ( cd "$ARCHIVE_WORK/add" && "$SEVENZIP" a -bso0 -bsp0 "$abs" "$path" ) ||
+              die "7-Zip could not add '$path' to '$archive'"
+          fi
           ;;
       esac
     done < "$plan"

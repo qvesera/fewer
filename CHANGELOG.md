@@ -22,6 +22,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Export Changes asks about deletions inside an archive: they are counted with the folder's deletions, so the script asks before removing them and 'Include deletions' covers them. Before, they were planned but never counted, so the script silently skipped them.
 - The export panel's Download button and the active format chip no longer put white text on a light background in dark mode: the brand colour is a light pink there, so the text colour follows the background (new --fewer-file-icon-fg token).
 - Archive deletes now target the entry's post-rename path: renaming a folder inside a zip and deleting one of its children deletes the child at its new location instead of missing silently.
+- Dry-run inside an archive no longer renames or deletes entries: the embedded archive engine ignored the dry-run flag entirely.
 
 ### Changed
 
