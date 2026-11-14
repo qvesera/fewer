@@ -278,3 +278,43 @@ describe("pluralization", () => {
     expect(true).toBe(true);
   });
 });
+
+// ── LOD folder collapse (T-250) ────────────────────────────────────────────
+
+describe("LOD collapse", () => {
+  const nodes = [
+    { id: "f1", type: "folder", position: { x: 0, y: 0 }, data: FOLDER_DATA },
+    { id: "f2", type: "file", position: { x: 0, y: 100 }, data: FILE_DATA },
+  ];
+  const edges = [{ id: "e1", source: "f1", target: "f2" }];
+  const lodScope: GraphViewScope = { ...DEFAULT_SCOPE, lodCollapsed: true };
+
+  test("a folder paints as its pill with no child rows while the view is LOD-collapsed", () => {
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope: lodScope });
+    expect(screen.queryByText("index")).toBeNull(); // row dropped, not just hidden
+    expect(screen.getByText("src")).toBeDefined(); // the label survives
+    expect(screen.getByText("1 item")).toBeDefined(); // so does the count
+  });
+
+  test("the pill's expand control zooms past the seam instead of toggling collapse", () => {
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope: lodScope });
+    fireEvent.click(screen.getByRole("button", { name: "Expand folder" }));
+    expect(useGraphStore.getState().zoomToNodeIds).toEqual(["f1"]);
+    expect(
+      useGraphStore.getState().viewSettingsMap?.["primary"]?.collapsedFolderIds ?? [],
+    ).toEqual([]); // no user collapse was written
+  });
+
+  test("a user-collapsed pill still toggles its collapse state", () => {
+    const userScope: GraphViewScope = {
+      ...DEFAULT_SCOPE,
+      resolved: { ...DEFAULT_SCOPE.resolved, collapsedFolderIds: ["f1"] },
+    };
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope: userScope });
+    fireEvent.click(screen.getByRole("button", { name: "Expand folder" }));
+    expect(useGraphStore.getState().zoomToNodeIds).toBeNull();
+    expect(
+      useGraphStore.getState().viewSettingsMap?.["primary"]?.collapsedFolderIds ?? [],
+    ).not.toContain("f1");
+  });
+});

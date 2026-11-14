@@ -69,16 +69,22 @@ export const MIN_TIER: Record<Feature, Tier> = {
   tags: "pro",
   largeShareLinks: "pro",  // server: SHARE_FREE_MAX_CHARS threshold + planLimits.largeShareLinks
   savedThemes: "pro",
+  // The watermark stays on every tier below Pro: exports carry a smaller fewer
+  // credit (a linked logo on PNG/SVG, a line on the other formats) until the
+  // account is Pro (T-256). Nobody below Pro can turn it off.
+  unbrandedExport: "pro",
+  // Watch digests cost a nightly crawl per watched index, so they are a Pro
+  // feature (T-256). The nightly job skips non-Pro rows before crawling, so
+  // the gate holds even for watches created earlier.
+  watchIndexes: "pro",
 
   // Everything else: any signed-in account.
   savedGraphs: "free",
   galleryPublish: "free",
   versionHistory: "free",  // server: 30-day retention for Free, 365-day for Pro; GUEST = 0
-  watchIndexes: "free",
   cloudImport: "free",
   edgeMotion: "free",
   advancedImportFormats: "free",
-  unbrandedExport: "free",
   customTheme: "free",
   nodeMetrics: "free",
   canvasAddChild: "free",

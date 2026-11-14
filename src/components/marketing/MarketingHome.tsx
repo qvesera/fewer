@@ -1,9 +1,11 @@
 import { DotGrid } from "./DotGrid";
+import { FaqSection } from "./FaqSection";
 import { FeaturePlayground } from "./FeaturePlayground";
 import { HeroRotator } from "./HeroRotator";
 import { OpenSourceSection } from "./OpenSourceSection";
 import { PrivacySection } from "./PrivacySection";
 import { SmoothScroll } from "./SmoothScroll";
+import type { FaqItem } from "@/lib/fewer/faq";
 
 /**
  * The marketing home page (T-150, revised by the review follow-ups; split
@@ -14,7 +16,13 @@ import { SmoothScroll } from "./SmoothScroll";
  * in the section below (the demo cards inside a window chassis whose title
  * bar holds the View controls, one feature at a time in an inspector panel)
  * -> what it costs you: privacy, then open source, in the same centred rhythm
- * so the two read as one closing chapter.
+ * so the two read as one closing chapter -> the questions that chapter
+ * leaves open, answered from the database, as the reference tail (T-254).
+ *
+ * The FAQ comes last on purpose: it answers objections a reader still has
+ * after the privacy and open source bands have made their case, and it is a
+ * reference, not an argument. Inserting it earlier would break the closing
+ * chapter the two bands are built to form.
  *
  * The hero is a full viewport minus the sticky header, so the canvas arrives
  * on the first scroll and the page re-centers the promise when the reader
@@ -48,7 +56,7 @@ import { SmoothScroll } from "./SmoothScroll";
  * The no-JS style forces the reveal resting state, so the page never depends
  * on JavaScript to be readable.
  */
-export function MarketingHome() {
+export function MarketingHome({ faq }: { faq: FaqItem[] }) {
   return (
     <>
       <noscript>
@@ -61,6 +69,7 @@ export function MarketingHome() {
       <FeaturePlayground />
       <PrivacySection />
       <OpenSourceSection />
+      <FaqSection items={faq} />
     </>
   );
 }

@@ -143,6 +143,14 @@ test("the first scroll takes the reader straight to the demo", async ({ page }) 
   await page.goto("/");
   expect(await page.evaluate(() => window.scrollY)).toBeLessThan(40);
 
+  // The gesture has to land on a live page. The jump is set up by the effect
+  // that also gives the page its Lenis class, so a wheel that arrives before
+  // that effect runs is a plain scroll with no jump to follow - and the page
+  // is exactly one wheel past the demo's offset. On a loaded machine that
+  // race is lost often enough to be noise, so the test waits for the same
+  // marker the sibling test uses.
+  await expect(page.locator("html")).toHaveClass(/lenis/);
+
   await page.mouse.move(4, 4);
   await page.mouse.wheel(0, 120);
 
@@ -546,10 +554,9 @@ test("no feature is badged or sold", async ({ page }) => {
   await page.locator("#features").scrollIntoViewIfNeeded();
   await parkTheTour(page);
 
-  // Nothing on the rail is gated today (T-161 cut tags, the one Pro feature),
-  // so the inspector never wears the badge and never sells anything - it used
-  // to offer a "Try it" that only read the docs. Every chip is clicked so the
-  // assertions cannot rot when the catalogue moves.
+  // Every chip is clicked so the assertions cannot rot when the catalogue
+  // moves. Nothing on the rail sells anything - it used to offer a "Try it"
+  // that only read the docs.
   const chips = await page.locator("[data-mk-chip]").all();
   expect(chips.length).toBeGreaterThan(0);
   for (const chip of chips) {
@@ -565,7 +572,12 @@ test("no feature is badged or sold", async ({ page }) => {
   await expect(links).toHaveCount(1);
   await expect(links).toHaveAttribute("href", "/gallery?tab=themes");
 
+  // One card is gated now: watch digests are Pro (T-256). The badge is the
+  // whole affordance - it names the tier and it is not a link, because there
+  // is no checkout to send anyone to.
   await expect(page.getByTitle("Needs a signed-in Pro account")).toHaveCount(0);
+  await page.locator('[data-mk-chip="watch"]').click();
+  await expect(page.getByTitle("Needs a signed-in Pro account")).toHaveCount(1);
 });
 
 test("a chip drives the callout the same way a card does", async ({ page }) => {
@@ -773,4 +785,107 @@ test("/welcome redirects to the canonical home instead of duplicating it", async
   await expect(
     page.getByRole("heading", { name: "See everything in your folders at once" }),
   ).toBeVisible();
+});
+
+/**
+ * The pricing page (T-257): the prices, the two switches and the contact
+ * form.
+ *
+ * What is pinned is what a reader can do: pick a currency and a period and
+ * see the price change, find the form, and send an enquiry. The numbers
+ * themselves are pinned by the unit test (src/lib/fewer/pricing.test.ts),
+ * which is where the arithmetic belongs.
+ *
+ * The page must not print an email address: the form is the only door, so
+ * there is nothing for a scraper to take. The source is checked for that.
+ */
+test("the pricing page shows the plans, switches the price, and takes an enquiry", async ({
+  page,
+}) => {
+  await page.goto("/pricing");
+
+  // The three plans, in the order a reader meets them.
+  await expect(page.getByRole("heading", { name: "Free", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Pro", exact: true })).toBeVisible();
+  await expect(page.getByRole("heading", { name: "Enterprise", exact: true })).toBeVisible();
+
+  // The Pro price, in the default currency and period.
+  await expect(page.getByText("$6.99").first()).toBeVisible();
+
+  // The currency switch changes the price.
+  await page.getByRole("button", { name: "GBP", exact: true }).click();
+  await expect(page.getByText("£5.99").first()).toBeVisible();
+
+  // The period switch shows the yearly price and what it works out at.
+  await page.getByRole("button", { name: "yearly", exact: true }).click();
+  await expect(page.getByText("£59.99").first()).toBeVisible();
+  await expect(page.getByText("£5.00").first()).toBeVisible();
+
+  // The choice travels in the URL, so a link shows the same price.
+  await expect(page).toHaveURL(/currency=GBP/);
+  await expect(page).toHaveURL(/period=yearly/);
+
+  // The contact form is where the paid plans lead.
+  await page.getByRole("link", { name: "Ask about Pro" }).click();
+  await expect(page.locator("#contact")).toBeInViewport();
+  await expect(page.getByRole("button", { name: "Send" })).toBeVisible();
+
+  // No address is printed anywhere on the page.
+  const source = await page.content();
+  expect(source).not.toContain("@fewer.directory");
+});
+
+/**
+ * The FAQ (T-254): the questions the landing page answers, with the copy in
+ * the database and a repo copy as the fallback for a build or an environment
+ * with no database (the e2e suite is one of those - it runs without Supabase
+ * env vars, so it reads the fallback).
+ *
+ * What is pinned here is what a reader can do, not which rows exist: the
+ * section is there, its rows open, and the structured data describes exactly
+ * the rows on the page. A row count would break the moment somebody adds a
+ * question in the Studio.
+ */
+test("the landing page answers the FAQ, and the schema describes those answers", async ({
+  page,
+}) => {
+  await page.goto("/");
+
+  // The nav points at the section, which lives on the page that renders it.
+  await expect(page.locator('header a[href="/#faq"]')).toHaveCount(1);
+
+  const section = page.locator("#faq");
+  await section.scrollIntoViewIfNeeded();
+  await expect(section).toBeVisible();
+
+  // Reveal keeps a row invisible until it is scrolled to; wait for the
+  // section to reveal itself before touching a row inside it.
+  await page.waitForFunction(() => {
+    const el = document.querySelector("#faq [data-reveal]");
+    return el?.getAttribute("data-reveal") === "1";
+  });
+
+  const rows = page.locator("[data-mk-faq]");
+  const count = await rows.count();
+  expect(count).toBeGreaterThan(0);
+
+  // The structured data a search engine reads describes exactly these rows.
+  const payload = JSON.parse(
+    (await page.locator('script[type="application/ld+json"]').textContent()) ?? "{}",
+  );
+  expect(payload["@type"]).toBe("FAQPage");
+  expect(payload.mainEntity).toHaveLength(count);
+
+  // The disclosure is native: it opens on a click, with no hydration and no
+  // JavaScript of its own.
+  const first = rows.first();
+  const answer = first.locator("p");
+  await expect(answer).toBeHidden();
+  await first.locator("summary").click();
+  await expect(answer).toBeVisible();
+
+  // The question on the page is the question in the schema.
+  expect(payload.mainEntity[0].name).toBe(
+    (await first.locator("summary span").textContent())?.trim(),
+  );
 });

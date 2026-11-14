@@ -103,6 +103,7 @@ import { getBrowserSupabase } from "@/lib/supabase";
 import { can } from "@/lib/fewer/tiers";
 import { useToast } from "@/hooks/use-toast";
 import { errMessage, isValidEmail } from "@/lib/fewer/authValidation";
+import { FEWER_HOME_URL } from "@/lib/fewer/branding";
 import {
   classifyAccountDelete,
   minimapBounds,
@@ -450,6 +451,23 @@ function AccountTab() {
               </span>
             )}
           </div>
+
+          {/* The path to Pro while there is no checkout: the pricing page's
+              contact form, on the marketing host (T-257). */}
+          {plan === "free" && (
+            <p className="text-xs text-muted-foreground/80">
+              Pro is granted by hand while billing is being finished.{" "}
+              <a
+                href={`${FEWER_HOME_URL}/pricing#contact`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-foreground/80 underline hover:text-foreground"
+              >
+                Ask on the pricing page
+              </a>
+              .
+            </p>
+          )}
 
           {/* Row 2: usage meters + account-level status */}
           <div className="border-t border-border/40 pt-3 space-y-2.5">

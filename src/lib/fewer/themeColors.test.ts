@@ -1,6 +1,8 @@
 import { describe, test, expect } from "bun:test";
 import {
   ensureContrast,
+  ensureContrastTinted,
+  compositeColor,
   contrastRatio,
   hexToRgb,
   clampOpacity,
@@ -318,4 +320,60 @@ test("ensureContrast takes the smallest edit that clears the target", () => {
   expect(ensureContrast("#333333", "#ffffff", 4.5)).toBe("#333333");
   // Unparseable input passes through instead of throwing.
   expect(ensureContrast("oops", "#ffffff", 4.5)).toBe("oops");
+});
+
+// ─── painted surfaces (T-248) ───────────────────────────────────────────
+
+test("compositeColor paints a tint over its backdrop the way CSS does", () => {
+  expect(compositeColor("#ffffff", 0.5, "#000000")).toBe("#808080");
+  expect(compositeColor("#ff0000", 1, "#000000")).toBe("#ff0000");
+  expect(compositeColor("#ff0000", 0, "#000000")).toBe("#000000");
+  // Unparseable input passes through instead of throwing.
+  expect(compositeColor("nope", 0.5, "#000000")).toBe("nope");
+});
+
+/** Mean channel value — deliberately NOT `luma` (which this file imports and
+ *  tests elsewhere): a shadowing const here would break those tests. */
+const greyLevel = (hex: string) => {
+  const c = hexToRgb(hex)!;
+  return (c.r + c.g + c.b) / 3;
+};
+
+test("ensureContrastTinted fixes the direction the SURFACE needs", () => {
+  // Dark card: the only way to a readable ratio is to LIGHTEN the ink. The old
+  // helper mixed toward whichever endpoint was closer — always black against a
+  // bright swatch — and darkened already-fine text into invisibility.
+  const onDark = ensureContrastTinted("#666a73", 1, "#12242a", 4.5);
+  expect(onDark.reached).toBe(true);
+  expect(greyLevel(onDark.color)).toBeGreaterThan(greyLevel("#666a73"));
+  expect(contrastRatio(compositeColor(onDark.color, 1, "#12242a"), "#12242a")!).toBeGreaterThanOrEqual(4.5);
+
+  // Light surface: darken instead.
+  const onLight = ensureContrastTinted("#9a9a9a", 1, "#f5f5f4", 4.5);
+  expect(onLight.reached).toBe(true);
+  expect(greyLevel(onLight.color)).toBeLessThan(greyLevel("#9a9a9a"));
+});
+
+test("ensureContrastTinted keeps hue instead of walking to black/white", () => {
+  // A teal fixed against white must stay in the blue family (b > r), not turn
+  // into neutral grey the way a mix toward #000000 would.
+  const fixed = ensureContrastTinted("#5f9ea0", 1, "#ffffff", 4.5);
+  expect(fixed.reached).toBe(true);
+  const c = hexToRgb(fixed.color)!;
+  expect(c.b).toBeGreaterThan(c.r);
+});
+
+test("ensureContrastTinted measures the CANDIDATE as painted", () => {
+  const surface = "#0e282d"; // #22d3ee @15% over #0a0a0b
+  const fix = ensureContrastTinted("#67e8f9", 1, surface, 4.5);
+  expect(fix.reached).toBe(true);
+  expect(fix.color).toBe("#67e8f9"); // already legible on the painted card
+
+  // A very low-opacity ink cannot reach 4.5 by lightness alone (its only real
+  // lever is opacity, which is not this function's call to make) — so it must
+  // report reached:false and hand back the input, never a colour that pretends.
+  const tooFaint = ensureContrastTinted("#ffffff", 0.2, surface, 4.5);
+  expect(tooFaint.reached).toBe(false);
+  expect(tooFaint.color).toBe("#ffffff");
+  expect(tooFaint.ratio).toBeLessThan(4.5);
 });

@@ -39,6 +39,12 @@ PROJECT_OWNER = "qvesera"
 # owner qvesera) — `pr-metadata --project <n>` still overrides per call.
 PROJECT_NUMBER_DEFAULT = 1
 PROJECT_NUMBER: int | None = 1
+# item-list cap shared by sync-details and doctor --board — they MUST match:
+# doctor used 100 while sync used 200, so once the board passed 100 items
+# doctor called ~98 correctly-projected rows "missing" and failed the nightly
+# job on a phantom drift (T-253). gh auto-pages up to --limit, so one cap
+# comfortably above the item count is enough.
+PROJECT_ITEM_LIMIT = 1000
 
 # ── vocabulary ──────────────────────────────────────────────────────────
 STATUSES = (
@@ -1631,7 +1637,7 @@ def cmd_sync_details(args: argparse.Namespace) -> int:
     items: dict[int, dict[str, Any]] = {}
     try:
         listed = json.loads(gh("project", "item-list", str(args.project), "--owner", PROJECT_OWNER,
-                               "--limit", "200", "--format", "json", check=False))
+                               "--limit", str(PROJECT_ITEM_LIMIT), "--format", "json", check=False))
         for item in listed.get("items", []):
             number = (item.get("content") or {}).get("number")
             if number and item.get("id"):
@@ -2682,7 +2688,7 @@ def board_problems(ledger: dict[str, Any]) -> tuple[list[str], list[str]]:
         return [], []
     try:
         listed = json.loads(gh("project", "item-list", str(PROJECT_NUMBER), "--owner", PROJECT_OWNER,
-                               "--limit", "100", "--format", "json", check=False))
+                               "--limit", str(PROJECT_ITEM_LIMIT), "--format", "json", check=False))
     except (SystemExit, FileNotFoundError, json.JSONDecodeError):
         # A note, NOT drift: a token without the project scope, or a flaky read,
         # must not report the board as wrong — and must not fail the nightly job
@@ -2860,10 +2866,31 @@ def cmd_doctor(args: argparse.Namespace) -> int:
     notes: list[str] = []
     rows = {r.get("issue"): r for r in ledger["tasks"] if r.get("issue")}
     by_id = {r["id"]: r for r in ledger["tasks"]}
-    if not have_gh():
-        _die("doctor needs an authenticated gh (gh auth status failed)")
-    issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
-                     "--json", "number,title,state,labels")
+    # A rate-limited or unauthenticated gh must not kill the doctor: every
+    # GitHub-surface check degrades to a NOTE (the same philosophy as
+    # board_problems' unreadable-project note below). sync-details/gh-sync
+    # still hard-fail on auth, so a genuinely dead token fails the nightly job
+    # one step earlier — while a mid-run rate limit (seen on PR #591, run
+    # 42792451337) becomes "checks skipped" instead of a phantom DRIFT.
+    gh_ok = have_gh()
+    if not gh_ok:
+        notes.append("GitHub checks skipped: gh auth unavailable (rate limit or bad token)")
+        issues: list[dict[str, Any]] = []
+    else:
+        # The parent comes with the issue, so the whole read is ONE query. It
+        # used to be one `gh issue view` per issue, which is ~200 requests in
+        # a burst: that trips GitHub's secondary rate limit (which kills the
+        # board-reconcile job and every doctor that runs near it) and made
+        # the job take minutes. A failed read is a NOTE, not a crash: the
+        # doctor degrades to "the GitHub checks were skipped".
+        try:
+            issues = gh_json("issue", "list", "--state", "all", "--limit", "200",
+                             "--json", "number,title,state,labels,parent")
+        except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+            issues = []
+            gh_ok = False
+            notes.append("Issue list unreadable (rate limit?) — the GitHub checks "
+                         "are skipped")
     for issue in issues:
         row = rows.get(issue["number"])
         if row is None:
@@ -2889,19 +2916,18 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         # nothing, and reporting that as drift invents five broken links out of one
         # throttled request. Unknown is reported as a note instead.
         parent_id = row.get("parent")
-        try:
-            out = gh("issue", "view", str(issue["number"]), "--json", "parent",
-                     "--jq", ".parent.number // 0", check=False)
-        except (SystemExit, FileNotFoundError):
-            out = ""
-        gh_parent = out.strip()
-        if not gh_parent:
+        parent = issue.get("parent")
+        if isinstance(parent, dict) and parent.get("number"):
+            gh_parent = str(parent["number"])
+        elif parent is None:
+            gh_parent = "0"
+        else:
+            # An unreadable parent is NOT "no parent": reporting that as drift
+            # invents broken links out of one bad read. Unknown is a note.
+            gh_parent = None
             if parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
                 notes.append(f"{row['id']} #{issue['number']}: parent unreadable "
-                             f"(rate limit?) — link parity unverified")
-            gh_parent = None
-        elif gh_parent == "0":
-            gh_parent = "0"
+                             f"— link parity unverified")
         if gh_parent is None:
             pass
         elif parent_id and parent_id in by_id and by_id[parent_id].get("issue"):
@@ -2920,8 +2946,33 @@ def cmd_doctor(args: argparse.Namespace) -> int:
             problems.append(f"{row['id']} has no issue and is not internal (run: gh-sync)")
         if row.get("parent") and row["parent"] not in by_id:
             problems.append(f"{row['id']} points at unknown parent {row['parent']}")
-        if row.get("issue") and row["issue"] not in {i["number"] for i in issues}:
-            problems.append(f"{row['id']} references #{row['issue']}, which does not exist")
+    # The issue list above is a WINDOW (200 issues), not the whole repository:
+    # an issue older than the window is not missing, it is simply not in the
+    # list. Calling those missing invents drift the moment the repository
+    # grows past the window - and the doctor is the check that says the ledger
+    # and GitHub agree, so a false DRIFT here is a red CI that means nothing.
+    # The tail is fetched in ONE call: a call per row is N requests, and N
+    # requests is what exhausts the API rate limit.
+    window = {i["number"] for i in issues}
+    outside = [r for r in ledger["tasks"] if r.get("issue") and r["issue"] not in window]
+    if gh_ok and outside:
+        known: set[int] | None = None
+        try:
+            every = gh_json("issue", "list", "--state", "all", "--limit", "1000",
+                            "--json", "number")
+            known = {i["number"] for i in every}
+        except (SystemExit, FileNotFoundError, json.JSONDecodeError):
+            known = None
+        if known is None:
+            # An unreadable answer is a NOTE, never drift: a rate-limited call
+            # must not invent a missing issue (same rule as the parent check).
+            notes.append(f"{len(outside)} row(s) point at issues outside the "
+                         "200-issue window; existence unverified (rate limit?)")
+        else:
+            for row in outside:
+                if row["issue"] not in known:
+                    problems.append(f"{row['id']} references #{row['issue']}, "
+                                    "which does not exist")
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
         # projection of the row, and `sync-details` is its only writer. Extend,
@@ -3425,16 +3476,50 @@ exit 0
 '''
 
 
+# Installed as `.git/hooks/pre-push`: the last client-side event of "raise a
+# PR" (git has no post-push hook, and `gh pr create` has no hook surface), so
+# the index is fresh at the moment the PR exists. `--index-only` = parse +
+# dependency graph + git/dead-code/health artifacts, no LLM page regeneration
+# and no ollama dependency (~15s here); `--no-agents` keeps it from touching
+# the tracked AGENTS.md. Detached, so a push never waits on it.
+PRE_PUSH_HOOK = r'''#!/bin/sh
+# fewer repowise refresh — generated by `python3 scripts/tasks.py install-hooks`.
+# Refreshes the repowise index at the last client-side event of "raise a PR"
+# (the push), detached, so a push never waits on it. Log: .repowise/refresh.log
+# Escape hatches: SKIP_REPOWISE_HOOK=1   |   git push --no-verify
+[ -n "$SKIP_REPOWISE_HOOK" ] && exit 0
+cat >/dev/null 2>&1 || true          # drain the refs git feeds on stdin
+ROOT=$(git rev-parse --show-toplevel 2>/dev/null) || exit 0
+[ -d "$ROOT/.repowise" ] || exit 0
+command -v repowise >/dev/null 2>&1 || exit 0
+command -v flock >/dev/null 2>&1 || exit 0
+cd "$ROOT" || exit 0
+exec 9>>"$ROOT/.repowise/refresh.lock"
+flock -n 9 || exit 0                 # a refresh is already running
+nohup repowise update --index-only --no-agents >>"$ROOT/.repowise/refresh.log" 2>&1 </dev/null &
+exit 0
+'''
+
+
+HOOKS = (
+    ("prepare-commit-msg", HOOK,
+     "refuses untracked commits, stamps the Task: trailer"),
+    ("pre-push", PRE_PUSH_HOOK,
+     "refreshes the repowise index (index-only, detached, flock-guarded)"),
+)
+
+
 def cmd_install_hooks(_args: argparse.Namespace) -> int:
     git_dir = git("rev-parse", "--git-dir").strip()
     base = git_dir if os.path.isabs(git_dir) else os.path.join(ROOT, git_dir)
     hooks = os.path.join(base, "hooks")
     os.makedirs(hooks, exist_ok=True)
-    path = os.path.join(hooks, "prepare-commit-msg")
-    with open(path, "w", encoding="utf-8") as fh:
-        fh.write(HOOK)
-    os.chmod(path, 0o755)
-    print(f"installed {path} (refuses untracked commits, stamps the Task: trailer)")
+    for name, body, blurb in HOOKS:
+        path = os.path.join(hooks, name)
+        with open(path, "w", encoding="utf-8") as fh:
+            fh.write(body)
+        os.chmod(path, 0o755)
+        print(f"installed {path} ({blurb})")
     return 0
 
 
@@ -4129,7 +4214,8 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--base", help="ref to compare, e.g. origin/dev")
 
     add("fmt", cmd_fmt, "rewrite TASKS.yaml canonically (recomputes derived fields)")
-    add("install-hooks", cmd_install_hooks, "install the prepare-commit-msg gate")
+    add("install-hooks", cmd_install_hooks,
+        "install the prepare-commit-msg + pre-push (repowise refresh) hooks")
     add("hook-precommit", cmd_hook_precommit, "used by the hook: print the open task id")
     add("selftest", cmd_selftest, "round-trip + scorer + validate fixtures")
     return p

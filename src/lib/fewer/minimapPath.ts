@@ -28,6 +28,14 @@ export interface MinimapBounds {
   maxY: number;
 }
 
+/** A rectangle in flow coordinates (the frame, or the current viewport). */
+export interface MinimapRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
+
 export interface MinimapGeometry {
   /** One `d` per bucket; selected draws last, on top. */
   folders: string;
@@ -59,6 +67,35 @@ const EMPTY: MinimapGeometry = {
 /** Integer-rounded `M x y h w v h h -w v -h Z` — one subpath per rect. */
 export function rectPath(x: number, y: number, w: number, h: number): string {
   return `M${Math.round(x)} ${Math.round(y)}h${Math.round(w)}v${Math.round(h)}h${-Math.round(w)}v${-Math.round(h)}Z`;
+}
+
+/**
+ * The dim sheet outside the viewport, as ONE path: frame rect + viewport rect
+ * as a hole, painted with `fillRule="evenodd"`. This is the cue React Flow's
+ * `<MiniMap>` gave through `maskColor` and that the T-239 path painter dropped —
+ * without it the map loses "what am I currently looking at" and the viewport has
+ * to be drawn as a bare outline, which at fit-zoom degenerates into a border
+ * around the whole panel.
+ *
+ * Returns `""` when there is nothing worth dimming: no viewport, a zero-area
+ * one, or one covering `minCovered` of the frame (the whole graph is on screen —
+ * dimming nothing would only outline the panel again). The caller skips the
+ * element entirely for `""`.
+ */
+export function viewportMaskPath(
+  frame: MinimapRect,
+  view: MinimapRect | null,
+  minCovered = 0.98,
+): string {
+  if (!view || view.width <= 0 || view.height <= 0) return "";
+  const frameArea = frame.width * frame.height;
+  if (frameArea <= 0) return "";
+  const covered = (Math.max(0, view.width) * Math.max(0, view.height)) / frameArea;
+  if (covered >= minCovered) return "";
+  return (
+    rectPath(frame.x, frame.y, frame.width, frame.height) +
+    rectPath(view.x, view.y, view.width, view.height)
+  );
 }
 
 /**

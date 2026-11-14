@@ -6884,14 +6884,14 @@ tasks:
   session_count: 1
 - id: "T-243"
   title: "Release v0.9.0: changelog cut + package.json sync"
-  status: "review"
+  status: "done"
   type: "task"
   area: "docs"
   tier: 0
   estimate_min: 60
   estimate_basis: "cli"
   issue: 570
-  pr: 571
+  pr: 575
   internal: false
   milestone: null
   blocked_by: []
@@ -6910,4 +6910,734 @@ tasks:
     proof: ["4e34dcb"]
     effort: {commits: 1, files: 2, insertions: 3, deletions: 1}
   spent_min: 5
+  session_count: 1
+- id: "T-244"
+  title: "Restore breadcrumb bar dropped in panel-split refactor"
+  status: "done"
+  type: "fix"
+  area: "ui"
+  tier: null
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 576
+  pr: 577
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-07T20:56:07Z"
+  notes: []
+  sessions:
+  - start: "2026-11-07T21:08:20Z"
+    end: "2026-11-07T21:25:59Z"
+    measured: true
+    note: "BreadcrumbBar lost its mount in 03166bb (panel-split refactor). Mounted it in CanvasInner, removed the dead FewerApp import, added data-testid + e2e test. Gates: lint 0 errors, tsc 0, bun test 264 pass, build ok, playwright 79 pass (needs NEXT_PUBLIC_ALLOW_TIER_OVERRIDE=1 at build time), changelog validate ok."
+    proof: ["0ab6236"]
+    effort: {commits: 1, files: 5, insertions: 33, deletions: 3}
+  spent_min: 18
+  session_count: 1
+- id: "T-245"
+  title: "Make canvas breadcrumbs pane-aware (per-leaf selection path)"
+  status: "done"
+  type: "fix"
+  area: "ui"
+  tier: null
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 578
+  pr: 581
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-07T21:58:42Z"
+  notes: []
+  sessions:
+  - start: "2026-11-07T22:02:31Z"
+    end: "2026-11-07T22:12:37Z"
+    measured: true
+    note: "BreadcrumbBar now reads selectionForLeaf(leafId) and writes setSelectionForLeaf; GraphCanvas passes leafSelection+leafId. Component tests (3) + Pro e2e split-pane test. Gates: lint 0, tsc 0, bun test 267 pass, build ok, playwright 80 pass, changelog validate ok. Docs: README + graph-features.md."
+    proof: ["c1bad5f"]
+    effort: {commits: 1, files: 7, insertions: 181, deletions: 9}
+  spent_min: 10
+  session_count: 1
+- id: "T-246"
+  title: "Rework card, edge and canvas context menus: header identity, Details submenu, one shared design"
+  status: "done"
+  type: "refactor"
+  area: "ui"
+  tier: 2
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 580
+  pr: 581
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T11:33:04Z"
+  notes: ["2026-11-08T11:33:09Z · Header identity (name/path), Details submenu with metadata rows (type/path/size/items/source/tags), same submenu on files, edge menu gains Go to Parent/Child, all four menus on one Radix surface", "2026-11-08T12:20:02Z · Minimap visual regression split out to T-247 (same umbrella: canvas UI polish)"]
+  sessions:
+  - start: "2026-11-08T11:37:42Z"
+    end: "2026-11-08T11:59:26Z"
+    measured: true
+    note: "Menus: header identity, Details submenu on folders+files, unified Radix surface for edge/pane/selection menus, edge Go to Parent/Child; e2e verified (3/3) against standalone build"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-11-08T12:02:05Z"
+    end: "2026-11-08T12:05:05Z"
+    measured: true
+    note: "Menus: identity header + Details submenu (folders+files), unified Radix surface for edge/pane/selection, edge Go to Parent/Child; 13 new unit cases, 3 menu e2e green, docs+README+changelog updated"
+    proof: ["2bce9f1", "#581"]
+    effort: {commits: 1, files: 14, insertions: 1049, deletions: 565}
+  - start: "2026-11-08T13:48:39Z"
+    end: "2026-11-08T14:08:26Z"
+    measured: true
+    note: "Shortcut hints: MENU_SHORTCUT_HINTS table beside the bindings, hints on Unparent/Add Child/Open in Explorer/Open File/Select All/Organize/Show All/Clear Canvas + batch items, 13 dispatcher tests, e2e name-cleanliness check; connection menu stays keyless (measured: right-click does not select the edge)"
+    proof: ["f342330", "#581"]
+    effort: {commits: 1, files: 9, insertions: 223, deletions: 16}
+  - start: "2026-11-08T14:20:34Z"
+    end: "2026-11-08T14:55:26Z"
+    measured: true
+    note: "Batch menu reorganization: groupBatchActions returns edit/structure/visibility/select/delete clusters with a partition test, both renderers draw the same shape with separators, More Actions removed, docs+groups e2e updated (21/21, force-click documented)"
+    proof: ["482875f", "#581"]
+    effort: {commits: 1, files: 9, insertions: 267, deletions: 113}
+  - start: "2026-11-08T15:04:33Z"
+    end: "2026-11-08T15:07:11Z"
+    measured: true
+    note: "Batch hint honesty: F2 is single-selection only, so tryMenuShortcutHint gained a batch scope (rename suppressed there); both hint renderers pass it, pinned by test. Gates: tsc/lint/build green, 2010+267 unit pass, app e2e 4/4, groups e2e 21/21"
+    proof: ["7b7c5f0", "#581"]
+    effort: {commits: 1, files: 5, insertions: 36, deletions: 9}
+  - start: "2026-11-08T18:05:56Z"
+    end: "2026-11-08T18:07:20Z"
+    measured: true
+    note: "no work: branch switched to fix/minimap-viewport-mask mid-session; the minimap fix belongs to T-247"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 84
+  session_count: 6
+- id: "T-247"
+  title: "Minimap reads as a wireframe after the T-239 path painter: restore the viewport mask, a distinct selection colour and fill-only chips"
+  status: "done"
+  type: "fix"
+  area: "ui"
+  tier: 2
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 582
+  pr: 583
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T12:19:40Z"
+  notes: ["2026-11-08T12:20:02Z · T-239 kept RF's colors but dropped the maskColor overlay, nodeBorderRadius and the neutral viewport stroke: chips render as 2px non-scaling outlines, selection shares the folder orange, and the clamped viewport rect hugs the frame at fit-zoom. Fix: pure viewportMaskPath() (unit-tested), dim outside-viewport, fill-only chips, cyan selectRing for selection + viewport outline, omit the outline when it covers the frame"]
+  sessions:
+  - start: "2026-11-08T12:25:26Z"
+    end: "2026-11-08T12:39:31Z"
+    measured: true
+    note: "Minimap: viewportMaskPath (unit-tested) restores the outside-viewport dim sheet, chips are fills without 2px outlines, selection + viewport use the selection accent; e2e drag test extended with the three invariants; docs + changelog updated"
+    proof: ["03bd9cb", "#583"]
+    effort: {commits: 1, files: 9, insertions: 179, deletions: 26}
+  - start: "2026-11-08T13:36:01Z"
+    end: "2026-11-08T13:36:59Z"
+    measured: true
+    note: "Follow-up: canvas polarity now comes from useDarkBackground (custom themes are no longer read as light) and the minimap dims with the theme's own --background token; new e2e guards panel + mask under a custom dark theme"
+    proof: ["02e0d28", "#583"]
+    effort: {commits: 1, files: 7, insertions: 91, deletions: 10}
+  - start: "2026-11-08T18:07:21Z"
+    end: "2026-11-08T18:10:01Z"
+    measured: true
+    note: "Minimap surface: RF's own #fff .react-flow__minimap background painted over the themed panel (found via elementFromPoint) — svg now paints transparent, panel's colour-mix shows through; e2e asserts svg background transparent + panel == color-mix(--background 80%)"
+    proof: ["60811a5", "#583"]
+    effort: {commits: 1, files: 3, insertions: 37, deletions: 1}
+  - start: "2026-11-08T19:16:37Z"
+    end: "2026-11-08T19:26:06Z"
+    measured: true
+    note: "Merged origin/dev into this branch to clear PR #583's conflicts: CHANGELOG/e2e auto-merged, TASKS.yaml resolved as a union (T-246 gains dev's 3 hint/batch sessions + our empty session = 6 sessions/84m; T-247 row kept); gates green — tsc, lint 0 errors, 2014+267 tests, build"
+    proof: ["26150a3", "#583"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 27
+  session_count: 4
+- id: "T-248"
+  title: "Custom-theme contrast helper measures the palette, not the painted card — Fix makes text worse"
+  status: "done"
+  type: "fix"
+  area: "ui"
+  tier: 2
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 584
+  pr: 585
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T18:23:01Z"
+  notes: ["2026-11-08T18:23:33Z · slotContrast compares raw palette hexes, ignoring slot opacity and the canvas behind the card body (0.12/0.18 tint), so it reports bright-text-on-bright-accent failures that are invisible on the real card; Fix then mixes toward black/white (hue-destroying, picks the endpoint with fewer steps = black on a bright surface) and darkens text that was ~11:1 on screen to ~1.4:1. Plan: composite-aware slotContrast (surface = body tint over the composited background, ink = text at its opacity over that surface), hue-preserving direction-aware ensureContrast with reached flag, tooltip naming the rendered surface, tests for the exact failing pair, theming.md + changelog"]
+  sessions:
+  - start: "2026-11-08T18:55:54Z"
+    end: "2026-11-08T19:00:19Z"
+    measured: true
+    note: "Contrast measured as painted: canvasSurface/cardSurface composite body+ink at real opacities (gradients averaged), ensureContrastTinted lightens/darkens by surface with hue preserved and reports reached:false (Fix hides), badge tooltip names the surface; 7 new tests incl. the reported pair; docs+changelog; PR #585"
+    proof: ["08794ce", "#585"]
+    effort: {commits: 1, files: 7, insertions: 323, deletions: 54}
+  - start: "2026-11-08T19:28:52Z"
+    end: "2026-11-08T19:40:22Z"
+    measured: true
+    note: "Merged origin/fix/minimap-viewport-mask (which now carries dev) into this branch to clear PR #585's conflicts: CHANGELOG auto-merged, TASKS.yaml resolved as a union (T-247 keeps its 4 sessions/27m from the base, T-248 row kept); gates green — tsc, lint 0 errors, 2021+267 tests, build"
+    proof: ["fadf280", "#585"]
+    effort: {commits: 1, files: 1, insertions: 8, deletions: 2}
+  spent_min: 16
+  session_count: 2
+- id: "T-249"
+  title: "Auto-refresh the repowise index on push (pre-push hook)"
+  status: "done"
+  type: "infra"
+  area: "infra"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: 586
+  pr: 587
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T20:54:56Z"
+  notes: []
+  sessions:
+  - start: "2026-11-08T20:59:02Z"
+    end: "2026-11-08T21:11:04Z"
+    measured: true
+    note: "pre-push hook (generated by install-hooks) runs 'repowise update --index-only --no-agents' detached with flock; bun repowise:refresh script + .clinerules doc update. Validated: syntax, 0s hook exit, refresh completes at HEAD, tree stays clean, flock refusal, SKIP_REPOWISE_HOOK, selftest/validate/lint/tsc/build green."
+    proof: ["76d4c02"]
+    effort: {commits: 1, files: 3, insertions: 48, deletions: 8}
+  spent_min: 12
+  session_count: 1
+- id: "T-250"
+  title: "Port desktop's canvas optimizations: LOD folder collapse @0.3, pill child-row skip, dimension-merge Map lookup"
+  status: "done"
+  type: "perf"
+  area: "performance"
+  tier: null
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 588
+  pr: 589
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-08T22:40:51Z"
+  notes: ["2026-11-08T22:43:42Z · Port from fewer-desktop dev (PR #34 + follow-ups): (A) applyDimensionChanges Map lookup, (B) collapsed pill skips childRowsOf, (C) LOD folder collapse @0.3 — deferred flip past 250ms zoom animation, startTransition, drop pill-size dimension reports, settled painted-folder re-measure, scope-driven lodCollapsed. Threshold 0.3 matches desktop; tune later from perf:bench."]
+  sessions:
+  - start: "2026-11-08T22:48:19Z"
+    end: "2026-11-08T23:13:51Z"
+    measured: true
+    note: "Ported desktop's canvas perf arc: (A) applyDimensionChanges Map lookup, (B) collapsed pill skips childRowsOf, (C) LOD folder collapse @0.3 with deferred flip, startTransition, dropped pill dimension reports and settled painted-folder re-measure. lint/tsc/test(2021+270)/build green, e2e 82 passed incl. new T-250 spec, perf:bench clean. Docs + README + changelog (Added + Performance) updated."
+    proof: ["8eb5e9e", "bcf6fb7", "db7a796"]
+    effort: {commits: 3, files: 10, insertions: 181, deletions: 9}
+  spent_min: 26
+  session_count: 1
+- id: "T-251"
+  title: "Spike: drive.file + Picker folder-grant semantics"
+  status: "done"
+  type: "research"
+  area: "cloud"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: null
+  pr: 590
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-09T11:23:25Z"
+  notes: ["2026-11-09T11:23:45Z · Research spike: does drive.file + Google Picker grant access to descendants of a picked folder (U1), is the grant visible to a separate server token (U2), and are metadata fields intact (U3)? Decision input for Google Drive scope: keep drive.metadata.readonly (annual CASA) vs move to drive.file.", "2026-11-09T12:23:13Z · Scope grew: fixed stale OAuth redirect targets (?cloud= params -> /app, not / — landing page never consumed them). Genuine bug, keep after spike revert."]
+  sessions:
+  - start: "2026-11-09T11:23:51Z"
+    end: "2026-11-09T16:39:00Z"
+    measured: true
+    note: "Spike verdict: U1 FALSE — drive.file + Picker grants the picked item only; no inheritance to children across 6 picked folders (hisoka/spike2/discord/.vscode/cogs/Gemini Gems), verified via list/search/get over 45-180min; astro anomaly unexplained, non-reproducible. U2/U3 true but moot. Decision-rule row 3: B dead for tree browsing -> A (CASA/metadata.readonly) or C (client-side). OAuth /app redirect fix split to fix/cloud-oauth-redirect."
+    proof: ["72a20eb", "a027234", "2ea6718", "4475c15", "9f6a309"]
+    effort: {commits: 5, files: 8, insertions: 505, deletions: 386}
+  spent_min: 315
+  session_count: 1
+- id: "T-252"
+  title: "Defer Google Drive linking until CASA is justified; keep OneDrive enabled"
+  status: "done"
+  type: "task"
+  area: "cloud"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: null
+  pr: 591
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-10T08:55:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-10T08:55:27Z"
+    end: "2026-11-10T09:03:35Z"
+    measured: true
+    note: "Decision recorded (.repowise/decisions.yaml f8944b37): defer CASA until revenue; Google Drive hidden (adapter intact), OneDrive enabled; docs + changelog updated. PR #591."
+    proof: ["820b02f", "#591"]
+    effort: {commits: 1, files: 6, insertions: 70, deletions: 11}
+  spent_min: 8
+  session_count: 1
+- id: "T-253"
+  title: "Board projection: fix doctor item-list truncation, sync on merge/PR to dev"
+  status: "done"
+  type: "infra"
+  area: "cloud"
+  tier: 0
+  estimate_min: 45
+  estimate_basis: "cli"
+  issue: null
+  pr: 591
+  internal: true
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-10T09:20:13Z"
+  notes: []
+  sessions:
+  - start: "2026-11-10T09:20:14Z"
+    end: "2026-11-10T09:36:41Z"
+    measured: true
+    note: "Root cause: doctor --board read item-list with --limit 100 vs sync-details' 200 — board (203 items) truncated, 98 phantom drifts, nightly red for days while board was actually clean. Fixed: shared PROJECT_ITEM_LIMIT=1000. Triggers added: push to dev + PR to dev (fork-guarded; reconcile plan gated to nightly/dispatch). Local reconcile: gh-sync relabelled #451, sync-details 197 rows/1 field write, doctor now agrees 1:1."
+    proof: ["ff5ce82", "#591"]
+    effort: {commits: 1, files: 3, insertions: 51, deletions: 3}
+  - start: "2026-11-10T11:54:17Z"
+    end: "2026-11-10T13:14:29Z"
+    measured: true
+    note: "Follow-up: CI failure on run 42792451337 was a transient GitHub rate limit (same account as this session's API usage), not a board bug — sync step had passed 4m35s with the same token. Hardened: doctor now degrades GitHub-surface checks to NOTEs when gh auth is unavailable (mid-run rate limit -> 'checks skipped' exit 0) instead of _die; nonexistent-issue check gated on gh_ok. Rerun + fresh run both green (42792451337, 42811747085)."
+    proof: ["b77b4ee", "#591"]
+    effort: {commits: 1, files: 1, insertions: 14, deletions: 5}
+  spent_min: 96
+  session_count: 2
+- id: "T-254"
+  title: "DB-backed FAQ section on the landing page"
+  status: "review"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 593
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T11:26:21Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T11:30:50Z"
+    end: "2026-11-12T11:45:01Z"
+    measured: true
+    note: "FAQ section on the landing page: faq_items table, fallback copy, native details disclosure, FAQPage JSON-LD"
+    proof: ["cf1d5b0"]
+    effort: {commits: 1, files: 9, insertions: 478, deletions: 4}
+  - start: "2026-11-12T12:09:07Z"
+    end: "2026-11-12T12:17:44Z"
+    measured: true
+    note: "FAQ copy: five questions (added 'can I make changes to my directory', dropped the browser question and uninstall), README in step; e2e first-scroll race fixed"
+    proof: ["afc04df", "9d7c689"]
+    effort: {commits: 2, files: 4, insertions: 21, deletions: 27}
+  - start: "2026-11-12T17:10:11Z"
+    end: "2026-11-12T17:28:38Z"
+    measured: true
+    note: "FAQ rewritten around what a first-time reader still wants to know: seven questions the page does not answer"
+    proof: ["03c83aa"]
+    effort: {commits: 1, files: 4, insertions: 77, deletions: 48}
+  - start: "2026-11-12T17:54:23Z"
+    end: "2026-11-12T17:56:14Z"
+    measured: true
+    note: "Scale answer now quotes the tested figures: 5,000 folders on the canvas, 25,000 tested on the desktop and carried to the web"
+    proof: ["ae7d5bb"]
+    effort: {commits: 1, files: 5, insertions: 7, deletions: 3}
+  - start: "2026-11-12T20:58:01Z"
+    end: "2026-11-12T20:59:34Z"
+    measured: true
+    note: "Scale answer reworded: leads with the tested figure, the ceiling gets its own sentence"
+    proof: ["4768d2a"]
+    effort: {commits: 1, files: 3, insertions: 3, deletions: 3}
+  - start: "2026-11-12T21:04:48Z"
+    end: "2026-11-12T21:05:26Z"
+    measured: true
+    note: "Scale answer: dropped the performance-app line, now leads with 5,000 folders and 25,000 files tested, stays smooth"
+    proof: ["b2aaa3e"]
+    effort: {commits: 1, files: 5, insertions: 5, deletions: 5}
+  spent_min: 46
+  session_count: 6
+- id: "T-255"
+  title: "Blog listing index rail"
+  status: "review"
+  type: "feat"
+  area: "blog"
+  tier: 1
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 594
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T11:26:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T11:46:52Z"
+    end: "2026-11-12T11:50:47Z"
+    measured: true
+    note: "Blog listing index rail: 16rem left rail listing every post, links to the post pages"
+    proof: ["42b93ad"]
+    effort: {commits: 1, files: 2, insertions: 61, deletions: 30}
+  spent_min: 4
+  session_count: 1
+- id: "T-256"
+  title: "Move unbranded export and watch digests behind the Pro plan"
+  status: "review"
+  type: "feat"
+  area: "billing"
+  tier: 1
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 596
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T16:58:46Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T17:02:52Z"
+    end: "2026-11-12T17:10:07Z"
+    measured: true
+    note: "Unbranded export and watch digests moved behind Pro: tier map, server limits, nightly job plan filter, panel and export copy, docs"
+    proof: ["3b882d8"]
+    effort: {commits: 1, files: 15, insertions: 147, deletions: 34}
+  spent_min: 7
+  session_count: 1
+- id: "T-257"
+  title: "Pricing page with the Pro plan and an enterprise contact form"
+  status: "review"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 597
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T16:58:46Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T17:28:43Z"
+    end: "2026-11-12T17:29:56Z"
+    measured: true
+    note: "Pricing page with Free/Pro/Enterprise, four currencies, intro and yearly prices, and a contact form that mails the enquiry with the visitor in reply-to"
+    proof: ["768fadc"]
+    effort: {commits: 1, files: 15, insertions: 4055, deletions: 8}
+  - start: "2026-11-12T17:38:15Z"
+    end: "2026-11-12T17:39:13Z"
+    measured: true
+    note: "Pricing page app link follows the deployment host"
+    proof: ["c854dfb"]
+    effort: {commits: 1, files: 2, insertions: 17, deletions: 1}
+  - start: "2026-11-12T19:14:29Z"
+    end: "2026-11-12T19:19:23Z"
+    measured: true
+    note: "Pricing cards: the price block is laid out properly and all three cards align"
+    proof: ["bcb42df"]
+    effort: {commits: 1, files: 1, insertions: 49, deletions: 27}
+  - start: "2026-11-12T20:05:27Z"
+    end: "2026-11-12T20:06:16Z"
+    measured: true
+    note: "Yearly Pro price set per currency (69.99 / 59.99 / 69.99 / 5999), ten months for the price of twelve; the 20% claim replaced by what is true"
+    proof: ["f71511b"]
+    effort: {commits: 1, files: 5, insertions: 61, deletions: 37}
+  - start: "2026-11-12T20:41:18Z"
+    end: "2026-11-12T20:41:59Z"
+    measured: true
+    note: "Contact form: hydration-safe fields, and a plain HTML post path so it works without JavaScript"
+    proof: ["6c7773b"]
+    effort: {commits: 1, files: 3, insertions: 104, deletions: 12}
+  - start: "2026-11-12T20:47:40Z"
+    end: "2026-11-12T20:48:28Z"
+    measured: true
+    note: "Plans doc: the Team paragraph no longer quotes a price the table does not show; reseed regenerated"
+    proof: ["c8e29e3"]
+    effort: {commits: 1, files: 2, insertions: 36, deletions: 36}
+  spent_min: 10
+  session_count: 6
+- id: "T-258"
+  title: "doctor: an issue older than the 200-row window is not a missing issue"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 1
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 598
+  pr: 595
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T18:26:22Z"
+  notes: []
+  sessions:
+  - start: "2026-11-12T18:33:22Z"
+    end: "2026-11-12T18:44:12Z"
+    measured: true
+    note: "Doctor asks GitHub about rows outside the 200-issue window instead of calling them missing"
+    proof: ["537bd48"]
+    effort: {commits: 1, files: 1, insertions: 24, deletions: 2}
+  - start: "2026-11-12T19:05:04Z"
+    end: "2026-11-12T19:06:01Z"
+    measured: true
+    note: "Doctor reads the issue list once (parent included) and degrades to a NOTE on a failed read: 6m11s to 11s, and the secondary rate limit no longer kills it"
+    proof: ["6363482"]
+    effort: {commits: 1, files: 1, insertions: 42, deletions: 28}
+  spent_min: 12
+  session_count: 2
+- id: "T-259"
+  title: "Export changes: replay graph edits as a runnable shell script"
+  status: "done"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 599
+  pr: 602
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#599"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T21:42:33Z"
+  notes: ["2026-11-12T21:42:37Z · Baseline-diff replay script: importBaseline manifest + changesScript pure module + Export Changes tile + interactive prompts (apply/dry-run/delete confirmation) + root/preflight checks.", "2026-11-13T14:48:40Z · Follow-up (landed on the stacked archive branch #602 because it touches the shared plan engine): a folder replay whose only edits were inside an expanded zip produced a script that did nothing and said nothing. The diff now runs over the whole graph so those edits are counted as skipped; the script carries the plan's notes in a Notes block and exits early with the reason; the export panel says the same instead of reporting zero changes; and the folder check no longer samples paths inside an archive (they never exist on disk). Gates: tsc 0, lint 0 errors, bun run test 2089+270 pass 0 fail, bun run build OK, migrations verify OK."]
+  sessions:
+  - start: "2026-11-12T21:42:49Z"
+    end: "2026-11-12T22:00:13Z"
+    measured: true
+    note: "Shipped Export Changes: baseline capture (importBaseline.ts) + pure diff (changesScript.ts) + the bash program (changesScriptBash.ts) with folder check, preflight, apply/dry-run/delete prompts and staged moves for swaps and cycles; panel tile renamed to Export Folders, new Export Changes tile + Include deletions switch; baseline persisted in the session cache and saved graphs; docs (Import & Export section), README, changelog, TO-DO, seed migration 0062. Gates: tsc 0, lint 0 errors, bun run test 2078+270 pass 0 fail, bun run build OK, migrations verify OK, bash -n on every generated script + an end-to-end replay against a temp tree."
+    proof: ["968f3f2", "857ad3f", "#600"]
+    effort: {commits: 2, files: 21, insertions: 4464, deletions: 15}
+  - start: "2026-11-13T15:16:32Z"
+    end: "2026-11-13T15:17:30Z"
+    measured: true
+    note: "Follow-up, landed on the stacked archive branch (#602) because it touches the shared plan engine: a zip expanded during the import is a real file in the folder, so the edits made inside it are now applied to that zip in place (7z rn/d/a, or the Python fallback that travels inside the script). The archive engine is embedded only when the plan has archive work. Moving an entry in or out of an archive is the one thing a script cannot do, and it is reported. Gates: tsc 0, lint 0 errors, bun run test 2089+270 pass 0 fail, bun run build OK, migrations verify OK; end-to-end test: a folder with a zip, a rename inside the zip, the script run, the zip extracted and checked."
+    proof: ["3e7a170"]
+    effort: {commits: 1, files: 8, insertions: 3792, deletions: 112}
+  spent_min: 18
+  session_count: 2
+- id: "T-260"
+  title: "Export Changes for archives: replay graph edits inside a zip with 7z"
+  status: "review"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 601
+  pr: 602
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#601"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-13T06:32:35Z"
+  notes: ["2026-11-13T06:32:41Z · Follow-up to T-259: the archive renderer for Export Changes. Same plan engine, a 7z-based renderer (rn/d/a), 7z availability check, archive-listing preflight, and the archive-root detection in the panel. Passwords, multi-volume and self-extracting archives are refused; rar needs the proprietary rar binary."]
+  sessions:
+  - start: "2026-11-13T06:33:21Z"
+    end: "2026-11-13T13:05:07Z"
+    measured: true
+    note: "Shipped the archive renderer for Export Changes: the archive import flags its root, the plan targets 'archive', and a new 7-Zip program (rn/d/a) replays renames, moves, swaps, chains, deletions, new entries and duplicates inside the zip. 7-Zip renames one pair per call, so the moves use the same two-phase staging as the folder script. RAR, multi-volume and self-extracting archives are refused; a zip expanded inside a folder import is skipped with a note. Also fixed: a deletion that frees a move's destination now runs before the move. Gates: tsc 0, lint 0 errors, bun run test 2083+270 pass 0 fail, bun run build OK, migrations verify OK; two real 7z round-trips (swap+rename+delete, and adding a file) asserted byte for byte."
+    proof: ["ec2c01c", "4c37fd1", "#602"]
+    effort: {commits: 2, files: 13, insertions: 3807, deletions: 26}
+  - start: "2026-11-13T13:41:28Z"
+    end: "2026-11-13T13:42:24Z"
+    measured: true
+    note: "Follow-up session: the archive replay no longer needs 7-Zip. The script offers to install it (exact command shown, asked first, printed again on failure so it can be run by hand) and otherwise falls back to a Python 3 program carried inside the script, which rebuilds the archive atomically with the standard library. The folder replay never looks for an engine; an archive with nothing to change exits before the engine check. Gates: tsc 0, lint 0 errors, bun run test 2086+270 pass 0 fail, bun run build OK, migrations verify OK; the Python engine replays the same swap/rename/delete with 7-Zip hidden from PATH."
+    proof: ["27e3bd9"]
+    effort: {commits: 1, files: 7, insertions: 3627, deletions: 23}
+  spent_min: 393
+  session_count: 2
+- id: "T-261"
+  title: "Archive delete uses stale path when its parent folder was renamed in the same replay"
+  status: "review"
+  type: "fix"
+  area: "export"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 603
+  pr: 602
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#603"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-14T03:36:31Z"
+  notes: []
+  sessions:
+  - start: "2026-11-14T03:37:02Z"
+    end: "2026-11-14T03:40:09Z"
+    measured: true
+    note: "rename-then-delete inside archives now uses post-rename paths; pre-deletes for move-into-deleted-path; Python matches renamed names; 7z+Python round-trips verified"
+    proof: ["6f0bda2", "#602"]
+    effort: {commits: 1, files: 7, insertions: 406, deletions: 30}
+  spent_min: 3
+  session_count: 1
+- id: "T-262"
+  title: "Dry-run replays archive edits instead of only showing them"
+  status: "done"
+  type: "fix"
+  area: "export"
+  tier: null
+  estimate_min: 180
+  estimate_basis: "cli"
+  issue: 604
+  pr: 602
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#604"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-14T06:43:54Z"
+  notes: []
+  sessions:
+  - start: "2026-11-14T06:44:04Z"
+    end: "2026-11-14T06:49:43Z"
+    measured: true
+    note: "embedded archive engine honours DRY_RUN: preview-only output for 7z pre-delete/rename/commit/delete/add/copy and python rename/delete/add rows; pre-delete listed in standalone dry-run; bash-syntax + 7z/Python dry-run + real-run round-trips verified"
+    proof: ["ae0362b", "#602"]
+    effort: {commits: 1, files: 4, insertions: 112, deletions: 7}
+  - start: "2026-11-14T15:39:13Z"
+    end: "2026-11-14T15:39:58Z"
+    measured: true
+    note: "Windows .bat export work completed"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-11-14T15:40:25Z"
+    end: "2026-11-14T15:42:05Z"
+    measured: true
+    note: "completed Windows .bat export prep"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 9
+  session_count: 3
+- id: "T-263"
+  title: "Windows .bat export for Export Changes"
+  status: "review"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 605
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-14T15:38:14Z"
+  notes: ["2026-11-14T15:39:17Z · internal"]
+  sessions:
+  - start: "2026-11-14T17:13:55Z"
+    end: "2026-11-14T17:15:41Z"
+    measured: true
+    note: "Windows .bat export for Export Changes completed; the .bat export script was implemented in PR #602-style work. Ready for review."
+    proof: ["ce62ef8"]
+    effort: {commits: 1, files: 2, insertions: 39, deletions: 4}
+  spent_min: 2
   session_count: 1

@@ -9,7 +9,7 @@ import { symlinkTargetLabel } from "@/lib/fewer/symlinkDisplay";
 import type { SymlinkInfo } from "@/lib/fewer/types";
 
 /**
- * Context-menu items for symlink nodes (rendered inside the Info submenu).
+ * Context-menu items for symlink nodes (rendered inside the Details submenu).
  * Nothing is stored on the node beyond SymlinkInfo — the jump resolves the
  * target at click time by comparing each node's absolute disk path against the
  * link's resolved target.

@@ -126,6 +126,10 @@ export const MARKETING_FEATURES: MarketingFeature[] = [
     headline: "It emails you when it changes",
     line: "Watch a public folder and get a daily digest.",
     proof: "watch",
+    // Watch digests are a Pro feature (T-256): a nightly crawl per index is
+    // not free to run. The badge is the whole affordance - no purchase path,
+    // because there is no checkout while billing is being finished.
+    tier: "pro",
   },
   {
     id: "themes",

@@ -83,6 +83,11 @@ export interface FewerNodeData {
   parentId?: string | null;
   /** Ids of tags assigned to this node (see src/lib/fewer/tags.ts). */
   tagIds?: string[];
+  /**
+   * Id of the card this one was duplicated from. The changes script uses it
+   * to replay a duplicate as a real copy instead of an empty file.
+   */
+  copyOf?: string;
   /** Allow arbitrary extra fields (required by React Flow Node type) */
   [key: string]: unknown;
 }
@@ -155,11 +160,13 @@ export interface DirectoryStats {
 }
 
 export interface ExportSettings {
-  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "tree" | "fwr";
+  format: "svg" | "png" | "json" | "csv" | "dot" | "script" | "changes" | "tree" | "fwr";
   quality: number; // 1-100
   transparentBackground: boolean;
   includeStats: boolean;
   includeBranding: boolean; // append "Created with fewer" credit / watermark
+  /** "Export Changes": replay the edits as a script — include the deletions? */
+  includeDeletions?: boolean;
 }
 
 /** A simplified serializable file-tree entry used to build the graph */

@@ -136,25 +136,124 @@ export function contrastRatio(fg: string, bg: string): number | null {
 }
 
 /**
- * The smallest edit to `color` that clears `target` against `bg`: walk toward
- * white and toward black in 5% steps and keep whichever direction gets there
- * first — fewer steps, fewer side effects. Returns the input unchanged when it
- * already passes (or when neither value parses).
+ * Alpha-over composite in sRGB channel space (the approximation CSS itself
+ * uses): `fg` at `alpha` above `bg`. This is how a card actually paints - a
+ * body colour is a TINT (0.12-0.18 opacity), never an opaque swatch - so any
+ * contrast worth reporting has to be measured on the composite.
  */
-export function ensureContrast(color: string, bg: string, target: number): string {
-  const now = contrastRatio(color, bg);
-  if (now === null || now >= target) return color;
-  let best: { color: string; steps: number } | null = null;
-  for (const dest of ["#ffffff", "#000000"]) {
+export function compositeColor(fg: string, alpha: number, bg: string): string {
+  const a = hexToRgb(fg);
+  const b = hexToRgb(bg);
+  if (!a || !b) return fg;
+  const t = Math.min(1, Math.max(0, alpha));
+  const ch = (front: number, back: number) => Math.round(front * t + back * (1 - t));
+  const hex = (v: number) => v.toString(16).padStart(2, "0");
+  return `#${hex(ch(a.r, b.r))}${hex(ch(a.g, b.g))}${hex(ch(a.b, b.b))}`;
+}
+
+function hexToHsl(hex: string): { h: number; s: number; l: number } | null {
+  const c = hexToRgb(hex);
+  if (!c) return null;
+  const r = c.r / 255;
+  const g = c.g / 255;
+  const b = c.b / 255;
+  const max = Math.max(r, g, b);
+  const min = Math.min(r, g, b);
+  const l = (max + min) / 2;
+  if (max === min) return { h: 0, s: 0, l };
+  const d = max - min;
+  const s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+  let h: number;
+  if (max === r) h = (g - b) / d + (g < b ? 6 : 0);
+  else if (max === g) h = (b - r) / d + 2;
+  else h = (r - g) / d + 4;
+  return { h: h * 60, s, l };
+}
+
+function hslToHex(h: number, s: number, l: number): string {
+  const hue2rgb = (p: number, q: number, t: number) => {
+    let x = t;
+    if (x < 0) x += 1;
+    if (x > 1) x -= 1;
+    if (x < 1 / 6) return p + (q - p) * 6 * x;
+    if (x < 1 / 2) return q;
+    if (x < 2 / 3) return p + (q - p) * (2 / 3 - x) * 6;
+    return p;
+  };
+  let r = l;
+  let g = l;
+  let b = l;
+  if (s !== 0) {
+    const q = l < 0.5 ? l * (1 + s) : l + s - l * s;
+    const p = 2 * l - q;
+    r = hue2rgb(p, q, h / 360 + 1 / 3);
+    g = hue2rgb(p, q, h / 360);
+    b = hue2rgb(p, q, h / 360 - 1 / 3);
+  }
+  const hex = (v: number) => Math.round(v * 255).toString(16).padStart(2, "0");
+  return `#${hex(r)}${hex(g)}${hex(b)}`;
+}
+
+/** Move ONLY lightness toward 0 (darker) or 1 (lighter), keeping hue and
+ *  saturation - a Fix can never turn a teal into a grey-teal. `t` is 0..1. */
+function shiftLightness(color: string, toward: 0 | 1, t: number): string {
+  const hsl = hexToHsl(color);
+  if (!hsl) return color;
+  const l = toward === 0 ? hsl.l * (1 - t) : hsl.l + (1 - hsl.l) * t;
+  return hslToHex(hsl.h, hsl.s, Math.min(1, Math.max(0, l)));
+}
+
+export interface ContrastFix {
+  color: string;
+  ratio: number;
+  /** False when no edit inside the budget clears the target - the caller must
+   *  show that instead of pretending the fix landed. */
+  reached: boolean;
+}
+
+/**
+ * The smallest HUE-PRESERVING edit that clears `target` against `surface`,
+ * where the candidate is painted at `opacity` over that surface - so a 0.15
+ * body tint or a 0.6 edge is measured the way it actually renders.
+ *
+ * Direction comes from the SURFACE: a light surface is fixed by darkening, a
+ * dark one by lightening. The old helper walked toward white *or* black and
+ * kept whichever needed fewer steps - against a bright surface that is always
+ * black, so "Fix" darkened text that measured 1.2:1 against an unrendered
+ * accent while being ~11:1 on the real dark card.
+ */
+export function ensureContrastTinted(
+  color: string,
+  opacity: number,
+  surface: string,
+  target: number,
+): ContrastFix {
+  const now = contrastRatio(compositeColor(color, opacity, surface), surface);
+  if (now === null) return { color, ratio: 0, reached: false };
+  if (now >= target) return { color, ratio: now, reached: true };
+
+  const surfaceRgb = hexToRgb(surface);
+  const surfaceIsLight = surfaceRgb ? relativeLuminance(surfaceRgb) > 0.5 : true;
+  const away: 0 | 1 = surfaceIsLight ? 0 : 1;
+  const other: 0 | 1 = away === 0 ? 1 : 0;
+
+  let best: ContrastFix = { color, ratio: now, reached: false };
+  for (const dir of [away, other]) {
     for (let step = 1; step <= 20; step++) {
-      const candidate = mixHex(color, dest, step / 20);
-      if ((contrastRatio(candidate, bg) ?? 0) >= target) {
-        if (!best || step < best.steps) best = { color: candidate, steps: step };
-        break;
-      }
+      const candidate = shiftLightness(color, dir, step / 20);
+      const ratio = contrastRatio(compositeColor(candidate, opacity, surface), surface);
+      if (ratio === null) continue;
+      if (ratio >= target) return { color: candidate, ratio, reached: true };
+      if (ratio > best.ratio) best = { color: candidate, ratio, reached: false };
     }
   }
-  return best ? best.color : color;
+  return best;
+}
+
+/** Opaque colour on an opaque surface - the shape the unit tests and any caller
+ *  that has already resolved the composite itself use. */
+export function ensureContrast(color: string, bg: string, target: number): string {
+  return ensureContrastTinted(color, 1, bg, target).color;
 }
 
 /** Default opposite endpoint for a new gradient: darker for light colors, lighter for dark ones. */
