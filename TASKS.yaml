@@ -7474,7 +7474,7 @@ tasks:
   session_count: 2
 - id: "T-259"
   title: "Export changes: replay graph edits as a runnable shell script"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "export"
   tier: 1
@@ -7499,8 +7499,14 @@ tasks:
     note: "Shipped Export Changes: baseline capture (importBaseline.ts) + pure diff (changesScript.ts) + the bash program (changesScriptBash.ts) with folder check, preflight, apply/dry-run/delete prompts and staged moves for swaps and cycles; panel tile renamed to Export Folders, new Export Changes tile + Include deletions switch; baseline persisted in the session cache and saved graphs; docs (Import & Export section), README, changelog, TO-DO, seed migration 0062. Gates: tsc 0, lint 0 errors, bun run test 2078+270 pass 0 fail, bun run build OK, migrations verify OK, bash -n on every generated script + an end-to-end replay against a temp tree."
     proof: ["968f3f2", "857ad3f", "#600"]
     effort: {commits: 2, files: 21, insertions: 4464, deletions: 15}
-  spent_min: 17
-  session_count: 1
+  - start: "2026-11-13T15:16:32Z"
+    end: "2026-11-13T15:17:30Z"
+    measured: true
+    note: "Follow-up, landed on the stacked archive branch (#602) because it touches the shared plan engine: a zip expanded during the import is a real file in the folder, so the edits made inside it are now applied to that zip in place (7z rn/d/a, or the Python fallback that travels inside the script). The archive engine is embedded only when the plan has archive work. Moving an entry in or out of an archive is the one thing a script cannot do, and it is reported. Gates: tsc 0, lint 0 errors, bun run test 2089+270 pass 0 fail, bun run build OK, migrations verify OK; end-to-end test: a folder with a zip, a rename inside the zip, the script run, the zip extracted and checked."
+    proof: ["3e7a170"]
+    effort: {commits: 1, files: 8, insertions: 3792, deletions: 112}
+  spent_min: 18
+  session_count: 2
 - id: "T-260"
   title: "Export Changes for archives: replay graph edits inside a zip with 7z"
   status: "review"
@@ -7536,3 +7542,32 @@ tasks:
     effort: {commits: 1, files: 7, insertions: 3627, deletions: 23}
   spent_min: 393
   session_count: 2
+- id: "T-261"
+  title: "Archive delete uses stale path when its parent folder was renamed in the same replay"
+  status: "review"
+  type: "fix"
+  area: "export"
+  tier: null
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 603
+  pr: 602
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#603"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-14T03:36:31Z"
+  notes: []
+  sessions:
+  - start: "2026-11-14T03:37:02Z"
+    end: "2026-11-14T03:40:09Z"
+    measured: true
+    note: "rename-then-delete inside archives now uses post-rename paths; pre-deletes for move-into-deleted-path; Python matches renamed names; 7z+Python round-trips verified"
+    proof: ["6f0bda2", "#602"]
+    effort: {commits: 1, files: 7, insertions: 406, deletions: 30}
+  spent_min: 3
+  session_count: 1
