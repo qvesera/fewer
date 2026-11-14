@@ -18,6 +18,12 @@ export interface BaselineEntry {
   isRoot?: boolean;
   /** Symlink target, when this entry is a link. */
   symlink?: string;
+  /**
+   * True for an archive card: the root of an archive import (the archive file
+   * itself), or a zip expanded inside a folder. An archive is ONE file, so
+   * the entries inside it are not files on disk.
+   */
+  isArchive?: boolean;
 }
 
 /** Snapshot the given nodes into a baseline manifest (UI-only cards excluded). */
@@ -30,6 +36,7 @@ export function captureBaseline(nodes: FewerNode[]): BaselineEntry[] {
     if (!path) continue;
     const entry: BaselineEntry = { id: n.id, path, type };
     if (n.data.isRoot) entry.isRoot = true;
+    if (n.data.isArchive) entry.isArchive = true;
     const link = n.data.symlink?.target;
     if (typeof link === "string" && link) entry.symlink = link;
     out.push(entry);

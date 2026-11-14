@@ -1,5 +1,7 @@
 import { describe, test, expect } from "bun:test";
 import {
+  changesFormatDesc,
+  folderFormatDesc,
   isSingleFileSelected,
   isAdvancedFormatOnly,
   qualityToScale,
@@ -13,6 +15,24 @@ const fileNode = { id: "f1", data: { type: "file" } } as any;
 const folderNode = { id: "d1", data: { type: "folder" } } as any;
 const nodes = [fileNode, folderNode];
 const ADV_VALS = ["svg", "json", "csv", "dot", "script"];
+
+describe("format desc (platform-aware labels)", () => {
+  test("folderFormatDesc returns .bat on Windows", () => {
+    expect(folderFormatDesc(true)).toBe("Folder structure (.bat)");
+  });
+
+  test("folderFormatDesc returns .sh on non-Windows", () => {
+    expect(folderFormatDesc(false)).toBe("Folder structure (.sh)");
+  });
+
+  test("changesFormatDesc returns .bat on Windows", () => {
+    expect(changesFormatDesc(true)).toBe("Replay your edits (.bat)");
+  });
+
+  test("changesFormatDesc returns .sh on non-Windows", () => {
+    expect(changesFormatDesc(false)).toBe("Replay your edits (.sh)");
+  });
+});
 
 describe("isSingleFileSelected", () => {
   test("single file node + non-image format → true", () => {
@@ -39,15 +59,11 @@ describe("isAdvancedFormatOnly", () => {
   test("unknown format → false", () => expect(isAdvancedFormatOnly("xlsx", ADV_VALS)).toBe(false));
 });
 
-/* -------------------------------------------------------------------------- */
-/*          T-222: the control says "quality", the truth is pixel scale       */
-/* -------------------------------------------------------------------------- */
-
 describe("quality → scale mapping", () => {
   test("the slider's ends are exactly 1× and 2×", () => {
     expect(qualityToScale(QUALITY_MIN)).toBe(1);
     expect(qualityToScale(QUALITY_MAX)).toBe(2);
-    expect(qualityToScale(80)).toBeCloseTo(1.6, 6); // the persisted default
+    expect(qualityToScale(80)).toBeCloseTo(1.6, 6);
   });
 
   test("legacy values below the range read as 1×, never smaller", () => {

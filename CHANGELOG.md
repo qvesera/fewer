@@ -17,6 +17,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Minimap background follows the theme: React Flow's own stylesheet paints .react-flow__minimap with --xy-minimap-background-color-default (#fff), and that white sheet covered the themed panel, so the map looked like a white card in dark and custom themes while its chips and dim sheet were already correct; the svg now paints no background and the panel's theme-derived surface shows through
 - Custom-theme contrast is now measured on the surface as painted: a card body is a 12-18% tint over the canvas, so judging text against the opaque accent reported ~1.2:1 for text that was ~11:1 on screen and Fix darkened it into invisibility — slotContrast composites body and ink at their real opacities (gradients averaged), Fix moves only lightness in the direction the surface needs with hue preserved, and it hides itself when nothing inside the budget can land; the badge tooltip names the colour it measured
 - OAuth cloud callbacks (?cloud=connected|error) now land on /app where FewerApp consumes them, instead of the marketing homepage at / — the success toast and connection refresh used to be lost on every link
+- Export Changes now explains itself instead of coming out empty: a script whose only edits were inside an archive says so in a Notes block at the top and when it runs ("the changes you made are inside an archive — open the archive itself and export the changes from there"), the export panel says the same instead of reporting zero changes, and the folder check no longer samples paths inside an archive (which never exist on disk and made the check fail on a correct folder).
+- Export Changes now edits the archives inside the folder: a zip that was expanded during the import is a real file, so the renames, moves and deletions you made inside it are applied to that zip with 7-Zip (or the Python fallback), in place. Moving an entry in or out of an archive is the one thing a script still cannot do, and it says so instead of silently skipping it.
+- Export Changes asks about deletions inside an archive: they are counted with the folder's deletions, so the script asks before removing them and 'Include deletions' covers them. Before, they were planned but never counted, so the script silently skipped them.
+- The export panel's Download button and the active format chip no longer put white text on a light background in dark mode: the brand colour is a light pink there, so the text colour follows the background (new --fewer-file-icon-fg token).
+- Archive deletes now target the entry's post-rename path: renaming a folder inside a zip and deleting one of its children deletes the child at its new location instead of missing silently.
+- Dry-run inside an archive no longer renames or deletes entries: the embedded archive engine ignored the dry-run flag entirely.
 
 ### Changed
 
@@ -38,6 +44,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Pricing page: Free, Pro and Enterprise, with the Pro price in USD, GBP, EUR and INR, an introductory price and a yearly plan at ten months for the price of twelve
 - Contact form on the pricing page: enquiries go to the inbox with the sender in reply-to, so no address is published
 - Export Changes: a script that replays the edits you made in the graph (renames, moves, new folders and files, duplicates) onto the folder you imported. It checks the folder first, stages the moves so swaps and cycles work, and asks before it deletes.
+- Export Changes now replays edits inside an archive: import a zip, rearrange it in the graph, and the script applies the changes to the zip itself with 7-Zip (renames, moves, new entries, deletions). Archives that 7-Zip cannot rewrite (RAR, multi-volume, self-extracting) are left untouched, and a zip expanded inside a folder import is skipped with a note.
+- The archive replay script no longer needs 7-Zip: when 7-Zip is missing it offers to install it (showing the exact command, and printing it again if the install fails so it can be run by hand), and otherwise falls back to a Python 3 program that travels inside the script and rebuilds the archive atomically with the standard library. The folder replay needs neither: it never looks for an archive engine.
 
 ### Performance
 

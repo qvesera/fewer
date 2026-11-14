@@ -44,3 +44,27 @@ export function isSingleFileSelected(
 export function isAdvancedFormatOnly(format: string, advancedFormatValues: readonly string[]): boolean {
   return advancedFormatValues.some((v) => v === format);
 }
+
+/**
+ * File extension for the script exports in the export panel: `.bat` on
+ * Windows (cmd.exe), `.sh` elsewhere (bash).
+ */
+export function scriptFileExt(isWindows: boolean): ".bat" | ".sh" {
+  return isWindows ? ".bat" : ".sh";
+}
+
+/**
+ * Desc shown next to "Export Folders" in the export panel:
+ * "Folder structure (.bat)" / "Folder structure (.sh)".
+ */
+export function folderFormatDesc(isWindows: boolean): string {
+  return `Folder structure (${scriptFileExt(isWindows)})`;
+}
+
+/**
+ * Desc shown next to "Export Changes" in the export panel:
+ * "Replay your edits (.bat)" / "Replay your edits (.sh)".
+ */
+export function changesFormatDesc(isWindows: boolean): string {
+  return `Replay your edits (${scriptFileExt(isWindows)})`;
+}
