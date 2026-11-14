@@ -19,6 +19,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - OAuth cloud callbacks (?cloud=connected|error) now land on /app where FewerApp consumes them, instead of the marketing homepage at / — the success toast and connection refresh used to be lost on every link
 - Export Changes now explains itself instead of coming out empty: a script whose only edits were inside an archive says so in a Notes block at the top and when it runs ("the changes you made are inside an archive — open the archive itself and export the changes from there"), the export panel says the same instead of reporting zero changes, and the folder check no longer samples paths inside an archive (which never exist on disk and made the check fail on a correct folder).
 - Export Changes now edits the archives inside the folder: a zip that was expanded during the import is a real file, so the renames, moves and deletions you made inside it are applied to that zip with 7-Zip (or the Python fallback), in place. Moving an entry in or out of an archive is the one thing a script still cannot do, and it says so instead of silently skipping it.
+- Export Changes asks about deletions inside an archive: they are counted with the folder's deletions, so the script asks before removing them and 'Include deletions' covers them. Before, they were planned but never counted, so the script silently skipped them.
+- The export panel's Download button and the active format chip no longer put white text on a light background in dark mode: the brand colour is a light pink there, so the text colour follows the background (new --fewer-file-icon-fg token).
+- Archive deletes now target the entry's post-rename path: renaming a folder inside a zip and deleting one of its children deletes the child at its new location instead of missing silently.
 
 ### Changed
 

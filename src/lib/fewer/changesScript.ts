@@ -70,7 +70,20 @@ export interface ArchivePlan {
   archive: string;
   /** Renames and moves inside the archive, relative to the archive root. */
   moves: { from: string; to: string }[];
-  /** Entries to delete from the archive. */
+  /**
+   * Entries to delete BEFORE the renames, at the path they have now.
+   *
+   * A rename can land on a path whose occupant the user deleted: the space
+   * has to be freed first, or the rename would land on an entry that is
+   * still there.
+   */
+  preDeletes: string[];
+  /**
+   * Entries to delete AFTER the renames, at the path they end up at.
+   *
+   * A deletion inside a renamed folder lives at the new path once the
+   * rename has been applied — deleting the old path would find nothing.
+   */
   deletes: string[];
   /** Entries to add to the archive. */
   adds: { path: string; kind: "file" | "dir" }[];
@@ -114,8 +127,8 @@ function isSafePath(path: string): boolean {
  * Drop the moves an ancestor's move already implies: when a folder moves,
  * everything under it travels with it, so only the folder is moved.
  */
-function reduceMoves(moves: Move[]): Move[] {
-  const kept: Move[] = [];
+function reduceMoves<T extends { from: string; to: string }>(moves: T[]): T[] {
+  const kept: T[] = [];
   for (const move of [...moves].sort((a, b) => a.from.length - b.from.length)) {
     const implied = kept.some(
       (ancestor) =>
@@ -132,7 +145,7 @@ function reduceMoves(moves: Move[]): Move[] {
  * Map a baseline path into the space the moves create, so a deletion or a copy
  * source still points at the right file after its folder was renamed.
  */
-function makeRemapper(moves: Move[]): (path: string) => string {
+function makeRemapper(moves: { from: string; to: string }[]): (path: string) => string {
   const sorted = [...moves].sort((a, b) => b.from.length - a.from.length);
   return (path) => {
     for (const move of sorted) {
@@ -329,12 +342,16 @@ export function planChanges(
   const planFor = (archive: string): ArchivePlan => {
     let plan = archivePlans.get(archive);
     if (!plan) {
-      plan = { archive, moves: [], deletes: [], adds: [], copies: [] };
+      plan = { archive, moves: [], preDeletes: [], deletes: [], adds: [], copies: [] };
       archivePlans.set(archive, plan);
     }
     return plan;
   };
 
+  // Renames inside an archive, collected per archive (keyed by the archive
+  // card's id) while the raw moves are partitioned, so each archive's moves
+  // can be reduced on their own below.
+  const archiveMovesById = new Map<string, { from: string; to: string }[]>();
   let moves = reduceMoves(
     rawMoves.filter((move) => {
       const from = archiveOfBase(move.from);
@@ -342,7 +359,13 @@ export function planChanges(
       if (!from && !to) return true; // a plain move in the folder
       if (from && to && from.ref.id === to.ref.id && !goneArchives.has(from.ref.id)) {
         // A rename inside an archive: the archive itself is edited in place.
-        planFor(to.ref.currentPath!).moves.push({ from: from.inside, to: to.inside });
+        // Collect it per archive first — a renamed folder carries its
+        // children with it, so the implied child renames are dropped
+        // afterwards, exactly like the folder's own moves.
+        archiveMovesById.set(
+          from.ref.id,
+          (archiveMovesById.get(from.ref.id) ?? []).concat([{ from: from.inside, to: to.inside }]),
+        );
         return false;
       }
       // Moved in or out of an archive: the bytes have to cross the archive
@@ -355,6 +378,21 @@ export function planChanges(
     }),
   );
   const remap = makeRemapper(moves);
+
+  // Each archive's renames are reduced and remapped on their own, so a
+  // rename of a parent inside an archive carries its children with it —
+  // one move of the folder instead of one per entry — and a deletion inside
+  // that folder can be addressed at the path the entry ends up at.
+  const archiveRemapById = new Map<string, (path: string) => string>();
+  const archiveDestsById = new Map<string, Set<string>>();
+  for (const [id, raw] of archiveMovesById) {
+    const ref = archives.get(id);
+    if (!ref || ref.currentPath === null) continue;
+    const reduced = reduceMoves(raw);
+    planFor(ref.currentPath).moves = reduced;
+    archiveRemapById.set(id, makeRemapper(reduced));
+    archiveDestsById.set(id, new Set(reduced.map((move) => move.to)));
+  }
 
   // ── deletions ───────────────────────────────────────────────────────────
   const deletedTop = deleted.filter(
@@ -369,9 +407,26 @@ export function planChanges(
   for (const entry of deletedTop) {
     const owner = archiveOfBase(entry.path);
     if (owner) {
-      // A deletion inside an archive: the archive is edited in place.
+      // A deletion inside an archive: the archive is edited in place. Like a
+      // deletion in the folder, it is only replayed when deletions are on.
+      // The entry is deleted where it ENDS UP: a rename of one of its
+      // parents runs first and carries it with it, so deleting its old path
+      // would find nothing.
       if (!goneArchives.has(owner.ref.id)) {
-        planFor(owner.ref.currentPath!).deletes.push(owner.inside);
+        if (includeDeletions) {
+          const remapArchive = archiveRemapById.get(owner.ref.id);
+          const moved = remapArchive ? remapArchive(owner.inside) : owner.inside;
+          const dests = archiveDestsById.get(owner.ref.id);
+          if (dests?.has(moved)) {
+            // A rename lands on the deleted entry's place: the old occupant
+            // has to go first, before anything is renamed.
+            planFor(owner.ref.currentPath!).preDeletes.push(owner.inside);
+          } else {
+            planFor(owner.ref.currentPath!).deletes.push(moved);
+          }
+        } else {
+          notReplayed.push(entry.path);
+        }
       }
       continue;
     }
@@ -496,7 +551,11 @@ export function planChanges(
   const archivePlansList = [...archivePlans.values()]
     .filter(
       (plan) =>
-        plan.moves.length > 0 || plan.deletes.length > 0 || plan.adds.length > 0 || plan.copies.length > 0,
+        plan.moves.length > 0 ||
+        plan.preDeletes.length > 0 ||
+        plan.deletes.length > 0 ||
+        plan.adds.length > 0 ||
+        plan.copies.length > 0,
     )
     .sort((a, b) => a.archive.localeCompare(b.archive));
 
@@ -544,17 +603,22 @@ function shArray(values: string[]): string {
 /**
  * The plan for one archive, as the tab-separated rows the script reads:
  *
+ *   PREDELETE<TAB>path    a deletion that frees a path for a rename
+ *   DELETE<TAB>path       a deletion, at the path the entry lives at after the renames
  *   MOVE<TAB>from<TAB>to<TAB>temp    phase 1: rename the source aside
  *   COMMIT<TAB>temp<TAB>to           phase 2: put it where it belongs
- *   DELETE<TAB>path
  *   ADDFILE<TAB>path
  *   ADDDIR<TAB>path
  *
  * The paths are relative to the archive's own root ("Logos/Logo.eps"), which
- * is what 7-Zip addresses.
+ * is what 7-Zip addresses. Deletions come first in the file: the Python
+ * fallback reads the plan in one pass, so a deletion that frees a path has
+ * to be known before the rename that needs it is read.
  */
 function renderArchivePlanRows(plan: ArchivePlan): string[] {
   const rows: string[] = [];
+  for (const path of plan.preDeletes) rows.push(`PREDELETE	${path}`);
+  for (const path of plan.deletes) rows.push(`DELETE	${path}`);
   // Phase 1: every source is renamed aside, deepest source first.
   const stageOrder = [...plan.moves].sort((a, b) => b.from.length - a.from.length);
   const tempNames = new Map<string, string>();
@@ -568,7 +632,6 @@ function renderArchivePlanRows(plan: ArchivePlan): string[] {
   for (const move of commitOrder) {
     rows.push(`COMMIT\t${tempNames.get(`${move.from}\n${move.to}`)}\t${move.to}`);
   }
-  for (const path of plan.deletes) rows.push(`DELETE\t${path}`);
   for (const add of plan.adds) {
     rows.push(`${add.kind === "dir" ? "ADDDIR" : "ADDFILE"}\t${add.path}`);
   }
@@ -688,14 +751,25 @@ export function buildChangesScript(args: {
   // folder, and the script edits it.
   const archiveOps = plan.archivePlans.reduce(
     (sum, archive) =>
-      sum + archive.moves.length + archive.deletes.length + archive.adds.length + archive.copies.length,
+      sum +
+      archive.moves.length +
+      archive.preDeletes.length +
+      archive.deletes.length +
+      archive.adds.length +
+      archive.copies.length,
+    0,
+  );
+  const archiveDeletes = plan.archivePlans.reduce(
+    (sum, archive) => sum + archive.preDeletes.length + archive.deletes.length,
     0,
   );
 
   const summary: ChangesSummary = {
     renamed: plan.moves.length,
     created: plan.mkdirs.length + plan.touches.length + plan.links.length + plan.copies.length,
-    deleted: plan.deletes.length + plan.preDeletes.length,
+    // The deletions inside archives count too: the script asks about them, and
+    // "include deletions" covers them.
+    deleted: plan.deletes.length + plan.preDeletes.length + archiveDeletes,
     copied: plan.copies.length,
     inArchives: archiveOps,
     total:

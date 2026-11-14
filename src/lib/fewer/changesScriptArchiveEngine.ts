@@ -121,10 +121,27 @@ apply_archive_plan() {
   archive_engine
 
   if [ "$ARCHIVE_ENGINE" = "python" ]; then
-    "$PYTHON" "$ARCHIVE_WORK/fewer_zip.py" --apply "$abs" "$plan" ||
+    local effective="$plan"
+    if [ "$ALLOW_DELETE" = 0 ]; then
+      # Deletions were not allowed: drop them, and the renames that would
+      # have landed on an entry that is still there. (Pre-deletes free a
+      # path for a rename and are part of the rename itself, so they stay.)
+      effective="$ARCHIVE_WORK/plan-allowed.tsv"
+      awk -F'\t' '$1 == "DELETE" { drop[$2] = 1; next } ($1 == "MOVE" || $1 == "COMMIT") && ($3 in drop) { next } { print }' "$plan" > "$effective"
+    fi
+    "$PYTHON" "$ARCHIVE_WORK/fewer_zip.py" --apply "$abs" "$effective" ||
       die "Python could not rewrite '$archive' — it is unchanged"
     return 0
   fi
+
+  # A deletion that frees a path for a rename has to happen first: the
+  # entry still sits at its old path, before anything is renamed.
+  while IFS="	" read -r kind path _; do
+    [ "$kind" = "PREDELETE" ] || continue
+    say "· inside $archive: delete $path"
+    "$SEVENZIP" d -bso0 -bsp0 "$abs" "$path" ||
+      die "7-Zip could not delete '$path' inside '$archive' — it is unchanged"
+  done < "$plan"
 
   # Phase 1: every source is renamed aside to a temporary name.
   while IFS="	" read -r kind from to temp; do

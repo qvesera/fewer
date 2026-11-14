@@ -129,6 +129,79 @@ describe("planChanges", () => {
     expect(plan.moves[0].to).toBe("app");
   });
 
+  test("a delete inside a renamed folder in an archive uses the new path", () => {
+    // The user's bug: the parent folder __MACOSX was renamed and one of its
+    // children deleted, but the archive delete still pointed at the old
+    // path — which no longer exists once the rename has run.
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK/EPS", "file"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK/AI", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX/Monrock Logo CMYK", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX/Monrock Logo CMYK/AI", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+    after[3].id = before[3].id;
+    after[4].id = before[5].id;
+
+    const plan = planChanges(captureBaseline(before), after, true);
+    expect(plan.archivePlans).toHaveLength(1);
+    // One move: the folder carries its children, no per-file renames.
+    expect(plan.archivePlans[0].moves).toEqual([
+      { from: "Logos/__MACOSX", to: "Logos/empty test__MACOSX" },
+    ]);
+    // The deletion targets the path the entry has AFTER the rename.
+    expect(plan.archivePlans[0].preDeletes).toEqual([]);
+    expect(plan.archivePlans[0].deletes).toEqual([
+      "Logos/empty test__MACOSX/Monrock Logo CMYK/EPS",
+    ]);
+  });
+
+  test("a rename landing on a deleted path inside an archive is a pre-delete", () => {
+    // b.txt is renamed to a.txt, and a.txt itself was deleted: the old a.txt
+    // has to go first, before the rename lands on it.
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/a.txt", "file"],
+        ["test zips/Logos.zip/Logos/b.txt", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/a.txt", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[3].id; // b.txt renamed to a.txt
+
+    const plan = planChanges(captureBaseline(before), after, true);
+    expect(plan.archivePlans).toHaveLength(1);
+    expect(plan.archivePlans[0].moves).toEqual([{ from: "Logos/b.txt", to: "Logos/a.txt" }]);
+    expect(plan.archivePlans[0].preDeletes).toEqual(["Logos/a.txt"]);
+    expect(plan.archivePlans[0].deletes).toEqual([]);
+  });
+
   test("a child that also moved on its own keeps its own move", () => {
     const before = tree([
       ["project/src", "folder"],
@@ -514,6 +587,51 @@ test("the Python fallback replays the same changes when 7-Zip is missing", () =>
     expect(existsSync(join(out, "gone.txt"))).toBe(false);
   });
 
+  test("deletions inside an archive are replayed when deletions are on", () => {
+    // The bug this covers: the archive deletions were planned but never
+    // counted, so the script never asked about them and silently skipped them.
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+        ["test zips/Logos.zip/Logos/Gone.eps", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+
+    // With deletions off, the deletion is not planned at all.
+    const off = planChanges(captureBaseline(before), after, false);
+    expect(off.archivePlans).toHaveLength(0);
+    expect(off.warnings.join(" ")).toContain("Not replayed");
+
+    // With deletions on, the archive plan carries it…
+    const on = planChanges(captureBaseline(before), after, true);
+    expect(on.archivePlans).toHaveLength(1);
+    expect(on.archivePlans[0].deletes).toEqual(["Logos/Gone.eps"]);
+
+    // …and the script asks about it before deleting.
+    const { script, summary } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      includeDeletions: true,
+    });
+    expect(summary.deleted).toBe(1);
+    expect(script).toContain("DELETES=1");
+    expect(script).toContain("Also delete");
+    expect(script).toContain("DELETE\\tLogos/Gone.eps");
+  });
+
   test("the generated script edits the archive in place", () => {
     if (!sevenZipAvailable()) return;
     // A folder with a zip in it, and a rename inside that zip: the script
@@ -531,6 +649,7 @@ test("the Python fallback replays the same changes when 7-Zip is missing", () =>
       [
         ["test zips/Logos.zip", "folder"],
         ["test zips/Logos.zip/Logos/Logo.eps", "file"],
+        ["test zips/Logos.zip/Logos/Gone.eps", "file"],
         ["test zips/Logos.zip/Logos/Other.eps", "file"],
       ],
       "test zips",
@@ -547,27 +666,155 @@ test("the Python fallback replays the same changes when 7-Zip is missing", () =>
     after[1].data.isArchive = true;
     after[1].id = before[1].id;
     after[2].id = before[2].id;
-    after[3].id = before[3].id;
+    after[3].id = before[4].id;
 
     const { script } = buildChangesScript({
       baseline: captureBaseline(before),
       nodes: after,
+      includeDeletions: true,
       fileName: "fewer-changes.sh",
     });
     const file = join(root, "fewer-changes.sh");
     writeFileSync(file, script);
 
-    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: folder });
+    const run = Bun.spawnSync(["bash", file, "--yes", "--allow-delete"], { cwd: folder });
     expect(run.stderr.toString()).toBe("");
     expect(run.exitCode).toBe(0);
 
-    // The zip now holds the renamed entry — the zip was edited in place.
+    // The zip now holds the renamed entry and not the deleted one — the zip
+    // was edited in place.
     const out = join(root, "out");
     mkdirSync(out);
     Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, join(folder, "Logos.zip")]);
     expect(existsSync(join(out, "Logos", "Renamed.eps"))).toBe(true);
     expect(existsSync(join(out, "Logos", "Logo.eps"))).toBe(false);
+    expect(existsSync(join(out, "Logos", "Gone.eps"))).toBe(false);
     expect(readFileSync(join(out, "Logos", "Renamed.eps"), "utf8")).toBe("EPS");
+  });
+
+  test("deleting inside a renamed folder in an archive hits the new path (7z)", () => {
+    if (!sevenZipAvailable()) return;
+    // The reported bug: a parent folder inside the zip was renamed and one
+    // of its children deleted. The delete used the old path, 7-Zip's `d`
+    // silently matched nothing, and the file survived.
+    const root = mkdtempSync(join(tmpdir(), "fewer-zip-rename-"));
+    const folder = join(root, "test zips");
+    const base = join(root, "base");
+    mkdirSync(join(base, "Logos", "__MACOSX", "Monrock Logo CMYK"), { recursive: true });
+    writeFileSync(join(base, "Logos", "__MACOSX", "Monrock Logo CMYK", "EPS"), "EPS");
+    writeFileSync(join(base, "Logos", "__MACOSX", "Monrock Logo CMYK", "AI"), "AI");
+    mkdirSync(folder, { recursive: true });
+    Bun.spawnSync(["7z", "a", "-bso0", "-bsp0", join(folder, "Logos.zip"), "Logos"], { cwd: base });
+
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK/EPS", "file"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK/AI", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX/Monrock Logo CMYK", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX/Monrock Logo CMYK/AI", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+    after[3].id = before[3].id;
+    after[4].id = before[5].id;
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      includeDeletions: true,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes", "--allow-delete"], { cwd: folder });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    const out = join(root, "out");
+    mkdirSync(out);
+    Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, join(folder, "Logos.zip")]);
+    // The rename carried the subtree; the deleted entry is gone at the NEW
+    // path and the surviving sibling kept its bytes.
+    expect(existsSync(join(out, "Logos", "__MACOSX"))).toBe(false);
+    expect(existsSync(join(out, "Logos", "empty test__MACOSX", "Monrock Logo CMYK", "EPS"))).toBe(false);
+    expect(existsSync(join(out, "Logos", "empty test__MACOSX", "Monrock Logo CMYK", "AI"))).toBe(true);
+    expect(readFileSync(join(out, "Logos", "empty test__MACOSX", "Monrock Logo CMYK", "AI"), "utf8")).toBe("AI");
+  });
+
+  test("deleting inside a renamed folder in an archive hits the new path (python fallback)", () => {
+    if (!pythonAvailable()) return;
+    // Same scenario as above, but with 7-Zip hidden so the Python fallback
+    // (a name-mapping rebuild) does the work.
+    const root = mkdtempSync(join(tmpdir(), "fewer-zip-rename-py-"));
+    const folder = join(root, "test zips");
+    const base = join(root, "base");
+    mkdirSync(join(base, "Logos", "__MACOSX", "Monrock Logo CMYK"), { recursive: true });
+    writeFileSync(join(base, "Logos", "__MACOSX", "Monrock Logo CMYK", "EPS"), "EPS");
+    writeFileSync(join(base, "Logos", "__MACOSX", "Monrock Logo CMYK", "AI"), "AI");
+    mkdirSync(folder, { recursive: true });
+    Bun.spawnSync(["7z", "a", "-bso0", "-bsp0", join(folder, "Logos.zip"), "Logos"], { cwd: base });
+
+    const before = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK", "folder"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK/EPS", "file"],
+        ["test zips/Logos.zip/Logos/__MACOSX/Monrock Logo CMYK/AI", "file"],
+      ],
+      "test zips",
+    );
+    before[1].data.isArchive = true;
+    const after = tree(
+      [
+        ["test zips/Logos.zip", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX/Monrock Logo CMYK", "folder"],
+        ["test zips/Logos.zip/Logos/empty test__MACOSX/Monrock Logo CMYK/AI", "file"],
+      ],
+      "test zips",
+    );
+    after[1].data.isArchive = true;
+    after[1].id = before[1].id;
+    after[2].id = before[2].id;
+    after[3].id = before[3].id;
+    after[4].id = before[5].id;
+
+    const { script } = buildChangesScript({
+      baseline: captureBaseline(before),
+      nodes: after,
+      includeDeletions: true,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = runWithout7z(file, folder, ["--yes", "--allow-delete"]);
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    const out = join(root, "out");
+    mkdirSync(out);
+    Bun.spawnSync(["7z", "x", "-bso0", "-bsp0", `-o${out}`, join(folder, "Logos.zip")]);
+    expect(existsSync(join(out, "Logos", "__MACOSX"))).toBe(false);
+    expect(existsSync(join(out, "Logos", "empty test__MACOSX", "Monrock Logo CMYK", "EPS"))).toBe(false);
+    expect(existsSync(join(out, "Logos", "empty test__MACOSX", "Monrock Logo CMYK", "AI"))).toBe(true);
+    expect(readFileSync(join(out, "Logos", "empty test__MACOSX", "Monrock Logo CMYK", "AI"), "utf8")).toBe("AI");
   });
 
   test("a folder script only reaches for an archive engine when it has archive work", () => {

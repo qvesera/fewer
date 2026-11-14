@@ -7,8 +7,17 @@
  *
  *   - a rename is a mapping (a swap is two names swapping — free, no ordering
  *     constraints at all, unlike 7-Zip's sequential renames);
- *   - a delete drops the member;
+ *   - a DELETE drops the member whose name it has AFTER the renames: a rename
+ *     of its folder may have carried it to a new path, so matching the old
+ *     name would miss it;
+ *   - a PREDELETE drops the member with that name NOW: a rename lands on this
+ *     path, so the old occupant goes first and the rename can take its place;
  *   - a copy is taken out of the archive with its bytes;
+ *   - every other member is copied over with its original compression method,
+ *     timestamps and attributes, so nothing else changes;
+ *   - the new archive is written beside the old one and moved into place, so a
+ *     failure leaves the original untouched.
+ *
  *   - every other member is copied over with its original compression method,
  *     timestamps and attributes, so nothing else changes;
  *   - the new archive is written beside the old one and moved into place, so a
@@ -21,14 +30,16 @@
  *   python3 fewer_zip.py --list  <archive>
  *   python3 fewer_zip.py --apply <archive> <plan.tsv>
  *
- * The plan file is tab separated: `MOVE<tab>from<tab>to`, `DELETE<tab>path`,
- * `ADDFILE<tab>path`, `ADDDIR<tab>path`, `ADDCOPY<tab>src<tab>dest`.
+ * The plan file is tab separated: `MOVE<tab>from<tab>to`,
+ * `PREDELETE<tab>path` (the path as it is now), `DELETE<tab>path` (the path
+ * as it is after the renames), `ADDFILE<tab>path`, `ADDDIR<tab>path`,
+ * `ADDCOPY<tab>src<tab>dest`.
  */
 export const ARCHIVE_PYTHON_PROGRAM = `import os, sys, zipfile
 
 
 def read_plan(path):
-    moves, deletes, adds, copies = [], [], [], []
+    moves, deletes, pre_deletes, adds, copies = [], [], [], [], []
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             line = line.rstrip("\\n")
@@ -36,8 +47,12 @@ def read_plan(path):
                 continue
             kind, _, rest = line.partition("\\t")
             if kind == "MOVE":
-                src, _, dst = rest.partition("\\t")
-                moves.append((src, dst))
+                # Embedded folder plans carry the 7z staging name as a fourth
+                # field (MOVE from to temp); only the rename itself matters.
+                parts = rest.split("\\t")
+                moves.append((parts[0], parts[1]))
+            elif kind == "PREDELETE":
+                pre_deletes.append(rest)
             elif kind == "DELETE":
                 deletes.append(rest)
             elif kind == "ADDFILE":
@@ -47,7 +62,7 @@ def read_plan(path):
             elif kind == "ADDCOPY":
                 src, _, dst = rest.partition("\\t")
                 copies.append((src, dst))
-    return moves, deletes, adds, copies
+    return moves, deletes, pre_deletes, adds, copies
 
 
 def renamed(name, moves):
@@ -98,13 +113,21 @@ def main():
                 # names line up with the paths in the plan.
                 print(item.filename.rstrip("/"))
             return
-        moves, deletes, adds, copies = read_plan(sys.argv[3])
+        moves, deletes, pre_deletes, adds, copies = read_plan(sys.argv[3])
         temp = archive + ".fewer-new"
         with zipfile.ZipFile(temp, "w") as out:
             for item in items:
-                if is_deleted(item.filename, deletes):
+                # A pre-delete names the path as it is now: a rename lands on
+                # it, so the old occupant goes first. A delete names the path
+                # as it is after the renames: a rename of its folder may have
+                # carried the entry to a new path, so matching the name it
+                # had before the renames would miss it.
+                if is_deleted(item.filename, pre_deletes):
                     continue
-                out.writestr(copy_of(item, renamed(item.filename, moves)), source.read(item))
+                new_name = renamed(item.filename, moves)
+                if is_deleted(new_name, deletes):
+                    continue
+                out.writestr(copy_of(item, new_name), source.read(item))
             for path, kind in adds:
                 name = path if kind == "file" else path.rstrip("/") + "/"
                 info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))

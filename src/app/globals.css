@@ -83,6 +83,10 @@
   --color-fewer-file-subtle-text: var(--fewer-file-subtle-text);
   --color-fewer-file-border: var(--fewer-file-border);
   --color-fewer-file-icon: var(--fewer-file-icon);
+  /* The colour to use ON a --fewer-file-icon background: the brand colour is a
+     deep purple in light mode and a light pink in dark mode, so white text
+     only works on one of them. */
+  --color-fewer-file-icon-fg: var(--fewer-file-icon-fg);
 }
 
 :root {
@@ -172,6 +176,7 @@
   --fewer-file-subtle-text: #64748b;
   --fewer-file-border: rgba(168, 85, 247, 0.35);
   --fewer-file-icon: #9333ea;
+  --fewer-file-icon-fg: #ffffff;
 }
 
 /* Viewport-aware default (T-216): a wide window is a big panel viewed from
@@ -255,6 +260,7 @@
   --fewer-file-subtle-text: #adb5bd;
   --fewer-file-border: rgba(190, 75, 219, 0.45);
   --fewer-file-icon: #e599f7;
+  --fewer-file-icon-fg: #1e293b;
 }
 
 @layer base {

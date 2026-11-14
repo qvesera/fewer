@@ -235,6 +235,12 @@ is_delete_path() {
     [ "\${DELETE_PATHS[$j]}" = "$1" ] && return 0
     j=$((j+1))
   done
+  # A pre-delete goes first and frees the path before the rename lands.
+  j=0
+  while [ "$j" -lt "$N_PRE_DELETES" ]; do
+    [ "\${PRE_DELETES[$j]}" = "$1" ] && return 0
+    j=$((j+1))
+  done
   return 1
 }
 
@@ -281,7 +287,7 @@ if [ "$ENGINE" = "python" ]; then
   # Deletions first: the filter below drops the moves that needed them.
   j=0
   while [ "$j" -lt "$N_PRE_DELETES" ]; do
-    printf 'DELETE\\t%s\\n' "\${PRE_DELETES[$j]}" >> "$plan"
+    printf 'PREDELETE\\t%s\\n' "\${PRE_DELETES[$j]}" >> "$plan"
     j=$((j+1))
   done
   j=0
@@ -329,7 +335,7 @@ if [ "$ENGINE" = "python" ]; then
     if [ "$ALLOW_DELETE" = 0 ] && [ "$((N_DELETES + N_PRE_DELETES))" -gt 0 ]; then
       # Deletions are not allowed: drop them, and the moves that needed the
       # freed path (they would land on an entry that is still there).
-      awk -F'\\t' '$1 == "DELETE" { drop[$2] = 1; next } $1 == "MOVE" && ($3 in drop) { next } { print }' \\
+      awk -F'\\t' '$1 == "DELETE" || $1 == "PREDELETE" { drop[$2] = 1; next } $1 == "MOVE" && ($3 in drop) { next } { print }' \\
         "$plan" > "$plan.kept"
       mv "$plan.kept" "$plan"
     fi
