@@ -7573,7 +7573,7 @@ tasks:
   session_count: 1
 - id: "T-262"
   title: "Dry-run replays archive edits instead of only showing them"
-  status: "review"
+  status: "triaged"
   type: "fix"
   area: "export"
   tier: null
@@ -7598,5 +7598,40 @@ tasks:
     note: "embedded archive engine honours DRY_RUN: preview-only output for 7z pre-delete/rename/commit/delete/add/copy and python rename/delete/add rows; pre-delete listed in standalone dry-run; bash-syntax + 7z/Python dry-run + real-run round-trips verified"
     proof: ["ae0362b", "#602"]
     effort: {commits: 1, files: 4, insertions: 112, deletions: 7}
-  spent_min: 6
-  session_count: 1
+  - start: "2026-11-14T15:39:13Z"
+    end: "2026-11-14T15:39:58Z"
+    measured: true
+    note: "Windows .bat export work completed"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  - start: "2026-11-14T15:40:25Z"
+    end: "2026-11-14T15:42:05Z"
+    measured: true
+    note: "completed Windows .bat export prep"
+    proof: []
+    effort: {commits: 0, files: 0, insertions: 0, deletions: 0}
+  spent_min: 9
+  session_count: 3
+- id: "T-263"
+  title: "Windows .bat export for Export Changes"
+  status: "triaged"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: null
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-14T15:38:14Z"
+  notes: ["2026-11-14T15:39:17Z · internal"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
