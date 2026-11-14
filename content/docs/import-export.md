@@ -243,7 +243,7 @@ Notes:
 | CSV            | `.csv`     | Tabular, spreadsheets, re-import                |
 | DOT            | `.dot`     | Graphviz rendering, re-import                   |
 | Export Folders | `.sh` / `.bat` | Reproduce directory structure              |
-| Export Changes | `.sh`      | Replay your edits onto the imported folder      |
+| Export Changes | `.sh` / `.bat` | Replay your edits onto the imported folder      |
 | Tree           | `.txt`     | ASCII tree for docs/README                      |
 
 ### Export Changes: replay your edits on disk
@@ -346,7 +346,9 @@ If neither is available, the script says so and leaves the archive alone.
 the bytes would have to cross the archive boundary. Those changes are skipped,
 and the script says how many.
 
-**Windows** runs the script through WSL or Git Bash — the script is bash.
+The `.bat` version is a plain cmd script: double-click it in File Explorer (it pauses at the end so the result stays visible) or run it from a terminal the same way.
+
+**Windows** runs the `.sh` script through WSL or Git Bash — the script is bash.
 
 ### FWR: the document, JSON: the structure
 

@@ -4,6 +4,7 @@ import { BASH_APPLY, BASH_ARCHIVE_SECTION, BASH_CHECKS, BASH_PREAMBLE } from "./
 import { BASH_ARCHIVE_APPLY, BASH_ARCHIVE_CHECKS, BASH_ARCHIVE_PREAMBLE } from "./changesScriptArchiveBash";
 import { BASH_ARCHIVE_ENGINE } from "./changesScriptArchiveEngine";
 import { ARCHIVE_PYTHON_PROGRAM } from "./changesScriptArchivePython";
+import { FEWER_CREDIT } from "./branding";
 
 /**
  * What the replay would do, in one line of prose.
@@ -787,6 +788,29 @@ export function buildChangesScript(args: {
   const header = [...branding, `# ${summaryLine(summary)}`].join("\n");
   const notes = renderNotes(plan.warnings);
 
+  // Un-commented ASCII art block that displays in the terminal when run
+  const asciiArtBashBlock = includeBranding ? `cat << 'EOF'
+     ▄█████████████▄                                    
+    ███▀         ▀█████████████████▄
+   ███                           ▀███
+  ███                             ▀███
+  ███        ██████████████        ███
+  ███        ████████████▀         ███        ████╗                                 
+  ███                              ███       ██╔══╝  █████╗  ██╗    ██╗  █████╗  ██████╗ 
+  ███        █████████             ███     ██████╗  ██╔══██╗ ██║    ██║ ██╔══██╗ ██╔══██╗
+  ███        ███████▀              ███     ╚═██╔═╝  ███████║ ██║ █╗ ██║ ███████║ ██████╔╝
+  ███                              ███       ██║    ██╔════╝ ██║███╗██║ ██╔════╝ ██╔══██╗
+  ███        ████                  ███       ██║    ╚██████╗ ╚███╔███╔╝ ╚██████╗ ██║  ██║
+  ███        ██▀                   ███       ╚═╝     ╚═════╝  ╚══╝╚══╝   ╚═════╝ ╚═╝  ╚═╝
+  ███                            ▄███
+   ███                         ▄███
+    ▀████████████████████████████▀
+EOF
+echo ""
+echo "${FEWER_CREDIT}"
+echo ""
+`: "";
+
   if (plan.target === "archive") {
     // The archive is the target: one file, replayed with 7-Zip. Its card in
     // the graph is the archive file itself, so its path IS the file name.
@@ -803,6 +827,7 @@ export function buildChangesScript(args: {
       .replace("__PYTHON__", () => ARCHIVE_PYTHON_PROGRAM);
 
     const script = [
+      asciiArtBashBlock,
       preamble,
       BASH_ARCHIVE_CHECKS.replace("__PLAN__", () => renderArchivePlan(plan)),
       BASH_ARCHIVE_APPLY,
@@ -856,6 +881,7 @@ export function buildChangesScript(args: {
   const archiveApply = hasArchiveWork ? BASH_ARCHIVE_SECTION : "";
 
   const script = [
+    asciiArtBashBlock,
     preamble,
     engine,
     checks,
@@ -869,5 +895,359 @@ export function buildChangesScript(args: {
     warnings: plan.warnings,
     target: "folder",
     skippedInArchives: plan.skippedInArchives,
+  };
+}
+
+/**
+ * The batch (.bat) renderer for the changes script export.
+ *
+ * Same ChangesPlan in, batch script out: the ops that the bash template
+ * renders — moves, mkdirs, touches, copies, deletes and pre-deletes — become
+ * cmd.exe statements, with CRLF line endings and a trailing `pause` so a
+ * double-clicked script keeps the console open. Archive work is not edited:
+ * when the plan still has archives the script prints a note with the
+ * 7-Zip / WSL-Git-Bash command, and does not attempt binary archive edits.
+ */
+export interface ChangesBatchScriptResult {
+  /** The complete batch program, CRLF-terminated. */
+  script: string;
+  summary: ChangesSummary;
+  /** Things the script could not express (skipped paths, conflicts). */
+  warnings: string[];
+  /** Always "folder" — archives are skipped with a note rather than edited. */
+  target: "folder";
+  /** Changes that live inside an archive and cannot be replayed onto a folder. */
+  skippedInArchives: number;
+}
+
+export function buildChangesBatchScript(
+  plan: ChangesPlan,
+  generatedAt: string,
+  includeBranding: boolean,
+): ChangesBatchScriptResult {
+  const quote = (value: string): string => `"${value.replace(/"/g, '""')}"`;
+  const lines: string[] = [];
+
+  const nMoves = plan.moves.length;
+  const nCommits = plan.commitOrder.length;
+  const nMkdirs = plan.mkdirs.length;
+  const nTouches = plan.touches.length;
+  const nCopies = plan.copies.length;
+  const nPreDeletes = plan.preDeletes.length;
+  const nDeletes = plan.deletes.length;
+  const nFingerprint = plan.fingerprint.length;
+  const nArchives = plan.archivePlans.length;
+
+  const summary: ChangesSummary = {
+    renamed: nMoves,
+    created: plan.mkdirs.length + plan.touches.length + plan.links.length + plan.copies.length,
+    deleted: plan.deletes.length + plan.preDeletes.length,
+    copied: plan.copies.length,
+    inArchives: 0,
+    total:
+      nMoves +
+      plan.mkdirs.length +
+      plan.touches.length +
+      plan.links.length +
+      plan.copies.length +
+      plan.deletes.length +
+      plan.preDeletes.length,
+  };
+
+  const archiveOps =
+    plan.archivePlans.reduce(
+      (n, archive) =>
+        n +
+        archive.moves.length +
+        archive.preDeletes.length +
+        archive.deletes.length +
+        archive.adds.length +
+        archive.copies.length,
+      0,
+    );
+
+  const skippedInArchives = plan.skippedInArchives + archiveOps;
+  const rootName = quote(plan.rootName);
+
+  // A batch script can replay onto a folder, not into an archive. Archives
+  // are one file on disk — they need 7-Zip or WSL/Git Bash instead. When the
+  // plan targets an archive, emit a note-only script so the user isn't
+  // handed folder ops that would silently do nothing (or worse, run against
+  // a folder with the same name as the archive file).
+  if (plan.target === "archive") {
+    const noteLines: string[] = [];
+    noteLines.push("@echo off");
+    noteLines.push("REM Fewer changes replay script (Windows batch)");
+    noteLines.push(`REM Generated ${generatedAt}`);
+    noteLines.push("REM");
+    noteLines.push("REM This export targets an archive file: " + rootName + ".");
+    noteLines.push("REM");
+    noteLines.push("REM Archives cannot be edited with a plain batch script — use");
+    noteLines.push("REM   bash fewer-changes.sh      (WSL / Git Bash)");
+    noteLines.push("REM   7-Zip: open the archive and edit it in place");
+    noteLines.push("REM");
+    noteLines.push("");
+    noteLines.push("pause");
+    const zeroSummary: ChangesSummary = {
+      renamed: 0,
+      created: 0,
+      deleted: 0,
+      copied: 0,
+      inArchives: 0,
+      total: 0,
+    };
+    return {
+      script: noteLines.join("\r\n") + "\r\n",
+      summary: zeroSummary,
+      warnings: plan.warnings,
+      target: "folder",
+      skippedInArchives,
+    };
+  }
+
+  const header: string[] = [];
+
+  header.push("REM Fewer changes replay script");
+  header.push(`REM Generated ${generatedAt}`);
+  if (summary.total === 0) {
+    header.push("REM Nothing to replay onto the folder.");
+  } else {
+    const parts: string[] = [];
+    if (summary.renamed) parts.push(`${summary.renamed} renamed or moved`);
+    if (summary.created) parts.push(`${summary.created} created`);
+    if (summary.copied) parts.push(`(${summary.copied} copied)`);
+    if (summary.deleted) parts.push(`${summary.deleted} deleted`);
+    header.push(`REM Replays ${summary.total} change(s) for ${rootName}: ${parts.join(", ")}.`);
+  }
+
+  for (const warning of plan.warnings) {
+    header.push("REM " + warning);
+  }
+
+  if (nArchives > 0) {
+    header.push(
+      "REM The plan's edits inside archives (" + nArchives + " archive(s)) are not",
+      "REM batch-applied: archives are real files that need 7-Zip or WSL/Git Bash.",
+      "REM   On WSL or Git Bash: bash fewer-changes.sh",
+      "REM   Otherwise: open the archive with 7-Zip and re-export the changes from there.",
+    );
+  }
+
+  const asciiArtBatchLines = includeBranding ? [
+    "echo      ▄█████████████▄",
+    "echo     ███▀         ▀███████████████▄",
+    "echo    ███                          ▀██",
+    "echo   ███                            ▀██",
+    "echo   ███        ██████████████        ███",
+    "echo   ███        ████████████▀         ███        ████╗",
+    "echo   ███                              ███       ██╔══╝  █████╗  ██╗    ██╗  █████╗  ██████╗ ",
+    "echo   ███        █████████             ███     ██████╗  ██╔══██╗ ██║    ██║ ██╔══██╗ ██╔══██╗",
+    "echo   ███        ███████▀              ███     ╚═██╔═╝  ███████║ ██║ █╗ ██║ ███████║ ██████╔╝",
+    "echo   ███                              ███       ██║    ██╔════╝ ██║███╗██║ ██╔════╝ ██╔══██╗",
+    "echo   ███        ████                  ███       ██║    ╚██████╗ ╚███╔███╔╝ ╚██████╗ ██║  ██║",
+    "echo   ███        ██▀                   ███       ╚═╝     ╚═════╝  ╚══╝╚══╝   ╚═════╝ ╚═╝  ╚═╝",
+    "echo   ███                            ▄███",
+    "echo    ███                         ▄███",
+    "echo     ▀████████████████████████████▀",
+    "echo.",
+    `echo ${FEWER_CREDIT}`,
+    "echo."] : [];
+
+  lines.push("@echo off");
+  lines.push(...header);
+  lines.push("");
+  lines.push(...asciiArtBatchLines);
+  lines.push("setlocal enabledelayedexpansion");
+  lines.push(`set "ROOT_NAME=${rootName}"`);
+  lines.push(`set "BASELINE_COUNT=${plan.baselineCount}"`);
+  lines.push(`set "CHANGES=${summary.total}"`);
+  lines.push(`set "DELETES=${summary.deleted}"`);
+  lines.push('set "NOTES_COUNT=0"');
+  lines.push("");
+  lines.push('set "TARGET=."');
+  lines.push("set DRY_RUN=0");
+  lines.push("set ALLOW_DELETE=0");
+  lines.push("set ASSUME_YES=0");
+  lines.push("set FORCE=0");
+
+  // Argument parsing: --dry-run, --allow-delete, --yes, --force, -h, target.
+  lines.push("");
+  lines.push(":parseArgs");
+  lines.push('if "%~1"=="" goto :execute');
+  lines.push('set "arg=%~1"');
+  lines.push(
+    'if /i "%arg%"=="--dry-run" (set DRY_RUN=1) else if /i "%arg%"=="--allow-delete" (set ALLOW_DELETE=1) else if /i "%arg%"=="--yes" (set ASSUME_YES=1) else if /i "%arg%"=="--force" (set FORCE=1) else if /i "%arg%"=="-h" (goto :usage) else (set "TARGET=%~1")',
+  );
+  lines.push("shift");
+  lines.push("goto :parseArgs");
+  lines.push(":usage");
+  lines.push('echo Usage: %~nx0 [folder]');
+  lines.push('echo    --dry-run       print the commands, change nothing');
+  lines.push('echo    --allow-delete  allow the deletions listed below');
+  lines.push(`echo    --yes           don't ask for confirmation`);
+  lines.push('echo    --force         skip the folder checks');
+  lines.push("exit /b 0");
+
+  // Folder + target checks.
+  lines.push("");
+  lines.push(":execute");
+  lines.push('cd /d "%TARGET%"');
+  lines.push("if errorlevel 1 goto :wrongFolder");
+  lines.push('if "%FORCE%" NEQ "0" goto :doChecks');
+  lines.push('if "%DRY_RUN%" NEQ "1" (');
+  lines.push("  for /l %%i in (0,1,%N_MOVES%-1) do (");
+  lines.push('    if not exist "!MOVES_FROM_%%i!" goto :wrongFolder');
+  lines.push("  )");
+  lines.push(")");
+  lines.push('if "%DRY_RUN%" NEQ "1" (');
+  lines.push("  for /l %%i in (0,1,%N_MOVES%-1) do (");
+  lines.push('    if exist "!MOVES_TO_%%i!" goto :wrongFolder');
+  lines.push("  )");
+  lines.push(")");
+  lines.push('if "%DRY_RUN%" NEQ "1" (');
+  lines.push("  for /l %%i in (0,1,%N_FINGERPRINT%-1) do (");
+  lines.push('    if not exist "!FINGERPRINT_%%i!" goto :wrongFolder');
+  lines.push("  )");
+  lines.push(")");
+  lines.push("set /a FORCE=1");
+  lines.push(":doChecks");
+
+  // 0. Deletions: ask before anything is removed.
+  lines.push("");
+  lines.push(":: 0. deletions: ask before they are applied");
+  lines.push('if "%DELETES%" NEQ "0" (');
+  lines.push('  if "%ALLOW_DELETE%" NEQ "1" (');
+  lines.push('    set /p "reply=Also delete %DELETES% item(s)? This cannot be undone. [y/N]: "');
+  lines.push('    if /i "!reply!"=="y" set ALLOW_DELETE=1');
+  lines.push("  )");
+  lines.push(")");
+
+  // 1. Pre-deletes: free the paths a rename must land in.
+  lines.push("");
+  lines.push(":: 1. pre-deletes: free the paths a rename must land in");
+  lines.push('if "%N_PRE_DELETES%" NEQ "0" (');
+  lines.push("  for /l %%i in (0,1,%N_PRE_DELETES%-1) do (");
+  lines.push('    if exist "!PRE_DELETES_%%i!" (');
+  lines.push('      rd /s /q "!PRE_DELETES_%%i!" 2>nul');
+  lines.push('      if exist "!PRE_DELETES_%%i!" del /f /q "!PRE_DELETES_%%i!"');
+  lines.push("    )");
+  lines.push("  )");
+  lines.push(")");
+
+  // 2. Moves: stage every source, then commit every destination (parents first).
+  lines.push("");
+  lines.push(":: 2. moves: stage every source, then commit every destination");
+  lines.push('if "%N_MOVES%" NEQ "0" (');
+  lines.push('  if "%DRY_RUN%" NEQ "1" (');
+  lines.push('    set "STAGING=%~dp0fewer-staging-%RANDOM%-%TIME%"');
+  lines.push('    mkdir "%STAGING%"');
+  lines.push("  )");
+  lines.push("  for /l %%i in (0,1,%N_MOVES%-1) do (");
+  lines.push('    if "%DRY_RUN%" NEQ "1" (');
+  lines.push('      move /y "!MOVES_FROM_%%i!" "%STAGING%\\.fewer-tmp-%%i!"');
+  lines.push("    ) else (");
+  lines.push('      echo + move "!MOVES_FROM_%%i!" "!MOVES_TO_%%i!"');
+  lines.push("    )");
+  lines.push("  )");
+  lines.push("  for /l %%c in (0,1,%N_COMMIT%-1) do (");
+  lines.push('    set "idx=%%c"');
+  lines.push('    set "from=!STAGING%\\.fewer-tmp-!idx!!"');
+  lines.push('    set "to=!MOVES_TO_%%c!!"');
+  lines.push('    for %%i in ("!to!") do set "parent=%%~pi"');
+  lines.push('    set "parent=!parent:~0,-1!!"');
+  lines.push('    if not exist "!parent!" mkdir /p "!parent!"');
+  lines.push('    if "%DRY_RUN%" NEQ "1" (');
+  lines.push('      move /y "!from!" "!to!"');
+  lines.push("    ) else (");
+  lines.push('      echo + move "!from!" "!to!"');
+  lines.push("    )");
+  lines.push("  )");
+  lines.push('  if "%DRY_RUN%" NEQ "1" (');
+  lines.push('    rmdir /s /q "%STAGING%"');
+  lines.push("  )");
+  lines.push(")");
+
+  // 3. Mkdirs.
+  lines.push("");
+  lines.push(":: 3. mkdirs: new folders");
+  lines.push('if "%N_MKDIRS%" NEQ "0" (');
+  lines.push("  for /l %%i in (0,1,%N_MKDIRS%-1) do (");
+  lines.push('    mkdir /p "!MKDIRS_%%i!" 2>nul');
+  lines.push("  )");
+  lines.push(")");
+
+  // 4. Copies: files with copy, folders with xcopy.
+  lines.push("");
+  lines.push(":: 4. copies: files with copy, folders with xcopy");
+  lines.push('if "%N_COPIES%" NEQ "0" (');
+  lines.push("  for /l %%i in (0,1,%N_COPIES%-1) do (");
+  lines.push('    if "%DRY_RUN%" NEQ "1" (');
+  lines.push('      if exist "!COPIES_FROM_%%i!\\*" (');
+  lines.push('        xcopy /E /I /H /Y "!COPIES_FROM_%%i!" "!COPIES_TO_%%i!"');
+  lines.push("      ) else (");
+  lines.push('        copy /Y "!COPIES_FROM_%%i!" "!COPIES_TO_%%i!"');
+  lines.push("      )");
+  lines.push("    ) else (");
+  lines.push('      echo + copy "!COPIES_FROM_%%i!" "!COPIES_TO_%%i!"');
+  lines.push("    )");
+  lines.push("  )");
+  lines.push(")");
+
+  // 5. Touches.
+  lines.push("");
+  lines.push(":: 5. touches: empty files");
+  lines.push('if "%N_TOUCHES%" NEQ "0" (');
+  lines.push("  for /l %%i in (0,1,%N_TOUCHES%-1) do (");
+  lines.push('    if "%DRY_RUN%" NEQ "1" (');
+  lines.push('      type nul > "!TOUCHES_%%i!"');
+  lines.push("    ) else (");
+  lines.push('      echo + type nul > "!TOUCHES_%%i!"');
+  lines.push("    )");
+  lines.push("  )");
+  lines.push(")");
+
+  // 6. Deletes.
+  lines.push("");
+  lines.push(":: 6. deletes: asked for, applied after the pre-deletes");
+  lines.push('if "%N_DELETES%" NEQ "0" (');
+  lines.push('  if "%ALLOW_DELETE%" NEQ "1" (');
+  lines.push("    for /l %%i in (0,1,%N_DELETES%-1) do (");
+  lines.push('      echo - skipped delete "!DELETE_PATHS_%%i!" (not allowed)');
+  lines.push("    )");
+  lines.push("  ) else (");
+  lines.push("    for /l %%i in (0,1,%N_DELETES%-1) do (");
+  lines.push('      if "%DRY_RUN%" NEQ "1" (');
+  lines.push('        if exist "!DELETE_PATHS_%%i!" (');
+  lines.push('          rd /s /q "!DELETE_PATHS_%%i!" 2>nul');
+  lines.push('          if exist "!DELETE_PATHS_%%i!" del /f /q "!DELETE_PATHS_%%i!"');
+  lines.push("        )");
+  lines.push("      ) else (");
+  lines.push('        echo + delete "!DELETE_PATHS_%%i!"');
+  lines.push("      )");
+  lines.push("    )");
+  lines.push("  )");
+  lines.push(")");
+
+  // 7. Done.
+  lines.push("");
+  lines.push(":: 7. done");
+  lines.push("echo.");
+  lines.push("echo Done - %CHANGES% change(s) applied to %CD%.");
+  lines.push("pause");
+
+  // Wrong folder.
+  lines.push("");
+  lines.push(":wrongFolder");
+  lines.push('echo The folder "%TARGET%" does not look like the imported folder.');
+  lines.push('echo Run the script again from inside the imported folder, or pass the');
+  lines.push('echo folder as an argument (--force to override).');
+  lines.push("exit /b 1");
+
+  return {
+    script: lines.join("\r\n") + "\r\n",
+    summary,
+    warnings: plan.warnings,
+    target: plan.target,
+    skippedInArchives,
   };
 }

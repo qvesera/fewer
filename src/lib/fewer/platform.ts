@@ -8,3 +8,9 @@ export function isMac(): boolean {
     navigator.platform || navigator.userAgent || "",
   );
 }
+
+/** Windows platforms report `Win32` on `navigator.platform` or `Windows` in the user agent. */
+export function isWindowsPlatform(): boolean {
+  if (typeof navigator === "undefined") return false;
+  return /Win|Windows/.test(navigator.platform || navigator.userAgent || "");
+}

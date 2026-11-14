@@ -67,6 +67,13 @@ describe("ExportPanel format logic", () => {
     expect(screen.getByText("JSON")).toBeDefined();
     expect(screen.getByText("CSV")).toBeDefined();
   });
+
+  test("script tile label shows platform-aware extension (.sh on non-Windows)", () => {
+    seedStore({ advancedModeEnabled: true, tier: "free" });
+    renderPanel();
+    expect(screen.getByText("Folder structure (.sh)")).toBeDefined();
+    expect(screen.getByText("Replay your edits (.sh)")).toBeDefined();
+  });
 });
 
 describe("ExportPanel export-selected mode", () => {
