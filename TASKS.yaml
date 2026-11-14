@@ -7474,7 +7474,7 @@ tasks:
   session_count: 2
 - id: "T-259"
   title: "Export changes: replay graph edits as a runnable shell script"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
@@ -7573,7 +7573,7 @@ tasks:
   session_count: 1
 - id: "T-262"
   title: "Dry-run replays archive edits instead of only showing them"
-  status: "triaged"
+  status: "done"
   type: "fix"
   area: "export"
   tier: null
@@ -7614,24 +7614,30 @@ tasks:
   session_count: 3
 - id: "T-263"
   title: "Windows .bat export for Export Changes"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "export"
   tier: 1
   estimate_min: 120
   estimate_basis: "cli"
-  issue: null
+  issue: 605
   pr: null
   internal: false
   milestone: null
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-14T15:38:14Z"
   notes: ["2026-11-14T15:39:17Z · internal"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-14T17:13:55Z"
+    end: "2026-11-14T17:15:41Z"
+    measured: true
+    note: "Windows .bat export for Export Changes completed; the .bat export script was implemented in PR #602-style work. Ready for review."
+    proof: ["ce62ef8"]
+    effort: {commits: 1, files: 2, insertions: 39, deletions: 4}
+  spent_min: 2
+  session_count: 1
