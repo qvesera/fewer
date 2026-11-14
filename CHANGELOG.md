@@ -28,6 +28,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Cloud panel: OneDrive linking is offered again; Google Drive stays hidden until revenue justifies Google's annual CASA assessment (decision recorded in .repowise/decisions.yaml — Drive adapter and server-side token storage remain in place)
 - Exports keep the fewer watermark on the free plan (a linked logo on SVG and PNG, a credit line elsewhere); only Pro removes it
 - Watch digests are a Pro feature: a nightly crawl per watched index. Watches already on a free account stay saved and start again if the account becomes Pro
+- The export panel's "Shell Script" format is now "Export Folders", next to the new "Export Changes".
 
 ### Added
 
@@ -36,6 +37,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Blog listing gained the same left-hand index the docs page has, so a post can be picked instead of scrolled to
 - Pricing page: Free, Pro and Enterprise, with the Pro price in USD, GBP, EUR and INR, an introductory price and a yearly plan at ten months for the price of twelve
 - Contact form on the pricing page: enquiries go to the inbox with the sender in reply-to, so no address is published
+- Export Changes: a script that replays the edits you made in the graph (renames, moves, new folders and files, duplicates) onto the folder you imported. It checks the folder first, stages the moves so swaps and cycles work, and asks before it deletes.
 
 ### Performance
 

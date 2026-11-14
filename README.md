@@ -262,9 +262,16 @@ docker run -p 3000:3000 fewer
 | **CSV**    | Tabular cards + connections                      | Spreadsheets, data analysis   |
 | **DOT**    | Graphviz format                            | `dot` rendering pipeline      |
 | **Script** | `mkdir -p` shell/batch script              | Reproduce directory structure |
+| **Changes** | A script that replays your edits on disk  | Apply your graph to your machine |
 | **Tree**   | Unicode ASCII tree (├── └── │)             | Code comments, READMEs        |
 
 Toggle **Export Selected** to export only the selected subtree.
+
+**Export Changes** is the one export that writes to your machine: it replays
+the renames, moves, new folders and files you made in the graph onto the
+folder you imported, as a script you run yourself. It checks the folder
+before it touches anything and asks before it deletes — see
+[Import & Export](/docs/import-export#export-changes-replay-your-edits-on-disk).
 
 Exports carry a small fewer credit below the Pro plan: a linked logo on **SVG** and **PNG**, a credit line on the other formats. Pro removes it, and the toggle in the export panel turns it off.
 

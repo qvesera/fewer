@@ -100,7 +100,7 @@ export const createDialogsSlice: DialogsSliceCreator = (set, get) => ({
   advancedModeEnabled: false,
   showFiles: true,
   loading: false,
-  exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true },
+  exportSettings: { format: "svg", quality: 90, transparentBackground: false, includeStats: true, includeBranding: true, includeDeletions: false },
   importOptions: { ...DEFAULT_IMPORT_OPTIONS },
 
   tutorialBeginnerDone: [] as string[],

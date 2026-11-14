@@ -7472,3 +7472,32 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 42, deletions: 28}
   spent_min: 12
   session_count: 2
+- id: "T-259"
+  title: "Export changes: replay graph edits as a runnable shell script"
+  status: "review"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 599
+  pr: 600
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "gh#599"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-12T21:42:33Z"
+  notes: ["2026-11-12T21:42:37Z · Baseline-diff replay script: importBaseline manifest + changesScript pure module + Export Changes tile + interactive prompts (apply/dry-run/delete confirmation) + root/preflight checks."]
+  sessions:
+  - start: "2026-11-12T21:42:49Z"
+    end: "2026-11-12T22:00:13Z"
+    measured: true
+    note: "Shipped Export Changes: baseline capture (importBaseline.ts) + pure diff (changesScript.ts) + the bash program (changesScriptBash.ts) with folder check, preflight, apply/dry-run/delete prompts and staged moves for swaps and cycles; panel tile renamed to Export Folders, new Export Changes tile + Include deletions switch; baseline persisted in the session cache and saved graphs; docs (Import & Export section), README, changelog, TO-DO, seed migration 0062. Gates: tsc 0, lint 0 errors, bun run test 2078+270 pass 0 fail, bun run build OK, migrations verify OK, bash -n on every generated script + an end-to-end replay against a temp tree."
+    proof: ["968f3f2", "857ad3f", "#600"]
+    effort: {commits: 2, files: 21, insertions: 4464, deletions: 15}
+  spent_min: 17
+  session_count: 1
