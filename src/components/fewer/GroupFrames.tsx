@@ -436,7 +436,6 @@ export function GroupFrame({
   // Primitives as deps: a drag re-render rebuilds `box`, but only a geometry or
   // node change should recompute this.
   const insideIds = useMemo(
-    // eslint-disable-next-line react-hooks/preserve-manual-memoization -- box identity churns per render; its primitive fields are the real inputs
     () => (box ? cardsInsideBox(nodes, box, subtreeMemberIds(allGroups, group.id), visible) : []),
     [nodes, allGroups, group.id, group.memberIds, visible, box?.x, box?.y, box?.width, box?.height],
   );

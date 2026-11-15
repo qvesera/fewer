@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useRouter } from "react";
 import { createPortal } from "react-dom";
 import { Button } from "@/components/ui/button";
 import {
@@ -377,7 +377,7 @@ export function TutorialDialog({ restartKey = 0 }: { restartKey?: number }) {
                     size="sm"
                     variant="outline"
                     className="flex-1 text-2xs !border-current/20 !bg-transparent !text-current hover:!bg-current/10 hover:!text-current"
-                    onClick={() => { handleDismiss(); window.location.href = "/docs"; }}
+                    onClick={() => { handleDismiss(); router.push("/docs"); }}
                   >
                     Docs →
                   </Button>
