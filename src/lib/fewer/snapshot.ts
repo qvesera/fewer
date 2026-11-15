@@ -87,6 +87,7 @@ export function buildSnapshot(): SavedGraphData {
     tags: s.tags,
     groups: (s.groups ?? []) as Group[],
     localRootPath: s.localRootPath,
+    baseline: s.baseline ?? undefined,
   };
 }
 
@@ -113,6 +114,9 @@ export function applySnapshot(data: SavedGraphData, opts?: ApplySnapshotOptions)
     skipNextAutoLayout: true,
     tags: normalized.tags ?? [],
     groups: normalized.groups ?? [],
+    // A document that carries its import baseline keeps it — that is what
+    // makes "Export Changes" still know what the folder looked like.
+    baseline: normalized.baseline ?? useGraphStore.getState().baseline ?? null,
   });
 }
 
@@ -137,6 +141,8 @@ interface LocalGraphSnapshot {
   groups?: Group[];
   dataSource: string | null;
   localRootPath: string | null;
+  /** The import baseline — rides along so a reload keeps the pending changes. */
+  baseline?: import("./importBaseline").BaselineEntry[];
 }
 
 /** Cache the current graph so a reload restores the canvas. Empty graph → key removed. */
@@ -147,6 +153,7 @@ export function saveGraphLocal(snap: {
   groups?: Group[];
   dataSource: string | null;
   localRootPath: string | null;
+  baseline?: import("./importBaseline").BaselineEntry[];
 }): void {
   if (typeof window === "undefined") return;
   try {
@@ -194,6 +201,7 @@ export function loadGraphLocal(): { data: SavedGraphData; dataSource: string | n
         tags: parsed.tags ?? [],
         groups: parsed.groups ?? [],
         localRootPath: parsed.localRootPath ?? null,
+        baseline: parsed.baseline,
       },
       dataSource: parsed.dataSource ?? null,
     };

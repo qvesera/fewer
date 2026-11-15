@@ -13,22 +13,35 @@ Fewer uses **React Flow v12** as the rendering engine. The canvas supports:
 - Zoom (scroll wheel or +/- keys)
 - **Scroll action** (Settings → Advanced): defaults to **Scroll to pan**, where the wheel pans vertically and Ctrl/⌘+scroll zooms; switch to **Scroll to zoom** to make the wheel zoom directly instead (trackpad pinch-zoom always works)
 - Fit view (Space key)
-- Minimap (bottom-right, configurable)
+- Minimap (bottom-right, configurable): chips are flat fills in the card accents, everything outside the current viewport is dimmed toward the **active theme's background** (light, dark and custom themes alike), and the viewport itself is outlined in the selection colour (both disappear at fit-zoom, where the whole graph *is* the viewport). Drag the map to pan, wheel to zoom it
 - Controls (zoom in/out, fit view buttons)
 - **Right-click** empty canvas for the canvas context menu
 
 ### Canvas Context Menu
 
-Right-click empty canvas space to open quick actions:
+Right-click empty canvas space to open quick actions. The menu opens with a
+header naming what you hit — **Canvas**, with the card count under it (and how
+many are hidden):
 
-- **Fit View**: zoom to show all cards
 - **Select All**: select every visible card
 - **Organize**: re-runs the tree layout to reflow the graph, in every view and not just the active one. The view re-fits to the whole graph afterwards, and a layout-direction change does the same
-- **Zoom In / Zoom Out**
-- **Delete Connection**: removes the last-clicked connection
-- **Parent selected cards (Alt+P)**: with 2+ cards selected, makes the last-selected folder the parent of the rest
-- **Show All**: reveal hidden cards (Power User mode)
 - **Paste**: paste clipboard contents at the mouse position (Power User mode)
+- **Show All**: reveal hidden cards (Power User mode)
+- **Hide Files / Show Files** and **Hide Minimap / Show Minimap**: per-view toggles for the panel this canvas shows
+- **Clear Canvas**: empties the whole graph
+
+### Connection Context Menu
+
+Right-click a connection for a menu headed **Connection**, with both ends named
+(`src → index.ts`):
+
+- **Go to Parent**: selects and centres the card the arrow starts from
+- **Go to Child**: selects and centres the card it points at
+- **Delete Connection**: removes just that link, leaving both cards in place
+
+Right-clicking a single card of a multi-selection opens the selection menu
+instead (see [Multi-Select](#multi-select)), headed with the count and how it
+breaks down.
 
 ## Card Types
 
@@ -38,6 +51,7 @@ Right-click empty canvas space to open quick actions:
 - **Item counts**: shows number of children
 - **Size display**: total size of all children
 - **Collapsible**: click to expand/collapse children
+- **Level of detail (zoom)**: zoom below 0.3 and every folder paints as its one-line pill — child rows drop away with the zoom and come back when you cross the seam again. The pill's chevron zooms you in past the seam rather than writing collapse state, so your own collapse choices (and exports) are untouched
 - **Resizable**: drag corners to adjust (multi-direction)
 
 ### File Cards (Purple)
@@ -91,6 +105,8 @@ output handle) is unaffected: it uses the app's own drag payload, not the OS.
 ## Layout Engine
 
 Fewer ships a single custom **Reingold-Tilford tree layout** with contour matching, designed specifically for directory trees. It handles large graphs (1K+ cards) and is used for both initial import and relayout operations.
+
+The layout is not the limit of the app. The whole canvas has been tested with **5,000 folders** on it, and we have run it up to 25,000 files: it stays smooth, because zoomed-out folders collapse to a one-line pill, large folders hide their rows, and the layout runs asynchronously, so the canvas keeps up while you zoom, search and rearrange.
 
 - Strict parents-centered-over-children placement with contour matching
 - Tighter spacing (35px average) and collision prevention
@@ -190,6 +206,10 @@ radius for angled connections also lives in Connection Styling.
 
 Shows selected card's full path. Click any segment to navigate to that ancestor.
 
+With split panes (the Pro panel workspace) the bar is **per pane**: each canvas
+shows the path of the card selected in *that* pane, and clicking a segment
+selects within it — panes never mirror whichever pane was touched last.
+
 ## Auto-hide Large Folders
 
 Every folder shows its first **N** children — the **Auto-hide Limit** in Settings → Advanced, default 10 — in the canvas sort order. Children past that limit, and everything under them, are hidden on import. The rule **cascades**: any visible folder (including one you reveal by hand) shows its own first N and no more. Hidden cards appear in the sidebar **Hidden Cards** section as a nested tree, and the folder card keeps its `N hidden` badge.
@@ -212,6 +232,7 @@ Access via sidebar. Shows all hidden cards grouped by their visible parent folde
 - One reveal is one undo step (it used to be two or three, one per internal action)
 - **Hover a row** to highlight the corresponding folder(s) on the canvas. Hovering a folder header also glows the hidden child rows inside that card and lights up the ancestor-path connections (root→folder), like global search and selection
 - **Search** filters by folder name or path as well as file name
+- **Row budget**: at most 300 rows are rendered at once (folder headers plus roots), so a graph with thousands of hidden cards stays fast. A footer shows `Showing X of Y rows` when rows were left out — use search to narrow the list, and the budget lifts for a query that matches only a few. Rows are filtered by search first, so a narrow query is never truncated
 
 ## Search
 

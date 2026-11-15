@@ -233,9 +233,15 @@ test("node context menu offers cut, duplicate, and delete", async ({ page }) => 
   const box = await srcHeader(page).first().boundingBox();
   await page.mouse.click(box!.x + box!.width / 2, box!.y + 10, { button: "right" });
 
-  await expect(page.getByText("Duplicate", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Delete", { exact: true }).first()).toBeVisible();
-  await expect(page.getByText("Cut", { exact: true }).first()).toBeVisible();
+  // Items carry a shortcut hint (aria-hidden, so it is not part of the
+  // accessible name) — match on the leading action name.
+  await expect(page.getByRole("menuitem", { name: /^Duplicate/ }).first()).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /^Delete/ }).first()).toBeVisible();
+  await expect(page.getByRole("menuitem", { name: /^Cut/ }).first()).toBeVisible();
+  // Shortcut hints render as their own text but stay OUT of the accessible name
+  // (aria-hidden), and a key-having item actually shows its key.
+  await expect(page.getByRole("menuitem", { name: "Unparent", exact: true })).toBeVisible();
+  await expect(page.getByText("Alt+Shift+P").first()).toBeVisible();
 });
 
 // Regression: the folder context menu renders in a portal that is still a
@@ -491,6 +497,98 @@ test("minimap drag pans the canvas after a post-mount direction change", async (
   await page.mouse.up();
 
   expect(after).not.toBe(before);
+
+  // T-247: the map is a fill-based paint, not a wireframe — chips carry no
+  // outline, everything outside the viewport is dimmed by one evenodd path,
+  // and the viewport rectangle is stroked with the selection accent (it used to
+  // share the folder orange, so selection and viewport were both invisible).
+  const chipPaths = await minimap.locator("path").evaluateAll((ps) =>
+    ps.map((p) => ({ stroke: p.getAttribute("stroke"), fillRule: p.getAttribute("fill-rule") })),
+  );
+  expect(chipPaths.length).toBeGreaterThanOrEqual(4);
+  expect(chipPaths.slice(0, 3).every((p) => p.stroke === "none")).toBe(true);
+  expect(chipPaths.some((p) => p.fillRule === "evenodd")).toBe(true);
+  const selectRing = await page.evaluate(() =>
+    getComputedStyle(document.documentElement).getPropertyValue("--fewer-select-ring").trim(),
+  );
+  await expect(minimap.locator("rect").first()).toHaveAttribute("stroke", selectRing);
+
+  // The map's SURFACE is the themed panel. React Flow paints its own
+  // `.react-flow__minimap` background — `--xy-minimap-background-color-default`,
+  // i.e. #fff — and that white sheet sat on top of the panel, so the minimap
+  // read as a white card in every dark/custom theme (the chips and the mask were
+  // correct the whole time, which is what made it confusing).
+  const surfaces = await page.evaluate(() => {
+    const probe = document.createElement("div");
+    probe.style.background = "color-mix(in srgb, var(--background) 80%, transparent)";
+    document.body.appendChild(probe);
+    const frosted = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const svg = document.querySelector("svg.react-flow__minimap")!;
+    const panel = svg.closest(".react-flow__panel")!;
+    return {
+      frosted,
+      svgBg: getComputedStyle(svg).backgroundColor,
+      panelBg: getComputedStyle(panel).backgroundColor,
+    };
+  });
+  expect(surfaces.svgBg).toBe("rgba(0, 0, 0, 0)");
+  expect(surfaces.panelBg).toBe(surfaces.frosted);
+});
+
+// The minimap's surface follows the ACTIVE theme: the frosted panel and the dim
+// sheet are both `--background`-derived. It did not — the canvas keyed "dark" off
+// `themeMode === "dark"`, and custom themes strip both `light` and `dark` from
+// <html>, so every custom theme read as light: a dark purple theme got a white
+// scrim over its map (and a near-invisible panel border). #582 follow-up.
+test("minimap panel and dim sheet follow a custom dark theme", async ({ page }) => {
+  const customTheme = {
+    version: 1,
+    background: { color: "#301b4d", opacity: 1 },
+    defaultText: { color: "#f5d0fe", opacity: 1 },
+    subtleText: { color: "#c4b5fd", opacity: 1 },
+    folderBg: { color: "#7c3aed", opacity: 0.25 },
+    fileBg: { color: "#db2777", opacity: 0.25 },
+    folderIcon: { color: "#fbbf24", opacity: 1 },
+    fileIcon: { color: "#f472b6", opacity: 1 },
+    handle: { color: "#22d3ee", opacity: 1 },
+    edge: { color: "#a78bfa", opacity: 0.6 },
+    bgDot: { color: "#4c1d95", opacity: 1 },
+    selectRing: { color: "#22d3ee", opacity: 1 },
+  };
+  await page.addInitScript((theme) => {
+    localStorage.setItem("fewer-theme", "custom");
+    localStorage.setItem("fewer-custom-theme", JSON.stringify(theme));
+  }, customTheme);
+
+  await page.goto("/app");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  const minimap = page.locator(".react-flow__minimap");
+  await expect(minimap).toBeVisible({ timeout: 10000 });
+
+  const surfaces = await page.evaluate(() => {
+    // Resolve the token the way CSS does, so the comparison survives oklch/hex.
+    const probe = document.createElement("div");
+    probe.style.color = "var(--background)";
+    probe.style.background = "color-mix(in srgb, var(--background) 80%, transparent)";
+    document.body.appendChild(probe);
+    const background = getComputedStyle(probe).color;
+    const frosted = getComputedStyle(probe).backgroundColor;
+    probe.remove();
+    const panel = document.querySelector<HTMLElement>(".react-flow__panel");
+    const mask = document.querySelector("svg.react-flow__minimap path[fill-rule=evenodd]");
+    return {
+      background,
+      frosted,
+      panel: panel ? getComputedStyle(panel).backgroundColor : null,
+      mask: mask ? getComputedStyle(mask as Element).fill : null,
+    };
+  });
+
+  expect(surfaces.mask).toBe(surfaces.background);
+  expect(surfaces.panel).toBe(surfaces.frosted);
 });
 
 // Splitting while a card is selected used to crash: the new leaf had no
@@ -507,6 +605,23 @@ test("splitting the canvas while a card is selected keeps both canvases alive (#
   await page.goto("/app?tier=pro");
   await loadSample(page);
   await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+  // Let the initial fit settle before selecting: the viewport transform is
+  // still animating while cards mount (the canvas culls to the viewport since
+  // T-239), and a click that lands mid-fit can end up on a card the fit then
+  // pans out of view — unmounted, so `.selected` counts zero.
+  const vp = page.locator(".react-flow__viewport");
+  let lastTransform = "";
+  await expect
+    .poll(
+      async () => {
+        const t = (await vp.getAttribute("style")) ?? "";
+        const settled = t !== "" && t === lastTransform;
+        lastTransform = t;
+        return settled;
+      },
+      { timeout: 10000 },
+    )
+    .toBe(true);
 
   // The precondition: a non-empty selection.
   await page.locator(".react-flow__node").first().click();
@@ -524,6 +639,67 @@ test("splitting the canvas while a card is selected keeps both canvases alive (#
 
   await expect(page.locator(".react-flow")).toHaveCount(2, { timeout: 10000 });
   expect(errors.filter((e) => /Maximum update depth/i.test(e))).toEqual([]);
+});
+
+// Each split pane must show its OWN path (T-245): the bar read the shared
+// selection, so after touching one pane every bar mirrored the last-touched
+// one — the "known quirk" the restore (PR #577) documented.
+test("each split pane shows its own breadcrumb path (T-245)", async ({ page }) => {
+  await page.goto("/app?tier=pro");
+  await loadSample(page);
+  await expect(page.locator(".react-flow__node").first()).toBeVisible({ timeout: 15000 });
+
+  // Let the initial fit settle so the src header click lands on the card.
+  const vp = page.locator(".react-flow__viewport");
+  let lastTransform = "";
+  await expect
+    .poll(
+      async () => {
+        const t = (await vp.getAttribute("style")) ?? "";
+        const settled = t !== "" && t === lastTransform;
+        lastTransform = t;
+        return settled;
+      },
+      { timeout: 10000 },
+    )
+    .toBe(true);
+
+  // Pane 1 selects src → its bar reads fewer › src.
+  await srcHeader(page).click();
+  const pane1 = page.locator("[data-leaf-id]").first();
+  const pane2 = page.locator("[data-leaf-id]").nth(1);
+  const bar1 = pane1.getByTestId("breadcrumb-bar");
+  await expect(bar1).toBeVisible();
+  await expect(bar1).toContainText("src");
+
+  // Split via the bottom-right corner grip (Pro: panelWorkspace).
+  const box = await page.locator(".react-flow").first().boundingBox();
+  expect(box).not.toBeNull();
+  const sx = box!.x + box!.width - 6;
+  const sy = box!.y + box!.height - 6;
+  await page.mouse.move(sx, sy);
+  await page.mouse.down();
+  await page.mouse.move(sx - 70, sy - 35, { steps: 5 });
+  await page.mouse.up();
+  await expect(page.locator(".react-flow")).toHaveCount(2, { timeout: 10000 });
+
+  // Pane 1 keeps its own path; pane 2 has no selection of its own → no bar
+  // (pre-T-245 both bars mirrored the shared src selection).
+  await expect(bar1).toContainText("src");
+  await expect(pane2.getByTestId("breadcrumb-bar")).toHaveCount(0);
+
+  // Select the App card inside PANE 2 → it grows its own path… (file labels
+  // drop their extension in treeToGraph: "App.tsx" → "App".)
+  await pane2.locator(".react-flow__node").filter({ hasText: "App.tsx" }).first().click();
+  const bar2 = pane2.getByTestId("breadcrumb-bar");
+  await expect(bar2).toBeVisible();
+  await expect(bar2).toContainText("App");
+  await expect(bar2.locator("button")).toHaveCount(3);
+
+  // …and pane 1 still shows its own, unchanged (fewer › src, no App).
+  await expect(bar1).toContainText("src");
+  await expect(bar1).not.toContainText("App");
+  await expect(bar1.locator("button")).toHaveCount(2);
 });
 
 // Changing the layout direction or running Organize re-fits the view to the
@@ -570,6 +746,35 @@ test("changing the layout direction re-fits the view to the whole graph (#286)",
   expect(after).not.toBe(zoomedIn);
 });
 
+// Below zoom 0.3 every folder drops its child rows and paints as the same
+// one-line pill a user-collapsed folder shows (T-250 LOD). The flip is
+// deferred 250ms past the zoom animation, so each step waits it out. Zooming
+// back past the seam brings the rows back — the flip is purely visual and
+// writes no collapse state.
+test("zooming out past the LOD seam collapses folders to pills and back (T-250)", async ({ page }) => {
+  await openCanvas(page);
+
+  const src = srcHeader(page);
+  await expect(src).toBeVisible({ timeout: 10000 });
+  // The expanded card lists its children as rows.
+  await expect(src.getByText("components")).toHaveCount(1);
+
+  // Zoom out button step is ×2 per click; three land below the 0.3 seam from
+  // any fit zoom (1 → 0.125, clamped at React Flow's minZoom 0.15).
+  const zoomOut = page.getByRole("button", { name: "Zoom out (-)" });
+  for (let i = 0; i < 3; i++) await zoomOut.click();
+  await page.waitForTimeout(600); // 250ms animation + 250ms deferral + settle
+
+  await expect(src.getByText("components")).toHaveCount(0); // rows gone
+  await expect(src.getByText("7 items")).toHaveCount(1); // the pill's count survives
+
+  const zoomIn = page.getByRole("button", { name: "Zoom in (+)" });
+  for (let i = 0; i < 3; i++) await zoomIn.click();
+  await page.waitForTimeout(600);
+
+  await expect(src.getByText("components")).toHaveCount(1); // rows are back
+});
+
 test("sidebar sections and settings explain themselves on hover (T-173)", async ({ page }) => {
   // tier=pro: the Advanced tab's Layout Policy is a pro/basic-mode gate, and
   // the override is inlined into the build the webServer serves.
@@ -610,3 +815,27 @@ test("the app header keeps the fewer brand link", async ({ page }) => {
   await expect(brand.getByText("fewer")).toBeVisible();
   await expect(brand.locator("img[alt='fewer logo']")).toBeVisible();
 });
+
+// The pill kept shipping but lost its mount in the panel-split refactor
+// (03166bb): `<BreadcrumbBar />` was a sibling of the old <main>-level canvas
+// and TreeRenderer never got it — while README/docs still promised it. Pin the
+// mount plus the selection → path behaviour (T-244 / #576).
+test("the canvas breadcrumb bar shows the selected card's path (T-244)", async ({ page }) => {
+  await openCanvas(page);
+
+  // Nothing selected → the component returns null, no pill at all.
+  const bar = page.getByTestId("breadcrumb-bar");
+  await expect(bar).toHaveCount(0);
+
+  // Select the src folder → root-to-card path appears.
+  await srcHeader(page).click();
+  await expect(bar).toBeVisible();
+  await expect(bar).toContainText("fewer");
+  await expect(bar).toContainText("src");
+
+  // The crumb buttons navigate: picking the root leaves root alone.
+  await bar.getByRole("button", { name: "fewer" }).click();
+  await expect(bar.getByRole("button")).toHaveCount(1);
+  await expect(bar).toContainText("fewer");
+});
+

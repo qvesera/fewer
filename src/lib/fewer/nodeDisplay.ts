@@ -2,11 +2,11 @@ import { Position } from "@xyflow/react";
 import type { FewerNode, FewerEdge } from "./types";
 import { childrenIndexOf, nodeIndexOf } from "./graphIndex";
 
-// CATEGORY_ICON and formatSize live in nodeVisuals.ts (no @xyflow/react import
-// there) so the marketing preview can use the same icons and sizes without
-// pulling the graph library into the landing page bundle. Re-exported here so
-// every existing import path keeps working.
-export { CATEGORY_ICON, formatSize } from "./nodeVisuals";
+// CATEGORY_ICON, formatSize and providerLabelFromSource live in nodeVisuals.ts
+// (no @xyflow/react import there) so the marketing preview and the context-menu
+// model can use them without pulling the graph library into their bundles.
+// Re-exported here so every existing import path keeps working.
+export { CATEGORY_ICON, formatSize, providerLabelFromSource } from "./nodeVisuals";
 
 /** Child badges count edges, not just existing/visible nodes. */
 export function folderChildCount(id: string, isFolder: boolean, edges: FewerEdge[]): number {
@@ -29,28 +29,6 @@ export function getHandlePositions(layoutDirection?: string): {
     default:
       return { source: Position.Bottom, target: Position.Top };
   }
-}
-
-/** Map a dataSource prefix to a display label for "Open in provider". */
-export function providerLabelFromSource(dataSource: string | null): string {
-  if (!dataSource) return "Provider";
-  if (dataSource.startsWith("cloud:github")) return "GitHub";
-  if (dataSource.startsWith("cloud:google-drive")) return "Google Drive";
-  if (dataSource.startsWith("cloud:onedrive")) return "OneDrive";
-  if (dataSource.startsWith("cloud:sharepoint")) return "SharePoint";
-  if (dataSource.startsWith("cloud:azure-devops")) return "Azure DevOps";
-  if (dataSource.startsWith("cloud:azure-blob")) return "Azure Blob";
-  // URL imports (GitHub repo or a public file index) carry real source URLs.
-  if (dataSource.startsWith("url:")) {
-    try {
-      const u = new URL(dataSource.slice(4));
-      if (u.hostname === "github.com") return "GitHub";
-      return u.hostname.replace(/^www\./, "");
-    } catch {
-      return "Site";
-    }
-  }
-  return "Provider";
 }
 
 /** Select the stem, but select an entire dotfile or extensionless name. */

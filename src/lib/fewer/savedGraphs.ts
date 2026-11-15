@@ -31,6 +31,12 @@ export interface SavedGraphData {
    *  of searching the filesystem each time. Optional: null/absent when the
    *  graph didn't come from a locally-resolvable directory. */
   localRootPath?: string | null;
+  /**
+   * The tree as it was imported (see `importBaseline.ts`). The "Export
+   * Changes" script diffs against it, so a saved graph keeps the edits the
+   * user made since the import — across sessions and devices.
+   */
+  baseline?: import("./importBaseline").BaselineEntry[];
 }
 
 export interface SavedGraph {

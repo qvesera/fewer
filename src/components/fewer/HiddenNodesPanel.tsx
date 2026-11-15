@@ -15,6 +15,7 @@ import {
   buildRingIds,
   hiddenChildrenOf,
   indexHiddenTreeChildren,
+  capHiddenRows,
   type HiddenTreeNode,
   type HiddenGroup,
 } from "@/lib/fewer/hiddenGroups";
@@ -261,6 +262,16 @@ export function HiddenNodesPanel() {
     [hiddenGroups, hiddenSearch],
   );
 
+  // T-237: one row budget across the whole list, applied AFTER the search
+  // filter (so a narrow query is only ever capped if it has hundreds of hits).
+  // Small graphs sit far under the budget — this changes nothing for them; on
+  // a 25k graph it stops ~11.5k roots from becoming ~190k DOM elements and
+  // ~59k listeners.
+  const cappedHiddenGroups = useMemo(
+    () => capHiddenRows(filteredHiddenGroups),
+    [filteredHiddenGroups],
+  );
+
   const hiddenSet = useMemo(() => new Set(effectiveHidden), [effectiveHidden]);
 
   const getChildren = useMemo<GetChildren>(() => {
@@ -308,13 +319,26 @@ export function HiddenNodesPanel() {
         <span className="truncate">Reveal All</span>
       </Button>
       <div className="flex-1 min-h-0 overflow-y-auto overflow-x-hidden rounded-lg border border-border/20 bg-muted/10 p-2 gm-scroll w-full min-w-0">
-        {filteredHiddenGroups.length > 0 ? (
-          filteredHiddenGroups.map((group, i) => (
+        {cappedHiddenGroups.groups.length > 0 ? (
+          cappedHiddenGroups.groups.map((group, i) => (
             <HiddenGroupRow key={group.parentNode?.id ?? `bare-${i}`} group={group} getChildren={getChildren} />
           ))
         ) : (
           <p className="px-1 py-2 text-xs text-muted-foreground/70">
             No hidden cards match “{hiddenSearch.trim()}”.
+          </p>
+        )}
+        {/* The budget's other half: omitted rows are accounted for, never silent. */}
+        {cappedHiddenGroups.omitted > 0 && (
+          <p
+            data-testid="hidden-rows-omitted"
+            className="px-1 pt-2 text-[11px] text-muted-foreground/70"
+          >
+            Showing {cappedHiddenGroups.shown} of{" "}
+            {cappedHiddenGroups.shown + cappedHiddenGroups.omitted}{" "}
+            {searching
+              ? "matches — refine your search."
+              : "rows — search to narrow the list."}
           </p>
         )}
       </div>

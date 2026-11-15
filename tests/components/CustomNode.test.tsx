@@ -35,7 +35,9 @@ const DEFAULT_SCOPE: GraphViewScope = {
     hiddenIds: [] as string[],
     collapsedFolderIds: [] as string[],
   },
-  visibleIds: new Set<string>(["f1", "f2", "f3"]),
+  // T-240: the scope carries the content-stable HIDDEN set; an empty set = all
+  // children painted (was `visibleIds: {f1,f2,f3}` under the old contract).
+  hiddenIds: new Set<string>(),
   hoverIds: new Set<string>(),
 };
 
@@ -124,6 +126,43 @@ describe("CustomNode rendering", () => {
     const handle = document.querySelector("[data-handleid='source-bottom']");
     expect(handle).toBeDefined();
     expect(handle!.getAttribute("data-handlepos")).toBe("bottom");
+  });
+});
+
+// ── T-240 parity ─────────────────────────────────────────────────────────
+// The scope swap (visibleIds → hiddenIds) must not move the needle on what a
+// card paints: a hidden child still dims its row and the badge still counts
+// it. (The old contract was `!visibleIds.has(id)`; rows are existing nodes, so
+// `hiddenIds.has(id)` is exact parity.)
+
+describe("hidden-child parity through the scope's hiddenIds (T-240)", () => {
+  test("a hidden child dims its row and the badge counts it", () => {
+    const nodes = [
+      { id: "f1", type: "folder", position: { x: 0, y: 0 }, data: FOLDER_DATA },
+      { id: "c1", type: "file", position: { x: 300, y: 0 }, data: FILE2_DATA },
+    ];
+    const edges = [{ id: "f1->c1", source: "f1", target: "c1" }];
+    const scope = { ...DEFAULT_SCOPE, hiddenIds: new Set<string>(["c1"]) };
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope });
+
+    // Badge = total child EDGES (1) − painted rows (0) = 1 hidden.
+    expect(screen.getByText("1 hidden")).toBeDefined();
+    // The child row carries the hidden hint (dimmed + titled).
+    const row = screen.getByText("utils");
+    expect(row.closest("[title^='Hidden from canvas']")).toBeTruthy();
+  });
+
+  test("an unhidden child paints normally and the badge stays away", () => {
+    const nodes = [
+      { id: "f1", type: "folder", position: { x: 0, y: 0 }, data: FOLDER_DATA },
+      { id: "c1", type: "file", position: { x: 300, y: 0 }, data: FILE2_DATA },
+    ];
+    const edges = [{ id: "f1->c1", source: "f1", target: "c1" }];
+    renderNode("f1", FOLDER_DATA, { nodes, edges });
+
+    expect(screen.queryByText("1 hidden")).toBeNull();
+    const row = screen.getByText("utils");
+    expect(row.closest("[title^='Hidden from canvas']")).toBeNull();
   });
 });
 
@@ -237,5 +276,45 @@ describe("pluralization", () => {
     // The pluralization pattern (n=1→"item", n>1→"items") is already locked by
     // the two Select Children tests above. This test documents the constraint.
     expect(true).toBe(true);
+  });
+});
+
+// ── LOD folder collapse (T-250) ────────────────────────────────────────────
+
+describe("LOD collapse", () => {
+  const nodes = [
+    { id: "f1", type: "folder", position: { x: 0, y: 0 }, data: FOLDER_DATA },
+    { id: "f2", type: "file", position: { x: 0, y: 100 }, data: FILE_DATA },
+  ];
+  const edges = [{ id: "e1", source: "f1", target: "f2" }];
+  const lodScope: GraphViewScope = { ...DEFAULT_SCOPE, lodCollapsed: true };
+
+  test("a folder paints as its pill with no child rows while the view is LOD-collapsed", () => {
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope: lodScope });
+    expect(screen.queryByText("index")).toBeNull(); // row dropped, not just hidden
+    expect(screen.getByText("src")).toBeDefined(); // the label survives
+    expect(screen.getByText("1 item")).toBeDefined(); // so does the count
+  });
+
+  test("the pill's expand control zooms past the seam instead of toggling collapse", () => {
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope: lodScope });
+    fireEvent.click(screen.getByRole("button", { name: "Expand folder" }));
+    expect(useGraphStore.getState().zoomToNodeIds).toEqual(["f1"]);
+    expect(
+      useGraphStore.getState().viewSettingsMap?.["primary"]?.collapsedFolderIds ?? [],
+    ).toEqual([]); // no user collapse was written
+  });
+
+  test("a user-collapsed pill still toggles its collapse state", () => {
+    const userScope: GraphViewScope = {
+      ...DEFAULT_SCOPE,
+      resolved: { ...DEFAULT_SCOPE.resolved, collapsedFolderIds: ["f1"] },
+    };
+    renderNode("f1", FOLDER_DATA, { nodes, edges, scope: userScope });
+    fireEvent.click(screen.getByRole("button", { name: "Expand folder" }));
+    expect(useGraphStore.getState().zoomToNodeIds).toBeNull();
+    expect(
+      useGraphStore.getState().viewSettingsMap?.["primary"]?.collapsedFolderIds ?? [],
+    ).not.toContain("f1");
   });
 });

@@ -70,8 +70,12 @@ export function applyDimensionChanges(
 ): { nodes: FewerNode[]; changed: boolean } {
   if (changes.length === 0) return { nodes, changed: false };
   let changed = false;
+  // Map lookup, not changes.find per node: this runs over EVERY store node
+  // whenever React Flow reports a re-measure — the old O(nodes × changes) scan
+  // was the heaviest line in desktop's LOD flip (T-267/T-250).
+  const byId = new Map(changes.map((c) => [c.id, c] as const));
   const next = nodes.map((n) => {
-    const change = changes.find((c) => c.id === n.id);
+    const change = byId.get(n.id);
     if (!change) return n;
     // This leaf draws the folder as a compact pill (~38px). That is a
     // rendering artifact of the pill, not a size the user picked, so keep it

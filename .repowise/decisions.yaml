@@ -398,3 +398,29 @@ decisions:
   - 'Ruling recorded for issue #214 (task T-039); full analysis, seam inventory and deferred POC spec in
     .agents/doc/2026-10-02-native-shell-spike.md. Downstream: issue #250 (T-063) is unblocked by this
     decision.'
+- id: f8944b37d9e54395b1b2dc0920ef9595
+  title: 'Google Drive linking deferred until revenue justifies CASA; OneDrive stays offered'
+  decision: 'The Cloud panel offers GitHub and OneDrive only. The Google Drive adapter stays fully wired
+    (drive.metadata.readonly scope, AES-GCM server-side tokens, listChildren/buildTree) but HIDDEN_PROVIDERS
+    keeps Drive out of the link list. Re-enable Google Drive when revenue justifies Google''s annual CASA
+    security assessment for restricted scopes. No client-side token path and no drive.file scope switch.'
+  reason: 'Spike T-251 proved drive.file (non-sensitive, free verification) cannot browse folder trees:
+    the Picker grant covers only the picked item, with no inheritance to children across six picked folders,
+    so tree browsing needs drive.metadata.readonly — which sits on Google''s restricted-scopes list and
+    therefore requires an annual paid CASA assessment (roughly six weeks of review, redone every 12 months).
+    Free alternatives were evaluated and rejected as the primary path: service-account folder-share (per-folder
+    share UX, no personal link flow), Testing-mode consent (7-day refresh tokens force weekly re-link), BYOK
+    (GCP console friction), zip import (not a live tree). Microsoft publisher verification is free, so OneDrive
+    carries no equivalent cost gate and is re-enabled.'
+  scope:
+  - src/components/fewer/CloudPanel.tsx
+  - src/lib/fewer/cloud/providers/google.ts
+  - content/docs/cloud.md
+  currency: active
+  source: cli
+  accepted_at: '2026-11-10T08:57:36'
+  accepted_by: qvesera
+  evidence:
+  - 'Spike T-251 run log and verdict in implementation_plan.md; Google restricted-scopes list (support.google.com/cloud/answer/13464325)
+    includes drive.metadata.readonly; drive.file classified non-sensitive by the Drive API scope guide
+    (updated 2026-09-03).'

@@ -7,6 +7,52 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+### Fixed
+
+- Restored the canvas breadcrumb bar: it was left unmounted by the panel-split refactor (03166bb) even though it still shipped in the bundle, so the selected card's path no longer showed anywhere.
+- Breadcrumb bars are pane-aware again: with split canvases each pane now shows its own selected card's path (and a crumb click writes that pane's selection) instead of every pane mirroring whichever pane was touched last.
+- The folder context menu's Info submenu opened empty for folders from repository or URL imports, the file menu had no equivalent at all, and Unparent / Select Children appeared twice in the folder menu
+- Minimap: restored the dim sheet outside the viewport and drew chips as flat fills instead of 2px outlines — the map no longer reads as a wireframe, selected cards use the selection accent instead of the folder orange, and the viewport outline disappears at fit-zoom instead of outlining the whole panel
+- Minimap surface follows every theme: the canvas keyed darkness off themeMode === dark, which reads a custom theme as light, so a dark custom theme got a white dim sheet (and a near-invisible panel border) over its map — it now asks useDarkBackground for polarity and dims with the theme's own background token
+- Minimap background follows the theme: React Flow's own stylesheet paints .react-flow__minimap with --xy-minimap-background-color-default (#fff), and that white sheet covered the themed panel, so the map looked like a white card in dark and custom themes while its chips and dim sheet were already correct; the svg now paints no background and the panel's theme-derived surface shows through
+- Custom-theme contrast is now measured on the surface as painted: a card body is a 12-18% tint over the canvas, so judging text against the opaque accent reported ~1.2:1 for text that was ~11:1 on screen and Fix darkened it into invisibility — slotContrast composites body and ink at their real opacities (gradients averaged), Fix moves only lightness in the direction the surface needs with hue preserved, and it hides itself when nothing inside the budget can land; the badge tooltip names the colour it measured
+- OAuth cloud callbacks (?cloud=connected|error) now land on /app where FewerApp consumes them, instead of the marketing homepage at / — the success toast and connection refresh used to be lost on every link
+- Export Changes now explains itself instead of coming out empty: a script whose only edits were inside an archive says so in a Notes block at the top and when it runs ("the changes you made are inside an archive — open the archive itself and export the changes from there"), the export panel says the same instead of reporting zero changes, and the folder check no longer samples paths inside an archive (which never exist on disk and made the check fail on a correct folder).
+- Export Changes now edits the archives inside the folder: a zip that was expanded during the import is a real file, so the renames, moves and deletions you made inside it are applied to that zip with 7-Zip (or the Python fallback), in place. Moving an entry in or out of an archive is the one thing a script still cannot do, and it says so instead of silently skipping it.
+- Export Changes asks about deletions inside an archive: they are counted with the folder's deletions, so the script asks before removing them and 'Include deletions' covers them. Before, they were planned but never counted, so the script silently skipped them.
+- The export panel's Download button and the active format chip no longer put white text on a light background in dark mode: the brand colour is a light pink there, so the text colour follows the background (new --fewer-file-icon-fg token).
+- Archive deletes now target the entry's post-rename path: renaming a folder inside a zip and deleting one of its children deletes the child at its new location instead of missing silently.
+- Dry-run inside an archive no longer renames or deletes entries: the embedded archive engine ignored the dry-run flag entirely.
+
+### Changed
+
+- Context menus open with a header naming what you right-clicked (card name + path, selection count and breakdown, Connection with both ends, Canvas with its card count) and every menu item now shows its shortcut
+- Details replaces the Info submenu on folders and files alike: type, path, size or contents, source, tags and symlink target first, then Open in provider / Download, Open File, Copy Name, Open in File Explorer, Refresh from Disk and the symlink actions
+- The edge menu gains Go to Parent and Go to Child, and the edge and canvas menus use the same Radix surface as the card menus (keyboard navigation included) instead of hand-rolled divs
+- Context menus show the keyboard shortcut of every item that has one — Unparent Alt+Shift+P, Add Child Card Alt+N, Select All Ctrl+A, Organize Alt+R, Clear Canvas Alt+Shift+N, Open in File Explorer Alt+O, Open File Enter, Hide H, Show All Shift+H — plus the same hints in the batch sections; hints are read from MENU_SHORTCUT_HINTS, which a test fires through the key dispatcher, and the connection menu stays keyless because Delete only acts on a selected connection
+- The multi-selection menu is reorganized into the same clusters as the single-card menu — Edit (Rename…, Copy, Cut, Duplicate), Structure (Move to Folder…, Unparent, Group N Items, promoted out of the old More Actions drawer), a Visibility submenu (Hide/Show/Collapse/Expand, no longer split apart), then Tags and Select, with Delete last — identical in the card batch section and the canvas selection menu
+- Cloud panel: OneDrive linking is offered again; Google Drive stays hidden until revenue justifies Google's annual CASA assessment (decision recorded in .repowise/decisions.yaml — Drive adapter and server-side token storage remain in place)
+- Exports keep the fewer watermark on the free plan (a linked logo on SVG and PNG, a credit line elsewhere); only Pro removes it
+- Watch digests are a Pro feature: a nightly crawl per watched index. Watches already on a free account stay saved and start again if the account becomes Pro
+- The export panel's "Shell Script" format is now "Export Folders", next to the new "Export Changes".
+
+### Added
+
+- Zoom below 0.3 collapses every folder card to its one-line pill (level of detail): child rows drop away with the zoom and return when you cross the seam again, connectors re-anchor to the pill, and the pill's chevron zooms you in past the seam instead of writing collapse state — your own collapse choices and exports are untouched
+- Landing page FAQ section: the questions and answers live in the database (faq_items) and can be edited without a deploy
+- Blog listing gained the same left-hand index the docs page has, so a post can be picked instead of scrolled to
+- Pricing page: Free, Pro and Enterprise, with the Pro price in USD, GBP, EUR and INR, an introductory price and a yearly plan at ten months for the price of twelve
+- Contact form on the pricing page: enquiries go to the inbox with the sender in reply-to, so no address is published
+- Export Changes: a script that replays the edits you made in the graph (renames, moves, new folders and files, duplicates) onto the folder you imported. It checks the folder first, stages the moves so swaps and cycles work, and asks before it deletes.
+- Export Changes now replays edits inside an archive: import a zip, rearrange it in the graph, and the script applies the changes to the zip itself with 7-Zip (renames, moves, new entries, deletions). Archives that 7-Zip cannot rewrite (RAR, multi-volume, self-extracting) are left untouched, and a zip expanded inside a folder import is skipped with a note.
+- The archive replay script no longer needs 7-Zip: when 7-Zip is missing it offers to install it (showing the exact command, and printing it again if the install fails so it can be run by hand), and otherwise falls back to a Python 3 program that travels inside the script and rebuilds the archive atomically with the standard library. The folder replay needs neither: it never looks for an archive engine.
+
+### Performance
+
+- Zooming across the LOD seam stays smooth on large graphs: the pill flip is deferred until the zoom animation settles and runs in a transition, pill-size dimension reports are dropped instead of written back (that store → render → re-measure loop was the multi-second stall), only painted folders re-measure once the DOM settles, the dimension merge looks changes up in a Map instead of scanning nodes × changes, and collapsed pills skip the child-row sort they throw away
+
+## [0.9.0] - 2026-11-08
+
 ### Security
 
 - Dependency security sweep: bun audit 98 → 0 — next 16.4.3, react/react-dom 19.3.1, uuid 11.1.1, happy-dom 21.0.4 upgraded; 14 transitive advisories cleared via package.json overrides (ajv, nanoid, postcss, browserslist, js-yaml, @babel/core, zod, minimatch, brace-expansion, picomatch, flatted, defu, effect, deepmerge-ts, source-map-js, @humanfs/node, baseline-browser-mapping).
@@ -40,6 +86,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Clicking a search result now reveals it (and its hidden ancestors) even when it is hidden by the active view's Hide Files layer or another per-view hide layer, so the canvas zooms to it instead of nothing — search selection outranks every hide mechanism, and the result's hidden badge now reflects the view's effective hidden set.
 - Clear Canvas confirmation button label is readable again: the destructive button carried both text-white and a trailing text-muted-foreground, and cn()/tailwind-merge keeps the last colour class, so the label rendered muted grey on red (~2:1) instead of white (~5:1)
 - Plan-change email cron actually runs now: scripts/plan-change-notify.ts was never committed because scripts/* is gitignored (all three scheduled runs failed with 'Module not found'), so production rows only ever delivered via the webhook; the script is tracked with a .gitignore exception
+- Settings dialog no longer clips its tab strip at any tier: the dialog now matches the Import dialog's width (sm:max-w-xl, 36rem), so its strip — up to eight tabs ≈820px — is wider than the dialog by design and is reached by scrolling it horizontally (vertical wheel over the strip scrolls it sideways, gliding smoothly, with the scrollbar hidden); the e2e proves every far tab stays reachable for both the six-tab guest and eight-tab Pro sets
+
+### Performance
+
+- Hidden Cards panel now renders at most 300 rows on large graphs, with a 'Showing X of Y rows' footer so the rest stays reachable via search (was one row per hidden root — ~190k DOM nodes at 25k cards)
+- Large graphs open far faster: the canvas no longer force-mounts every card on first paint (React Flow now culls to the viewport using seeded first-paint geometry), and the minimap is painted as three paths instead of one DOM node per card
+- Cards re-render only when their own children change: per-child rows/counts are derived with referentially-stable selectors, per-card height lookups no longer scan the whole node list (O(1) instead of O(N) per store write), and the canvas scope carries a content-stable hidden set instead of a rebuilt-per-write visible set
+- Perf harness lands with CI regression gates: deterministic fixtures (perfFixtures.ts), a perf:bench script, and perfBudgets.test.ts guarding the open path, child-row derivation (slot map), indexed height lookups, the path-painted minimap, and the hidden-cards row cap
+- Context menu content now mounts only while the menu is open, so an unrelated store write no longer re-renders every card's menu or eagerly recomputes parent/child checks and descendant walks (the last T-240 ceiling)
 
 ## [0.8.0] - 2026-10-28
 

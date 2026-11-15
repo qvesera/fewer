@@ -230,4 +230,66 @@ export function buildRingIds(
   return ids;
 }
 
+/**
+ * Row budget for the Hidden Cards panel (T-237).
+ *
+ * A large auto-hid graph renders one `HiddenNodeRow` per root unconditionally:
+ * on the 25k fixture ~11.5k roots became ~190k DOM elements, ~59k listeners and
+ * seconds of script, all to fill a sidebar you scroll in silence — the measured
+ * wall behind this row's "cap/lazy rows" candidates.
+ *
+ * 300 rendered rows is ~25 visible pages of a ~12-row viewport; everything
+ * beyond it stays reachable through the panel's search (which filters FIRST,
+ * so a narrow query is never truncated by this budget unless it itself has
+ * hundreds of hits).
+ *
+ * `omitted` counts ROWS the renderer must not build: root rows plus group
+ * headers. It mirrors `HiddenGroupRow`'s structure exactly — a group with a
+ * context folder costs a header row before its roots; standalone roots
+ * (`parentNode: null`) render without one.
+ */
+export const HIDDEN_ROW_BUDGET = 300;
+
+export interface CappedHiddenGroups {
+  groups: HiddenGroup[];
+  /** Rows kept (headers + roots). */
+  shown: number;
+  /** Rows dropped by the budget — the panel's footer accounts for these. */
+  omitted: number;
+}
+
+/** Truncate groups in render order until `budget` rows are used. Pure. */
+export function capHiddenRows(
+  groups: readonly HiddenGroup[],
+  budget = HIDDEN_ROW_BUDGET,
+): CappedHiddenGroups {
+  let room = budget;
+  let shown = 0;
+  let omitted = 0;
+  const out: HiddenGroup[] = [];
+
+  for (const g of groups) {
+    const header = g.parentNode ? 1 : 0;
+    const total = header + g.roots.length;
+    if (room <= 0) {
+      omitted += total;
+      continue;
+    }
+    if (total <= room) {
+      out.push(g);
+      shown += total;
+      room -= total;
+      continue;
+    }
+    // Partial group: the header fits only if there is room for it, then as many
+    // roots as remain. (room >= 1 here, so a header always fits.)
+    const rootsShown = room - header;
+    out.push({ ...g, roots: g.roots.slice(0, Math.max(0, rootsShown)) });
+    shown += header + Math.max(0, rootsShown);
+    omitted += total - header - Math.max(0, rootsShown);
+    room = 0;
+  }
+  return { groups: out, shown, omitted };
+}
+
 

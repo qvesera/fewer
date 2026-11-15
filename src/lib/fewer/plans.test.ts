@@ -29,6 +29,14 @@ describe("plans", () => {
     expect(TEAM_LIMITS.historyDays).toBe(365);
   });
 
+  test("watch digests are Pro only (T-256)", () => {
+    // A cap of zero stops the first watch: overLimit is count >= limit, and
+    // 0 >= 0 is true.
+    expect(FREE_LIMITS.watchedIndexes).toBe(0);
+    expect(overLimit(0, FREE_LIMITS.watchedIndexes)).toBe(true);
+    expect(PRO_LIMITS.watchedIndexes).toBe(10);
+  });
+
   test("saved themes and large-payload share links are pro+", () => {
     expect(FREE_LIMITS.savedThemes).toBe(false);
     expect(FREE_LIMITS.largeShareLinks).toBe(false);

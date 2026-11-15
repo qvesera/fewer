@@ -68,7 +68,15 @@ test("buildSnapshot contains graph data only — no settings", () => {
   // Groups are graph data (T-124), so they save — unlike the settings below.
   expect(snap.groups).toEqual([{ id: "g-1", title: "Assets", note: "", memberIds: ["a"] }]);
   // Settings must not ride along with the saved graph.
-  expect(Object.keys(snap).sort()).toEqual(["dataVersion", "edges", "groups", "localRootPath", "nodes", "tags"]);
+  expect(Object.keys(snap).sort()).toEqual([
+    "baseline",
+    "dataVersion",
+    "edges",
+    "groups",
+    "localRootPath",
+    "nodes",
+    "tags",
+  ]);
   expect("direction" in snap).toBe(false);
   expect("edgeStyle" in snap).toBe(false);
   expect("themeMode" in snap).toBe(false);

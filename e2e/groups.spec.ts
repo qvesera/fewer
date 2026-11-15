@@ -28,11 +28,39 @@ test.beforeEach(async ({ page }) => {
   });
 });
 
+/** Wait until at least `min` cards of the sample graph are mounted.
+ *  The canvas culls to the viewport since T-239 (cards mount as the initial
+ *  fit lands), so a census taken at one instant can see fewer cards than the
+ *  graph actually has — poll instead of sampling. `offset` measures layout px
+ *  (`offsetHeight`, zoom-independent), otherwise the scaled screen height. */
+async function waitForCards(
+  page: Page,
+  min: number,
+  { offset = false, minHeight = 40 }: { offset?: boolean; minHeight?: number } = {},
+) {
+  await expect
+    .poll(
+      async () =>
+        page.locator(".react-flow__node").evaluateAll(
+          (els, o) =>
+            els.filter((e) => {
+              const el = e as HTMLElement;
+              const h = o.offset ? el.offsetHeight : el.getBoundingClientRect().height;
+              return h > o.minHeight;
+            }).length,
+          { offset, minHeight },
+        ),
+      { timeout: 10000 },
+    )
+    .toBeGreaterThanOrEqual(min);
+}
+
 /** Two standalone cards to group. Child rows are also `.react-flow__node` but
  *  are drawn INSIDE their parent card (13px tall) and their centres are covered
  *  by the parent's DOM, so pick real cards by height — as app.spec.ts does by
  *  matching headers instead of nth(). */
 async function standaloneCards(page: Page) {
+  await waitForCards(page, 2);
   const ids = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .filter((e) => (e as HTMLElement).getBoundingClientRect().height > 40)
@@ -50,14 +78,18 @@ async function createGroupFromCards(page: Page, a: ReturnType<typeof page.locato
   await b.click({ modifiers: ["Shift"] });
   await expect(page.locator(".react-flow__node.selected")).toHaveCount(2);
 
-  // Right-click a selected card → selection menu → More Actions → Group.
-  // Coordinate click at the header, the way app.spec.ts opens card menus: a
-  // locator click retries forever when any child row overlaps the centre, and
-  // holding Shift changes how React Flow routes the right-click.
+  // Right-click a selected card → selection menu → Group (top-level, in the
+  // Structure cluster). Coordinate click at the header, the way app.spec.ts
+  // opens card menus: a locator click retries forever when any child row
+  // overlaps the centre, and holding Shift changes how React Flow routes the
+  // right-click.
   const bBox = (await b.boundingBox())!;
   await page.mouse.click(bBox.x + bBox.width / 2, bBox.y + 10, { button: "right" });
-  await page.getByRole("menuitem", { name: "More Actions" }).hover();
-  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click();
+  // force: Group now sits above the Visibility/Tags/Select submenu row — an
+  // approach that crosses those triggers opens submenus, which flip the menu
+  // content under Playwright's stability check so the hover retries forever
+  // (app.spec's menu clicks force-click for the same reason).
+  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click({ force: true });
 
   const frame = page.locator("[data-group-id]").first();
   await expect(frame).toBeVisible({ timeout: 10000 });
@@ -261,7 +293,9 @@ test("a collapsed multi-level group keeps its children in place and wires them t
   // shape that used to stretch the tree (#439). Child rows are separate
   // `.react-flow__node`s drawn inside their parent card; offsetHeight (layout
   // px, unaffected by the canvas zoom) separates real folders (200) from rows
-  // and files (≤58).
+  // and files (≤58). Cards mount as the initial fit lands (the canvas culls to
+  // the viewport since T-239), so wait for the third folder before picking.
+  await waitForCards(page, 3, { offset: true, minHeight: 100 });
   const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
@@ -342,6 +376,7 @@ test("a collapsed multi-level group keeps its children in place and wires them t
 
 test("dragging a collapsed pill moves the group — one gesture, one undo (T-180)", async ({ page }) => {
   await openCanvas(page);
+  await waitForCards(page, 3, { offset: true, minHeight: 100 });
   const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
@@ -383,6 +418,7 @@ test("dragging a collapsed pill moves the group — one gesture, one undo (T-180
 
 test("a group's colour tints its pill's edges (T-180)", async ({ page }) => {
   await openCanvas(page);
+  await waitForCards(page, 3, { offset: true, minHeight: 100 });
   const folderCardIds = await page.locator(".react-flow__node").evaluateAll((els) =>
     els
       .map((e) => ({ id: e.getAttribute("data-id") ?? "", h: (e as HTMLElement).offsetHeight }))
@@ -485,6 +521,9 @@ test("revealing ONE card of a collapsed group opens the frame but keeps the sibl
   // The reload cache is written debounced after Load Sample — wait for it so
   // the peer pair can be computed from the real edges.
   await page.waitForFunction(() => sessionStorage.getItem("fewer-graph") !== null);
+  // Only rendered CARDS are groupable, and the canvas culls to the viewport
+  // since T-239 — wait for the cards before reading the rendered set.
+  await waitForCards(page, 3);
   // Two folders that are NEITHER ancestor nor descendant of each other — an
   // ancestor pair would make a subtree reveal legitimately un-hide both (its
   // targets include the whole subtree), which is not what this test is about.
@@ -751,6 +790,9 @@ test("zoom to selection centers a selected group — toolbar button and Alt+F (T
  *  Returns a stable locator keyed on the frame's group id. */
 async function createGroupFrom(page: Page, indices: number[]) {
   const maxIdx = Math.max(...indices);
+  // Cards mount as the initial fit lands (the canvas culls to the viewport
+  // since T-239) — wait for the full set before indexing into it.
+  await waitForCards(page, maxIdx + 1);
   const ids = await page.locator(".react-flow__node").evaluateAll(
     (els, count) =>
       els
@@ -767,8 +809,9 @@ async function createGroupFrom(page: Page, indices: number[]) {
   }
   const box = (await chosen[0].boundingBox())!;
   await page.mouse.click(box.x + box.width / 2, box.y + 10, { button: "right" });
-  await page.getByRole("menuitem", { name: "More Actions" }).hover();
-  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click();
+  // force: see the note in createGroupFromCards — crossing the submenu row on
+  // the way to this item opens submenus and never lets the click settle.
+  await page.getByRole("menuitem", { name: /^Group \d+ Items$/ }).click({ force: true });
   const frames = page.locator("[data-group-id]");
   await expect(frames.first()).toBeVisible({ timeout: 10000 });
   const gid = await frames.last().getAttribute("data-group-id");

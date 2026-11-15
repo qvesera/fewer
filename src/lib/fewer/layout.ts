@@ -8,7 +8,11 @@ const DEFAULT_FOLDER_HEIGHT = 200;
 const DEFAULT_FILE_WIDTH = 220;
 const DEFAULT_FILE_HEIGHT = 58;
 
-function getNodeDimensions(node: FewerNode): { w: number; h: number } {
+/** Type-aware card size, in the same precedence the layout uses. Exported for
+ *  the minimap painter (T-239), which must draw the same footprint the canvas
+ *  lays out — the deleted `CustomMiniMap` hardcoded 220/60/20 and got folders
+ *  wrong. */
+export function getNodeDimensions(node: FewerNode): { w: number; h: number } {
   const styleW = node.style?.width as number | undefined;
   const styleH = node.style?.height as number | undefined;
   const measuredW = node.measured?.width;

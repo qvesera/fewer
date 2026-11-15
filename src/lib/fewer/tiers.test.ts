@@ -63,6 +63,19 @@ describe("can", () => {
     }
   });
 
+  test("the Pro gates are the ones the plan says (T-256)", () => {
+    // Two deliberate product decisions, pinned so a later "free tier bump"
+    // cannot quietly undo them: exports keep the fewer watermark below Pro,
+    // and watch digests are Pro only.
+    expect(can("unbrandedExport", "guest")).toBe(false);
+    expect(can("unbrandedExport", "free")).toBe(false);
+    expect(can("unbrandedExport", "pro")).toBe(true);
+
+    expect(can("watchIndexes", "guest")).toBe(false);
+    expect(can("watchIndexes", "free")).toBe(false);
+    expect(can("watchIndexes", "pro")).toBe(true);
+  });
+
   test("MIN_TIER is exhaustive over the Feature union (compile-time + runtime)", () => {
     // If a new Feature is added without a MIN_TIER entry, this type check fails.
     type AssertSatisfies = typeof MIN_TIER extends Record<Feature, Tier>

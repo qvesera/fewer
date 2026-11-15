@@ -1,5 +1,6 @@
 import { afterEach, beforeEach, describe, expect, mock, test } from "bun:test";
 import { act, cleanup, fireEvent, render, screen } from "@testing-library/react";
+import { HIDDEN_ROW_BUDGET } from "@/lib/fewer/hiddenGroups";
 
 /**
  * The Hidden Cards panel now materialises only a hidden tree's ROOTS and loads a
@@ -110,5 +111,45 @@ describe("HiddenNodesPanel", () => {
     // Rows still don't auto-expand, so the match is one click down.
     fireEvent.click(screen.getByRole("button", { name: "Expand" }));
     expect(screen.getByText("deep.md")).toBeTruthy();
+  });
+});
+
+describe("HiddenNodesPanel — row budget (T-237)", () => {
+  test("caps rendered rows on a large hidden set and accounts for the rest", () => {
+    // The big-graph wall: ~11.5k hidden roots, one row each, unbounded.
+    // 600 is enough to blow the budget while staying fast in a DOM test.
+    const many = Array.from({ length: 600 }, (_, i) =>
+      node(`h${i}`, "file", `h${i}.md`, `/root/docs/h${i}.md`),
+    );
+    act(() =>
+      useGraphStore.setState({
+        ...initial,
+        nodes: [
+          node("root", "folder", "root", "/root"),
+          node("docs", "folder", "docs", "/root/docs"),
+          ...many,
+        ],
+        edges: [
+          edge("root", "docs"),
+          ...many.map((n) => edge("docs", n.id)),
+        ],
+        hiddenIds: many.map((n) => n.id),
+        dataSource: "url:test",
+        localRootPath: null,
+      }),
+    );
+
+    const { container } = render(<HiddenNodesPanel />);
+
+    // Every node row carries exactly one unreveal button ("Show …"); the group
+    // header's title is its path, so this counts ROOT rows only.
+    const rowTitles = [...container.querySelectorAll('[title^="Show "]')];
+    expect(rowTitles.length).toBe(HIDDEN_ROW_BUDGET - 1); // header spent 1 of 300
+    expect(rowTitles.length).toBeLessThan(many.length);
+
+    const footer = screen.getByTestId("hidden-rows-omitted");
+    // 600 roots + 1 header = 601 rows exist; only 300 are built.
+    expect(footer.textContent).toContain("Showing 300 of 601 rows");
+    expect(footer.textContent).toContain("search to narrow the list");
   });
 });

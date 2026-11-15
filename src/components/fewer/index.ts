@@ -6,7 +6,6 @@ export { DocsSearch } from "./DocsSearch";
 export { BugReportDialog } from "./BugReportDialog";
 export { draggedFolderHandle, CustomNode, RenameInput } from "./CustomNode";
 export { SymlinkBadge } from "./SymlinkBadge";
-export { CustomMiniMap } from "./CustomMiniMap";
 export { ThemeEditorDialog } from "./ThemeEditorDialog";
 export { ErrorBoundary, NodeLoadingFallback } from "./ErrorBoundary";
 export { ExportPanel } from "./ExportPanel";

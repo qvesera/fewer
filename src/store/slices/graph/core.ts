@@ -13,6 +13,8 @@ import { sortEdges, computeLargeFolderHiddenIds, computeDisplayDepthHiddenIds, c
 import { categoryHiddenNodeIds } from "@/lib/fewer/categorize";
 import { captureViewState } from "../historySlice";
 import { applySearchHighlight } from "../searchHighlight";
+import { resetCardChildSlots } from "@/lib/fewer/cardChildRows";
+import { captureBaseline } from "@/lib/fewer/importBaseline";
 
 const DEFAULT_AUTO_HIDE_THRESHOLD = 10;
 
@@ -124,6 +126,10 @@ function setGraph(
   set({
     nodes: laidFinal,
     edges: sortedEdges,
+    // A fresh load (pushHistory === false) is a new import: remember the tree
+    // as it arrived so the changes script can diff against it. Merges keep the
+    // existing baseline — the import did not change, the graph did.
+    baseline: pushHistory ? state.baseline : captureBaseline(nodes),
     // setGraph REPLACES the whole graph, and every structural builder mints a
     // fresh id space (file-import-…, refresh-…, uuid) — so group membership
     // from the previous graph can never map onto these cards. Left in place,
@@ -292,6 +298,11 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
   edges: [],
   dataSource: null,
   localRootPath: null,
+  /**
+   * The tree as it was imported — the baseline the "Export Changes" script
+   * diffs against. Captured on every fresh load (see `setGraph`).
+   */
+  baseline: null,
   graphVersion: 0,
   hiddenPanelExpandTrigger: 0,
   savedGraphsExpandTrigger: 0,
@@ -303,7 +314,12 @@ export const createCoreSlice: CoreSliceCreator = (set, get) => ({
   triggerSavedGraphsExpand: () => {
     set((s) => ({ savedGraphsExpandTrigger: s.savedGraphsExpandTrigger + 1 }));
   },
-  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => setGraph(set, get, nodes, edges, pushHistory, hiddenFileIds, options),
+  // A whole-graph write invalidates every card-child slot (they pin refs from
+  // the previous graph) — drop them in the same call (T-240).
+  setGraph: (nodes, edges, pushHistory = true, hiddenFileIds, options) => {
+    resetCardChildSlots();
+    return setGraph(set, get, nodes, edges, pushHistory, hiddenFileIds, options);
+  },
   relayout: () => relayout(set, get),
   relayoutIfAuto: () => relayoutIfAuto(set, get),
   organize: (leafId) => organize(set, get, leafId),
