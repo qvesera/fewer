@@ -7666,14 +7666,14 @@ tasks:
   session_count: 0
 - id: "T-265"
   title: "Changes plan: archive-folder transitions and cross-boundary moves"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "export"
   tier: 1
   estimate_min: 480
   estimate_basis: "cli"
   issue: 612
-  pr: null
+  pr: 615
   internal: false
   milestone: null
   blocked_by: []
