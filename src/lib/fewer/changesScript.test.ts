@@ -1011,3 +1011,245 @@ describe("buildChangesScript", () => {
     ]);
   });
 });
+
+/** Nodes from an explicit list, so one id can change shape across a diff. */
+function shaped(
+  entries: Array<{
+    id: string;
+    path: string;
+    type?: "file" | "folder";
+    root?: boolean;
+    archive?: boolean;
+  }>,
+): FewerNode[] {
+  return entries.map((entry) =>
+    node(entry.id, entry.path, entry.type ?? "folder", {
+      ...(entry.root ? { isRoot: true } : {}),
+      ...(entry.archive ? { isArchive: true } : {}),
+    }),
+  );
+}
+
+describe("archive transitions", () => {
+  test("an archive root that became a folder is one extract, not a move per child", () => {
+    const before = shaped([
+      { id: "root", path: "backup.zip", root: true, archive: true },
+      { id: "src", path: "backup.zip/src" },
+      { id: "main", path: "backup.zip/src/main.rs", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "backup", root: true },
+      { id: "src", path: "backup/src" },
+      { id: "main", path: "backup/src/main.rs", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.target).toBe("folder");
+    expect(plan.extracts).toEqual([{ from: "backup.zip", to: "backup", root: true }]);
+    expect(plan.compresses).toEqual([]);
+    expect(plan.moves).toEqual([]);
+    expect(plan.mkdirs).toEqual([]);
+    // Before the extract the folder does not exist, so there is nothing on
+    // disk to fingerprint: the script checks the archive file instead.
+    expect(plan.fingerprint).toEqual([]);
+  });
+
+  test("a folder root that became an archive is one compress, not a move per child", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "src", path: "project/src" },
+      { id: "main", path: "project/src/main.rs", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project.zip", root: true, archive: true },
+      { id: "src", path: "project.zip/src" },
+      { id: "main", path: "project.zip/src/main.rs", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.target).toBe("archive");
+    expect(plan.compresses).toEqual([{ from: "project", to: "project.zip", root: true }]);
+    expect(plan.extracts).toEqual([]);
+    expect(plan.moves).toEqual([]);
+  });
+
+  test("an expanded zip that became a folder is one extract of that card", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logos.zip/Logo.eps", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos" },
+      { id: "logo", path: "project/Logos/Logo.eps", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.target).toBe("folder");
+    expect(plan.extracts).toEqual([{ from: "Logos.zip", to: "Logos", root: false }]);
+    expect(plan.compresses).toEqual([]);
+    expect(plan.moves).toEqual([]);
+    expect(plan.archivePlans).toEqual([]);
+  });
+
+  test("a folder that became an expanded zip is one compress of that card", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos" },
+      { id: "pic", path: "project/Photos/a.jpg", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos.zip", archive: true },
+      { id: "pic", path: "project/Photos.zip/a.jpg", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.compresses).toEqual([{ from: "Photos", to: "Photos.zip", root: false }]);
+    expect(plan.extracts).toEqual([]);
+    expect(plan.moves).toEqual([]);
+    expect(plan.archivePlans).toEqual([]);
+  });
+
+  test("an entry moved out of an archive is an export, not a skipped change", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logos.zip/Logo.eps", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logo.eps", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.moves).toEqual([]);
+    expect(plan.crossBoundary).toBe(1);
+    expect(plan.archivePlans).toHaveLength(1);
+    expect(plan.archivePlans[0].archive).toBe("Logos.zip");
+    expect(plan.archivePlans[0].exports).toEqual([{ member: "Logo.eps", to: "Logo.eps" }]);
+    expect(plan.warnings.some((w) => w.includes("cannot move"))).toBe(false);
+  });
+
+  test("an entry moved into an archive is an import", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "logo", path: "project/Logo.eps", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logos.zip/Logo.eps", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.archivePlans).toHaveLength(1);
+    expect(plan.archivePlans[0].imports).toEqual([{ from: "Logo.eps", member: "Logo.eps" }]);
+    expect(plan.crossBoundary).toBe(1);
+  });
+
+  test("a folder moved out of an archive is one export, not one per child", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "dir", path: "project/Logos.zip/Logos" },
+      { id: "logo", path: "project/Logos.zip/Logos/Logo.eps", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "dir", path: "project/Logos" },
+      { id: "logo", path: "project/Logos/Logo.eps", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.archivePlans[0].exports).toEqual([{ member: "Logos", to: "Logos" }]);
+    expect(plan.crossBoundary).toBe(1);
+  });
+
+  test("an entry moved between two archives is a transfer", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "a", path: "project/A.zip", archive: true },
+      { id: "b", path: "project/B.zip", archive: true },
+      { id: "x", path: "project/A.zip/x.txt", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "a", path: "project/A.zip", archive: true },
+      { id: "b", path: "project/B.zip", archive: true },
+      { id: "x", path: "project/B.zip/x.txt", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    const source = plan.archivePlans.find((archive) => archive.archive === "A.zip");
+    expect(source?.transfers).toEqual([
+      { member: "x.txt", toArchive: "B.zip", toMember: "x.txt" },
+    ]);
+    expect(plan.crossBoundary).toBe(1);
+  });
+
+  test("a deletion inside a freshly compressed folder edits the new archive", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos" },
+      { id: "pic", path: "project/Photos/a.jpg", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos.zip", archive: true },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after, true);
+
+    expect(plan.compresses).toEqual([{ from: "Photos", to: "Photos.zip", root: false }]);
+    expect(plan.deletes).toEqual([]);
+    expect(plan.archivePlans[0].deletes).toEqual(["a.jpg"]);
+  });
+
+  test("a move inside an extracted archive is a folder move after the extract", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logos.zip/a.txt", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos" },
+      { id: "logo", path: "project/Logos/b.txt", type: "file" },
+    ]);
+
+    const plan = planChanges(baselineOf(before), after);
+
+    expect(plan.extracts).toEqual([{ from: "Logos.zip", to: "Logos", root: false }]);
+    expect(plan.moves).toEqual([{ id: "logo", from: "Logos/a.txt", to: "Logos/b.txt" }]);
+  });
+
+  test("the exported script warns that transitions are not replayed yet", () => {
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos" },
+      { id: "pic", path: "project/Photos/a.jpg", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos.zip", archive: true },
+      { id: "pic", path: "project/Photos.zip/a.jpg", type: "file" },
+    ]);
+
+    const { warnings } = buildChangesScript({ baseline: baselineOf(before), nodes: after });
+
+    expect(warnings.some((w) => w.includes("transition(s) are not replayed"))).toBe(true);
+  });
+});
+

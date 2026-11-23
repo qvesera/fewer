@@ -16,6 +16,9 @@ function makePlan(overrides: Partial<ChangesPlan> = {}): ChangesPlan {
     deletes: ["gone.txt"],
     fingerprint: ["keep.txt"],
     archivePlans: [],
+    compresses: [],
+    extracts: [],
+    crossBoundary: 0,
     warnings: [],
     skippedInArchives: 0,
     ...overrides,
@@ -85,7 +88,17 @@ describe("buildChangesBatchScript", () => {
   test("archivePlans in a folder target show a 7-Zip/WSL note", () => {
     const { script } = buildChangesBatchScript(
       makePlan({
-        archivePlans: [{ archive: "Logs.zip", moves: [], preDeletes: [], deletes: [], adds: [], copies: [] }],
+        archivePlans: [{
+          archive: "Logs.zip",
+          moves: [],
+          preDeletes: [],
+          deletes: [],
+          adds: [],
+          copies: [],
+          exports: [],
+          imports: [],
+          transfers: [],
+        }],
       }),
       "2026-01-15T10:00:00.000Z",
     );

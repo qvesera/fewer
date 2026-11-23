@@ -20,6 +20,12 @@ export interface ChangesSummary {
   copied: number;
   /** Changes made inside an archive (the archive itself is edited in place). */
   inArchives: number;
+  /** Folders turned into an archive. */
+  compressed: number;
+  /** Archives turned into a folder. */
+  extracted: number;
+  /** Entries moved in or out of an archive (across its boundary). */
+  crossBoundary: number;
   /** Total operations the script performs. */
   total: number;
 }
@@ -90,6 +96,28 @@ export interface ArchivePlan {
   adds: { path: string; kind: "file" | "dir" }[];
   /** Entries to copy inside the archive. */
   copies: { from: string; to: string }[];
+  /** Members that leave the archive for a path on disk. */
+  exports: { member: string; to: string }[];
+  /** Paths on disk that enter the archive. */
+  imports: { from: string; member: string }[];
+  /** Members that move into ANOTHER archive (A → B, through a temp dir). */
+  transfers: { member: string; toArchive: string; toMember: string }[];
+}
+
+/**
+ * A folder turned into an archive, or an archive turned into a folder.
+ *
+ * `from`/`to` are paths relative to the folder root ("Logos" → "Logos.zip").
+ * For a root transition they are the root's own names and the script runs in
+ * its parent: the folder or archive it has to create is the working root.
+ */
+export interface ArchiveTransition {
+  /** Path before; null when the archive was created from a new folder. */
+  from: string | null;
+  /** Path after. */
+  to: string;
+  /** True when this is the graph's root, so the script runs in its parent. */
+  root: boolean;
 }
 
 export interface ChangesPlan {
@@ -113,6 +141,12 @@ export interface ChangesPlan {
   skippedInArchives: number;
   /** Per-archive edits: an archive is a real file, so its entries are edited in place. */
   archivePlans: ArchivePlan[];
+  /** Folders that became archives (nested, or the root). */
+  compresses: ArchiveTransition[];
+  /** Archives that became folders (nested, or the root). */
+  extracts: ArchiveTransition[];
+  /** Entries that cross an archive boundary (export, import or A → B). */
+  crossBoundary: number;
   warnings: string[];
 }
 
@@ -213,11 +247,21 @@ export function planChanges(
 
   // ── what are we replaying onto? ─────────────────────────────────────────
   // An archive import's root IS the archive (`backup.zip`); a folder import's
-  // root is the directory. A zip expanded INSIDE a folder is a card in that
-  // folder — the zip is one file, so the entries inside it are not files on
-  // disk and cannot be replayed there.
+  // root is the directory. The graph can also change that shape: a folder
+  // card can be COMPRESSED into an archive, and an archive card EXTRACTED
+  // into a folder. Both are transitions — of the root or of a card inside
+  // the folder — so the plan records ONE operation instead of pretending
+  // every child moved.
   const baselineRoot = baseline.find((entry) => entry.isRoot);
-  const target: "folder" | "archive" = baselineRoot?.isArchive ? "archive" : "folder";
+  const rootNode = nodes.find((node) => node.data?.isRoot);
+  const baselineRootIsArchive = !!baselineRoot?.isArchive;
+  const currentRootIsArchive = !!rootNode?.data?.isArchive;
+  // A root transition makes the folder/archive the script targets: it does
+  // not exist until the script has made it, so the script runs in its parent.
+  const rootExtract = baselineRootIsArchive && !!rootNode && !currentRootIsArchive;
+  const rootCompress = !baselineRootIsArchive && currentRootIsArchive;
+  const target: "folder" | "archive" =
+    (baselineRootIsArchive && !rootExtract) || rootCompress ? "archive" : "folder";
 
   // The current graph's root name (what the card is called now) and the
   // imported one (what the folder or archive file was called then). Each side
@@ -229,37 +273,207 @@ export function planChanges(
   const base = baselineEntries(baseline, baseRoot);
 
   // The folder the script runs in, or the archive file it replays into.
-  const rootName = target === "archive" ? (baselineRoot?.path ?? "") : currentRoot;
-
-  // Archives that live INSIDE the folder (a zip expanded during the import):
-  // the zip is one file on disk, so its members are not files and a change to
-  // one of them cannot be replayed onto the folder. The zip card itself is a
-  // real file, so it stays in scope.
-  const archivePaths = new Set<string>();
-  for (const entry of base) if (entry.isArchive) archivePaths.add(entry.path);
-  for (const entry of current) if (entry.isArchive) archivePaths.add(entry.path);
-  archivePaths.delete("");
-
-  const insideArchive = (path: string) =>
-    [...archivePaths].some((prefix) => path.startsWith(`${prefix}/`));
+  const rootName =
+    rootExtract || rootCompress
+      ? currentRoot || (baselineRoot?.path ?? "")
+      : target === "archive"
+        ? (baselineRoot?.path ?? "")
+        : currentRoot;
 
   const baseById = new Map(base.map((entry) => [entry.id, entry]));
   const idMatched = new Set<string>();
   for (const entry of current) if (baseById.has(entry.id)) idMatched.add(entry.id);
   const baseByPath = new Map(base.map((entry) => [entry.path, entry]));
 
+  // ── the archives ────────────────────────────────────────────────────────
+  // An archive is ONE file on disk, so its members are not files. The plan
+  // needs both sides of every archive card: the path it had in the import and
+  // the path it has now. That is what tells an in-place edit (archive → same
+  // archive) from a transition (folder → archive, archive → folder).
+  interface ArchiveRef {
+    id: string;
+    /** The archive's (or folder's) path in the import; null when newly made. */
+    basePath: string | null;
+    /** The archive's (or folder's) path now; null when it was deleted. */
+    currentPath: string | null;
+    /** Was an archive in the import. */
+    baseArchive: boolean;
+    /** Is an archive in the graph. */
+    currentArchive: boolean;
+  }
+  const archives = new Map<string, ArchiveRef>();
+  for (const entry of base) {
+    if (!entry.isArchive) continue;
+    archives.set(entry.id, {
+      id: entry.id,
+      basePath: entry.path,
+      currentPath: null,
+      baseArchive: true,
+      currentArchive: false,
+    });
+  }
+  for (const entry of current) {
+    const ref = archives.get(entry.id);
+    if (ref) {
+      ref.currentPath = entry.path;
+      ref.currentArchive = !!entry.isArchive;
+      continue;
+    }
+    if (entry.isArchive) {
+      archives.set(entry.id, {
+        id: entry.id,
+        basePath: null,
+        currentPath: entry.path,
+        baseArchive: false,
+        currentArchive: true,
+      });
+    }
+  }
+  // A folder compressed after the import: its baseline path is the folder it
+  // used to be, even though that entry was not an archive.
+  for (const ref of archives.values()) {
+    if (ref.basePath === null) ref.basePath = baseById.get(ref.id)?.path ?? null;
+  }
+
+  // Renames inside a container, keyed by its card id. Collected while the
+  // diff runs, reduced per archive below.
+  const archivesMoves = new Map<string, { from: string; to: string }[]>();
+
   const matched = new Set<string>();
   const rawMoves: Move[] = [];
   const creates: Entry[] = [];
   const relinks: Link[] = [];
 
+  // Entries that cross an archive boundary: bytes move between a member path
+  // and a path on disk. Collected first, then reduced so a moved folder is one
+  // operation instead of one per descendant.
+  interface BoundaryOp {
+    kind: "export" | "transfer" | "import";
+    /** Path in the import (or on disk, for an import). */
+    base: string;
+    /** Path in the graph now. */
+    current: string;
+    memberFrom: string;
+    memberTo: string;
+    refId: string;
+    toRefId?: string;
+    toArchive?: string;
+  }
+  const boundaryOps: BoundaryOp[] = [];
+
+  // An archive that is gone from the graph (the zip was deleted) is not worth
+  // editing — the file itself is on its way out.
+  const goneArchives = new Set(
+    [...archives.values()]
+      .filter((ref) => ref.baseArchive && ref.currentPath === null)
+      .map((ref) => ref.id),
+  );
+
+  /** The archive (or folder about to become one) a baseline path belongs to. */
+  const archiveOfBase = (path: string): { ref: ArchiveRef; inside: string } | null => {
+    let best: ArchiveRef | null = null;
+    for (const ref of archives.values()) {
+      if (ref.basePath === null) continue;
+      if (!path.startsWith(`${ref.basePath}/`)) continue;
+      if (!best || ref.basePath.length > (best.basePath?.length ?? 0)) best = ref;
+    }
+    if (!best?.basePath) return null;
+    return { ref: best, inside: path.slice(best.basePath.length + 1) };
+  };
+
+  /** The archive a current path belongs to, and the path inside it. */
+  const archiveOfCurrent = (path: string): { ref: ArchiveRef; inside: string } | null => {
+    let best: { ref: ArchiveRef; currentPath: string } | null = null;
+    for (const ref of archives.values()) {
+      if (!ref.currentArchive || ref.currentPath === null) continue;
+      if (!path.startsWith(`${ref.currentPath}/`)) continue;
+      if (!best || ref.currentPath.length > best.currentPath.length) {
+        best = { ref, currentPath: ref.currentPath };
+      }
+    }
+    if (!best) return null;
+    return { ref: best.ref, inside: path.slice(best.currentPath.length + 1) };
+  };
+
+  /** Where a member lives once its archive has been extracted to a folder. */
+  const afterExtract = (ref: ArchiveRef, inside: string) =>
+    ref.currentPath === null ? inside : `${ref.currentPath}/${inside}`;
+
   // The diff runs over everything, archive members included: a change to a
-  // member is a change the user made, and it has to be *reported* as skipped
-  // rather than quietly dropped.
+  // member is a change the user made, and it has to be planned — as an edit of
+  // the archive, a transition, or a move across the archive's boundary.
   for (const entry of current) {
     const counterpart = baseById.get(entry.id);
     if (counterpart) {
       matched.add(counterpart.id);
+      const self = archives.get(entry.id);
+      if (self && self.baseArchive !== self.currentArchive) {
+        // The card itself changed shape. Its path change IS the transition,
+        // recorded once below — a move of the card would be a second, wrong
+        // operation (there is no folder to move after it was archived).
+        continue;
+      }
+      const from = archiveOfBase(counterpart.path);
+      const to = archiveOfCurrent(entry.path);
+
+      if (from && to && from.ref.id === to.ref.id) {
+        // Same container: a rename or move inside it. A transitioned container
+        // has no members on disk until it is made, but the relative paths
+        // still describe the edit to apply afterwards.
+        if (from.inside !== to.inside && !goneArchives.has(from.ref.id)) {
+          const list = archivesMoves.get(from.ref.id) ?? [];
+          list.push({ from: from.inside, to: to.inside });
+          archivesMoves.set(from.ref.id, list);
+        }
+        continue;
+      }
+      if (from && to) {
+        // A → B: the bytes have to cross two archive boundaries.
+        boundaryOps.push({
+          kind: "transfer",
+          base: counterpart.path,
+          current: entry.path,
+          memberFrom: from.inside,
+          memberTo: to.inside,
+          refId: from.ref.id,
+          toRefId: to.ref.id,
+          toArchive: to.ref.currentPath ?? "",
+        });
+        continue;
+      }
+      if (from) {
+        const ref = from.ref;
+        if (ref.baseArchive && !ref.currentArchive && ref.currentPath !== null) {
+          // The archive became a folder: the member is already on disk at the
+          // folder's path, so only a later move has to be replayed.
+          const path = afterExtract(ref, from.inside);
+          if (path !== entry.path) rawMoves.push({ id: entry.id, from: path, to: entry.path });
+          continue;
+        }
+        // Leaving an archive that is still an archive (possibly compressed
+        // first): copy the member out, then drop it inside.
+        boundaryOps.push({
+          kind: "export",
+          base: counterpart.path,
+          current: entry.path,
+          memberFrom: from.inside,
+          memberTo: from.inside,
+          refId: ref.id,
+        });
+        continue;
+      }
+      if (to) {
+        // Entering an archive: copy the path in, then remove it from disk.
+        boundaryOps.push({
+          kind: "import",
+          base: counterpart.path,
+          current: entry.path,
+          memberFrom: "",
+          memberTo: to.inside,
+          refId: to.ref.id,
+        });
+        continue;
+      }
       if (counterpart.path !== entry.path) {
         rawMoves.push({ id: entry.id, from: counterpart.path, to: entry.path });
       } else if (counterpart.symlink !== entry.symlink && entry.symlink) {
@@ -277,118 +491,99 @@ export function planChanges(
     creates.push(entry);
   }
 
+  // A moved folder implies its children, so only the shallowest boundary
+  // operation on each side is kept (the same reduction as reduceMoves).
+  const keptBoundary: BoundaryOp[] = [];
+  for (const op of [...boundaryOps].sort((a, b) => a.base.length - b.base.length)) {
+    const implied = keptBoundary.some(
+      (kept) =>
+        kept.kind === op.kind &&
+        kept.refId === op.refId &&
+        kept.toRefId === op.toRefId &&
+        op.base.startsWith(`${kept.base}/`) &&
+        op.current.startsWith(`${kept.current}/`),
+    );
+    if (!implied) keptBoundary.push(op);
+  }
+
   const deleted = base.filter((entry) => !matched.has(entry.id));
-
-  // ── the archives inside the folder ───────────────────────────────────────
-  // An archive inside the folder is a REAL FILE: `Logos.zip` sits on disk
-  // next to everything else. So an edit to one of its entries is not lost —
-  // it becomes an edit of the zip itself, applied in place with 7-Zip.
-  //
-  // Archives are keyed by their card id, not by their path: a zip that was
-  // renamed in the graph is still the same archive, and its members keep
-  // their paths *inside* it either way.
-  interface ArchiveRef {
-    id: string;
-    /** The archive's path in the import ("Logos.zip"). */
-    basePath: string;
-    /** The archive's path now ("Logos.zip", or its new name). */
-    currentPath: string | null;
-  }
-  const archives = new Map<string, ArchiveRef>();
-  for (const entry of base) {
-    if (!entry.isArchive) continue;
-    archives.set(entry.id, { id: entry.id, basePath: entry.path, currentPath: null });
-  }
-  for (const entry of current) {
-    const ref = archives.get(entry.id);
-    if (ref) ref.currentPath = entry.path;
-  }
-  // An archive that is gone from the graph (the zip was deleted) is not worth
-  // editing — the file itself is on its way out.
-  const goneArchives = new Set(
-    [...archives.values()].filter((ref) => ref.currentPath === null).map((ref) => ref.id),
-  );
-
-  /** The archive a baseline path belongs to, and the path inside it. */
-  const archiveOfBase = (path: string): { ref: ArchiveRef; inside: string } | null => {
-    let best: ArchiveRef | null = null;
-    for (const ref of archives.values()) {
-      if (!path.startsWith(`${ref.basePath}/`)) continue;
-      if (!best || ref.basePath.length > best.basePath.length) best = ref;
-    }
-    if (!best) return null;
-    return { ref: best, inside: path.slice(best.basePath.length + 1) };
-  };
-
-  /** The archive a current path belongs to, and the path inside it. */
-  const archiveOfCurrent = (path: string): { ref: ArchiveRef; inside: string } | null => {
-    let best: { ref: ArchiveRef; currentPath: string } | null = null;
-    for (const ref of archives.values()) {
-      if (ref.currentPath === null) continue;
-      if (!path.startsWith(`${ref.currentPath}/`)) continue;
-      if (!best || ref.currentPath.length > best.currentPath.length) {
-        best = { ref, currentPath: ref.currentPath };
-      }
-    }
-    if (!best) return null;
-    return { ref: best.ref, inside: path.slice(best.currentPath.length + 1) };
-  };
 
   // ── where each change belongs ───────────────────────────────────────────
   // A change inside an archive is an edit OF that archive; everything else is
   // an edit of the folder. The two are replayed by different tools (7-Zip for
   // the archive, mv/rm/cp for the folder), so they are planned separately.
-  const skippedInArchives: string[] = [];
   const archivePlans = new Map<string, ArchivePlan>();
   const planFor = (archive: string): ArchivePlan => {
     let plan = archivePlans.get(archive);
     if (!plan) {
-      plan = { archive, moves: [], preDeletes: [], deletes: [], adds: [], copies: [] };
+      plan = {
+        archive,
+        moves: [],
+        preDeletes: [],
+        deletes: [],
+        adds: [],
+        copies: [],
+        exports: [],
+        imports: [],
+        transfers: [],
+      };
       archivePlans.set(archive, plan);
     }
     return plan;
   };
 
-  // Renames inside an archive, collected per archive (keyed by the archive
-  // card's id) while the raw moves are partitioned, so each archive's moves
-  // can be reduced on their own below.
-  const archiveMovesById = new Map<string, { from: string; to: string }[]>();
-  let moves = reduceMoves(
-    rawMoves.filter((move) => {
-      const from = archiveOfBase(move.from);
-      const to = archiveOfCurrent(move.to);
-      if (!from && !to) return true; // a plain move in the folder
-      if (from && to && from.ref.id === to.ref.id && !goneArchives.has(from.ref.id)) {
-        // A rename inside an archive: the archive itself is edited in place.
-        // Collect it per archive first — a renamed folder carries its
-        // children with it, so the implied child renames are dropped
-        // afterwards, exactly like the folder's own moves.
-        archiveMovesById.set(
-          from.ref.id,
-          (archiveMovesById.get(from.ref.id) ?? []).concat([{ from: from.inside, to: to.inside }]),
-        );
-        return false;
-      }
-      // Moved in or out of an archive: the bytes have to cross the archive
-      // boundary, which no simple rename can do.
-      skippedInArchives.push(`${move.from} → ${move.to}`);
-      warnings.push(
-        `Skipped "${move.from}": moving an entry in or out of an archive is not something a script can do.`,
-      );
-      return false;
-    }),
-  );
+  // A card whose shape changed is ONE transition, not one move per child.
+  // Root transitions are recorded too: the renderer has to make the new
+  // folder/archive before it can replay anything inside it.
+  const compresses: ArchiveTransition[] = [];
+  const extracts: ArchiveTransition[] = [];
+  if (rootCompress) {
+    compresses.push({ from: baselineRoot?.path ?? null, to: currentRoot, root: true });
+  }
+  if (rootExtract) {
+    extracts.push({ from: baselineRoot?.path ?? "", to: currentRoot, root: true });
+  }
+  for (const ref of archives.values()) {
+    if (ref.currentPath === null) continue;
+    if (!ref.baseArchive && ref.currentArchive) {
+      compresses.push({ from: ref.basePath, to: ref.currentPath, root: false });
+    } else if (ref.baseArchive && !ref.currentArchive) {
+      extracts.push({ from: ref.basePath ?? "", to: ref.currentPath, root: false });
+    }
+  }
+
+  // Boundary moves become operations on the archive they leave or enter.
+  // A transfer names both sides; the script moves the bytes through a temp
+  // directory, because no engine can copy between two archives in one call.
+  for (const op of keptBoundary) {
+    const ref = archives.get(op.refId);
+    if (!ref?.currentPath) continue;
+    const plan = planFor(ref.currentPath);
+    if (op.kind === "export") {
+      plan.exports.push({ member: op.memberFrom, to: op.current });
+    } else if (op.kind === "import") {
+      plan.imports.push({ from: op.base, member: op.memberTo });
+    } else {
+      plan.transfers.push({
+        member: op.memberFrom,
+        toArchive: op.toArchive ?? "",
+        toMember: op.memberTo,
+      });
+    }
+  }
+
+  let moves = reduceMoves(rawMoves);
   const remap = makeRemapper(moves);
 
   // Each archive's renames are reduced and remapped on their own, so a
-  // rename of a parent inside an archive carries its children with it —
-  // one move of the folder instead of one per entry — and a deletion inside
-  // that folder can be addressed at the path the entry ends up at.
+  // rename of a parent inside an archive carries its children with it — one
+  // move of the folder instead of one per entry — and a deletion inside that
+  // folder can be addressed at the path the entry ends up at.
   const archiveRemapById = new Map<string, (path: string) => string>();
   const archiveDestsById = new Map<string, Set<string>>();
-  for (const [id, raw] of archiveMovesById) {
+  for (const [id, raw] of archivesMoves) {
     const ref = archives.get(id);
-    if (!ref || ref.currentPath === null) continue;
+    if (!ref || ref.currentPath === null || goneArchives.has(id)) continue;
     const reduced = reduceMoves(raw);
     planFor(ref.currentPath).moves = reduced;
     archiveRemapById.set(id, makeRemapper(reduced));
@@ -408,26 +603,36 @@ export function planChanges(
   for (const entry of deletedTop) {
     const owner = archiveOfBase(entry.path);
     if (owner) {
-      // A deletion inside an archive: the archive is edited in place. Like a
-      // deletion in the folder, it is only replayed when deletions are on.
-      // The entry is deleted where it ENDS UP: a rename of one of its
-      // parents runs first and carries it with it, so deleting its old path
-      // would find nothing.
-      if (!goneArchives.has(owner.ref.id)) {
-        if (includeDeletions) {
-          const remapArchive = archiveRemapById.get(owner.ref.id);
-          const moved = remapArchive ? remapArchive(owner.inside) : owner.inside;
-          const dests = archiveDestsById.get(owner.ref.id);
-          if (dests?.has(moved)) {
-            // A rename lands on the deleted entry's place: the old occupant
-            // has to go first, before anything is renamed.
-            planFor(owner.ref.currentPath!).preDeletes.push(owner.inside);
-          } else {
-            planFor(owner.ref.currentPath!).deletes.push(moved);
-          }
-        } else {
-          notReplayed.push(entry.path);
+      const ref = owner.ref;
+      if (goneArchives.has(ref.id) || ref.currentPath === null) continue;
+      if (ref.baseArchive && !ref.currentArchive) {
+        // The archive became a folder: the member is on disk at the folder's
+        // path now, so its deletion is an ordinary folder deletion (after any
+        // move that carried it elsewhere has been replayed).
+        const path = afterExtract(ref, owner.inside);
+        if (!includeDeletions) {
+          notReplayed.push(path);
+          continue;
         }
+        deletes.push(remap(path));
+        continue;
+      }
+      // In place — or inside a folder that was compressed first: the archive is
+      // rewritten and the entry is deleted where the renames leave it. Like a
+      // deletion in the folder, it is only replayed when deletions are on.
+      if (includeDeletions) {
+        const remapArchive = archiveRemapById.get(ref.id);
+        const moved = remapArchive ? remapArchive(owner.inside) : owner.inside;
+        const dests = archiveDestsById.get(ref.id);
+        if (dests?.has(moved)) {
+          // A rename lands on the deleted entry's place: the old occupant has
+          // to go first, before anything is renamed.
+          planFor(ref.currentPath).preDeletes.push(owner.inside);
+        } else {
+          planFor(ref.currentPath).deletes.push(moved);
+        }
+      } else {
+        notReplayed.push(entry.path);
       }
       continue;
     }
@@ -530,23 +735,17 @@ export function planChanges(
   // loops in the script address the same pair.
   const commitSequence = commitOrder.map((move) => stageIndex.get(move.id) ?? 0);
 
-  if (skippedInArchives.length > 0) {
-    const shown = skippedInArchives.slice(0, 3).join(", ");
-    const more = skippedInArchives.length > 3 ? `, +${skippedInArchives.length - 3} more` : "";
-    warnings.push(
-      `Skipped ${skippedInArchives.length} change(s) that cross an archive boundary (${shown}${more}) — a script cannot move entries in or out of an archive.`,
-    );
-  }
-
   const movedIds = new Set(safeMoves.map((move) => move.id));
   // The fingerprint must only sample paths that really exist on disk: an
   // archive member never does, and sampling one would fail the folder check
-  // on a folder that is perfectly fine.
+  // on a folder that is perfectly fine. A root extraction runs BEFORE the
+  // folder exists, so it has no folder to sample at all — the script checks
+  // the archive file instead.
   const stable = base.filter(
     (entry) =>
       !movedIds.has(entry.id) && !deletedIds.has(entry.id) && !archiveOfBase(entry.path),
   );
-  const fingerprint = pickFingerprint(stable).filter(isSafePath);
+  const fingerprint = rootExtract ? [] : pickFingerprint(stable).filter(isSafePath);
 
   // The archives that really have work to do, in a stable order.
   const archivePlansList = [...archivePlans.values()]
@@ -556,7 +755,10 @@ export function planChanges(
         plan.preDeletes.length > 0 ||
         plan.deletes.length > 0 ||
         plan.adds.length > 0 ||
-        plan.copies.length > 0,
+        plan.copies.length > 0 ||
+        plan.exports.length > 0 ||
+        plan.imports.length > 0 ||
+        plan.transfers.length > 0,
     )
     .sort((a, b) => a.archive.localeCompare(b.archive));
 
@@ -573,8 +775,11 @@ export function planChanges(
     preDeletes,
     deletes: safeDeletes.sort((a, b) => b.length - a.length),
     fingerprint,
-    skippedInArchives: skippedInArchives.length,
+    skippedInArchives: 0,
     archivePlans: archivePlansList,
+    compresses,
+    extracts,
+    crossBoundary: keptBoundary.length,
     warnings,
   };
 }
@@ -714,6 +919,9 @@ function summaryLine(summary: ChangesSummary): string {
   if (summary.copied) parts.push(`(${summary.copied} copied)`);
   if (summary.deleted) parts.push(`${summary.deleted} deleted`);
   if (summary.inArchives) parts.push(`${summary.inArchives} inside an archive`);
+  if (summary.compressed) parts.push(`${summary.compressed} compressed`);
+  if (summary.extracted) parts.push(`${summary.extracted} extracted`);
+  if (summary.crossBoundary) parts.push(`${summary.crossBoundary} across an archive`);
   return parts.length ? parts.join(", ") : "nothing to change";
 }
 
@@ -760,6 +968,11 @@ export function buildChangesScript(args: {
       archive.copies.length,
     0,
   );
+  const boundaryOps = plan.archivePlans.reduce(
+    (sum, archive) =>
+      sum + archive.exports.length + archive.imports.length + archive.transfers.length,
+    0,
+  );
   const archiveDeletes = plan.archivePlans.reduce(
     (sum, archive) => sum + archive.preDeletes.length + archive.deletes.length,
     0,
@@ -773,6 +986,9 @@ export function buildChangesScript(args: {
     deleted: plan.deletes.length + plan.preDeletes.length + archiveDeletes,
     copied: plan.copies.length,
     inArchives: archiveOps,
+    compressed: plan.compresses.length,
+    extracted: plan.extracts.length,
+    crossBoundary: boundaryOps,
     total:
       plan.moves.length +
       plan.mkdirs.length +
@@ -781,12 +997,31 @@ export function buildChangesScript(args: {
       plan.copies.length +
       plan.deletes.length +
       plan.preDeletes.length +
-      archiveOps,
+      archiveOps +
+      boundaryOps +
+      plan.compresses.length +
+      plan.extracts.length,
   };
+
+  // The plan understands transitions and boundary moves before the shell
+  // programs do. Say so in the script rather than exporting a file that looks
+  // like it forgot them: the next slice renders these operations, and the
+  // warning goes away with it.
+  const allWarnings = [...plan.warnings];
+  if (boundaryOps > 0) {
+    allWarnings.push(
+      `${boundaryOps} change(s) move entries in or out of an archive and are not replayed by this script yet.`,
+    );
+  }
+  if (plan.compresses.length + plan.extracts.length > 0) {
+    allWarnings.push(
+      `${plan.compresses.length + plan.extracts.length} folder/archive transition(s) are not replayed by this script yet.`,
+    );
+  }
 
   const branding = includeBranding ? ["# Created with fewer"] : [];
   const header = [...branding, `# ${summaryLine(summary)}`].join("\n");
-  const notes = renderNotes(plan.warnings);
+  const notes = renderNotes(allWarnings);
 
   // Un-commented ASCII art block that displays in the terminal when run
   const asciiArtBashBlock = includeBranding ? `cat << 'EOF'
@@ -836,7 +1071,7 @@ echo ""
     return {
       script,
       summary,
-      warnings: plan.warnings,
+      warnings: allWarnings,
       target: "archive",
       skippedInArchives: plan.skippedInArchives,
     };
@@ -892,7 +1127,7 @@ echo ""
   return {
     script,
     summary,
-    warnings: plan.warnings,
+    warnings: allWarnings,
     target: "folder",
     skippedInArchives: plan.skippedInArchives,
   };
@@ -944,6 +1179,9 @@ export function buildChangesBatchScript(
     deleted: plan.deletes.length + plan.preDeletes.length,
     copied: plan.copies.length,
     inArchives: 0,
+    compressed: 0,
+    extracted: 0,
+    crossBoundary: 0,
     total:
       nMoves +
       plan.mkdirs.length +
@@ -966,7 +1204,17 @@ export function buildChangesBatchScript(
       0,
     );
 
-  const skippedInArchives = plan.skippedInArchives + archiveOps;
+  const boundaryOps = plan.archivePlans.reduce(
+    (n, archive) => n + archive.exports.length + archive.imports.length + archive.transfers.length,
+    0,
+  );
+
+  const skippedInArchives =
+    plan.skippedInArchives +
+    archiveOps +
+    boundaryOps +
+    plan.compresses.length +
+    plan.extracts.length;
   const rootName = quote(plan.rootName);
 
   // A batch script can replay onto a folder, not into an archive. Archives
@@ -994,6 +1242,9 @@ export function buildChangesBatchScript(
       deleted: 0,
       copied: 0,
       inArchives: 0,
+      compressed: 0,
+      extracted: 0,
+      crossBoundary: 0,
       total: 0,
     };
     return {
