@@ -7673,7 +7673,7 @@ tasks:
   estimate_min: 480
   estimate_basis: "cli"
   issue: 612
-  pr: 615
+  pr: 616
   internal: false
   milestone: null
   blocked_by: []
@@ -7695,14 +7695,14 @@ tasks:
   session_count: 1
 - id: "T-266"
   title: "Graph actions: Compress to zip and Extract Archive"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "graph"
   tier: 1
   estimate_min: 360
   estimate_basis: "cli"
   issue: 613
-  pr: null
+  pr: 616
   internal: false
   milestone: null
   blocked_by: []
