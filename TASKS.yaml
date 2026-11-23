@@ -7724,7 +7724,7 @@ tasks:
   session_count: 1
 - id: "T-267"
   title: "Export Changes scripts: compress, extract and moves across the archive boundary"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "export"
   tier: 1
@@ -7737,17 +7737,17 @@ tasks:
   blocked_by: []
   parent: "T-264"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-23T12:58:09Z"
   notes: []
   sessions:
   - start: "2026-11-23T13:48:19Z"
-    end: null
+    end: "2026-11-23T13:54:10Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Script renderers: transitions (root+nested), archive EXPORT/IMPORT in 7z and Python engines, Python --pack/--unpack, --keep-archive, dry-run; docs + changelog + seed migration 0067; 3 new round-trip tests, full suite 2137+271 pass, tsc/lint/build/migration verify clean."
+    proof: ["9cbfa90"]
+    effort: {commits: 1, files: 10, insertions: 3705, deletions: 50}
+  spent_min: 6
   session_count: 1
