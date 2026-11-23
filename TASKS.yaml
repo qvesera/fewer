@@ -7724,14 +7724,14 @@ tasks:
   session_count: 1
 - id: "T-267"
   title: "Export Changes scripts: compress, extract and moves across the archive boundary"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "export"
   tier: 1
   estimate_min: 900
   estimate_basis: "cli"
   issue: 614
-  pr: null
+  pr: 617
   internal: false
   milestone: null
   blocked_by: []
