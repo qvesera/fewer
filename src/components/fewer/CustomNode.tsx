@@ -361,6 +361,43 @@ function FolderMenuContent({
           Duplicate
           <ContextMenuShortcut aria-hidden="true">{menuShortcutHint("duplicate", mod)}</ContextMenuShortcut>
         </ContextMenuItem>
+        {!isArchive && (
+          <ContextMenuItem
+            onSelect={() => {
+              const result = useGraphStore.getState().compressFolder(nodeId);
+              if (!result.ok) {
+                toast({ title: "Cannot compress", description: result.reason, variant: "destructive" });
+                return;
+              }
+              toast({
+                title: "Compressed to an archive",
+                description: `${nodeLabel} → ${result.name}. Run Export Changes to write it on disk.`,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Compress to .zip
+          </ContextMenuItem>
+        )}
+        {isArchive && (
+          <ContextMenuItem
+            onSelect={() => {
+              const result = useGraphStore.getState().extractArchive(nodeId);
+              if (!result.ok) {
+                toast({ title: "Cannot extract", description: result.reason, variant: "destructive" });
+                return;
+              }
+              toast({
+                title: "Extracted to a folder",
+                description: `${nodeLabel} → ${result.name}. Run Export Changes to write it on disk.`,
+              });
+            }}
+            className="cursor-pointer"
+          >
+            Extract Archive
+          </ContextMenuItem>
+        )}
+
         {clipboard && clipboard.nodeIds.length > 0 && (
           <ContextMenuItem
             onSelect={() => {

@@ -7,6 +7,7 @@ import type { GraphState } from "../types";
 import { buildClipboardMethods } from "./nodes/clipboard";
 import { buildDeletionMethods } from "./nodes/deletion";
 import { buildRenameMethods } from "./nodes/rename";
+import { buildArchiveToggleMethods } from "./nodes/archiveToggle";
 import { buildCreationMethods } from "./nodes/creation";
 
 export type NodesSliceCreator = StateCreator<GraphState, [], [], {
@@ -24,6 +25,8 @@ export type NodesSliceCreator = StateCreator<GraphState, [], [], {
   deleteNodes: GraphState["deleteNodes"];
   renameNode: GraphState["renameNode"];
   renameNodes: GraphState["renameNodes"];
+  compressFolder: GraphState["compressFolder"];
+  extractArchive: GraphState["extractArchive"];
   addNode: GraphState["addNode"];
   addStandaloneNode: GraphState["addStandaloneNode"];
   addParentNode: GraphState["addParentNode"];
@@ -34,5 +37,6 @@ export const createNodesSlice: NodesSliceCreator = (set, get) => ({
   ...buildClipboardMethods(set, get),
   ...buildDeletionMethods(set, get),
   ...buildRenameMethods(set, get),
+  ...buildArchiveToggleMethods(set, get),
   ...buildCreationMethods(set, get),
 });
