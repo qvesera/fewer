@@ -67,6 +67,28 @@ function setNodeTags(nodes: FewerNode[], changes: readonly { nodeId: string; fro
   });
 }
 
+/** Path + shape rewrite for a compress/extract, forward (`to`) or back (`from`). */
+function applyArchiveToggle(
+  nodes: FewerNode[],
+  edges: FewerEdge[],
+  op: Extract<HistoryOp, { type: "archive-toggle" }>,
+  pick: "from" | "to",
+): Graph {
+  const paths = new Map(op.paths.map((p) => [p.nodeId, p[pick]] as const));
+  const isArchive = (pick === "to" ? op.willArchive : op.wasArchive) ? true : undefined;
+  const label = pick === "to" ? op.willLabel : op.wasLabel;
+  return {
+    nodes: nodes.map((nd) => {
+      const path = paths.get(nd.id);
+      if (nd.id === op.nodeId) {
+        return { ...nd, data: { ...nd.data, path: path ?? nd.data.path, label, isArchive } };
+      }
+      return path === undefined ? nd : { ...nd, data: { ...nd.data, path } };
+    }),
+    edges,
+  };
+}
+
 function subtreeIds(op: { node: FewerNode; children: FewerNode[] }): Set<string> {
   return new Set([op.node.id, ...op.children.map((c) => c.id)]);
 }
@@ -134,6 +156,10 @@ const doCollapseBatch: AnyHandler = (nodes, edges, op) => {
 const doSetNodeTags: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "set-node-tags" }>;
   return { nodes: setNodeTags(nodes, o.changes, "to"), edges };
+};
+const doArchiveToggle: AnyHandler = (nodes, edges, op) => {
+  const o = op as unknown as Extract<HistoryOp, { type: "archive-toggle" }>;
+  return applyArchiveToggle(nodes, edges, o, "to");
 };
 
 /**
@@ -207,8 +233,12 @@ const undoSetNodeTags: AnyHandler = (nodes, edges, op) => {
   const o = op as unknown as Extract<HistoryOp, { type: "set-node-tags" }>;
   return { nodes: setNodeTags(nodes, o.changes, "from"), edges };
 };
-const applyTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": doAddNode, "remove-node": doRemoveNode, "move-node": doMoveNode, rename: doRename, "bulk-import": doBulkImport, "toggle-collapse": doToggleCollapse, "remove-subtree": doRemoveSubtree, "refresh-subtree": doRefreshSubtree, connect: doConnect, "remove-edges": doRemoveEdges, "move-positions": doMovePositions, resize: doResize, "collapse-batch": doCollapseBatch, "set-node-tags": doSetNodeTags, "view-state": passthrough, groups: passthrough };
-const undoTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": undoAddNode, "remove-node": undoRemoveNode, "move-node": undoMoveNode, rename: undoRename, "bulk-import": undoBulkImport, "toggle-collapse": undoToggleCollapse, "remove-subtree": undoRemoveSubtree, "refresh-subtree": undoRefreshSubtree, connect: undoConnect, "remove-edges": undoRemoveEdges, "move-positions": undoMovePositions, resize: undoResize, "collapse-batch": undoCollapseBatch, "set-node-tags": undoSetNodeTags, "view-state": passthrough, groups: passthrough };
+const undoArchiveToggle: AnyHandler = (nodes, edges, op) => {
+  const o = op as unknown as Extract<HistoryOp, { type: "archive-toggle" }>;
+  return applyArchiveToggle(nodes, edges, o, "from");
+};
+const applyTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": doAddNode, "remove-node": doRemoveNode, "move-node": doMoveNode, rename: doRename, "bulk-import": doBulkImport, "toggle-collapse": doToggleCollapse, "remove-subtree": doRemoveSubtree, "refresh-subtree": doRefreshSubtree, connect: doConnect, "remove-edges": doRemoveEdges, "move-positions": doMovePositions, resize: doResize, "collapse-batch": doCollapseBatch, "set-node-tags": doSetNodeTags, "archive-toggle": doArchiveToggle, "view-state": passthrough, groups: passthrough };
+const undoTable: Record<HistoryOp["type"], AnyHandler> = { "add-node": undoAddNode, "remove-node": undoRemoveNode, "move-node": undoMoveNode, rename: undoRename, "bulk-import": undoBulkImport, "toggle-collapse": undoToggleCollapse, "remove-subtree": undoRemoveSubtree, "refresh-subtree": undoRefreshSubtree, connect: undoConnect, "remove-edges": undoRemoveEdges, "move-positions": undoMovePositions, resize: undoResize, "collapse-batch": undoCollapseBatch, "set-node-tags": undoSetNodeTags, "archive-toggle": undoArchiveToggle, "view-state": passthrough, groups: passthrough };
 /** Apply a batch of ops in sequence (forward). */
 export function applyOps(nodes: FewerNode[], edges: FewerEdge[], ops: HistoryOp[]): Graph {
   let result = { nodes, edges };

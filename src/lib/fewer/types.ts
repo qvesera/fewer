@@ -480,6 +480,21 @@ export interface RefreshSubtreeOp {
   after: ViewState;
 }
 
+/**
+ * A card that changed shape: a folder COMPRESSED into an archive, or an
+ * archive EXTRACTED into a folder. The whole subtree travels with it, so
+ * every changed path is recorded once — undo restores the paths and the flag.
+ */
+export interface ArchiveToggleOp {
+  type: "archive-toggle";
+  nodeId: string;
+  wasArchive: boolean;
+  willArchive: boolean;
+  wasLabel: string;
+  willLabel: string;
+  paths: { nodeId: string; from: string; to: string }[];
+}
+
 export type HistoryOp =
   | AddNodeOp
   | RemoveNodeOp
@@ -495,6 +510,7 @@ export type HistoryOp =
   | CollapseBatchOp
   | SetNodeTagsOp
   | RefreshSubtreeOp
+  | ArchiveToggleOp
   | GroupsOp
   | ViewStateOp;
 
