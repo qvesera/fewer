@@ -342,9 +342,17 @@ The script needs an archive engine for that, and finds one:
 
 If neither is available, the script says so and leaves the archive alone.
 
-**One thing a script cannot do** is move an entry *in or out* of an archive —
-the bytes would have to cross the archive boundary. Those changes are skipped,
-and the script says how many.
+**Moving entries across the boundary.** A folder compressed in the graph
+(`Compress to .zip`) and an archive extracted back into a folder
+(`Extract Archive`) are replayed as one operation: the script packs the
+folder's contents into the archive, or unpacks the archive into the folder,
+and removes the side that is gone. Entries you drag **into** an archive are
+copied in, then removed from disk; entries dragged **out** are written to
+disk, then removed from the archive. Extracting keeps the archive unless you
+pass `--keep-archive`. A `.tar.gz`/`.tar.xz` is unpacked in two passes.
+
+A move **between two archives** is still reported rather than replayed: no
+engine can copy between two archives in one run.
 
 The `.bat` version is a plain cmd script: double-click it in File Explorer (it pauses at the end so the result stays visible) or run it from a terminal the same way.
 

@@ -886,11 +886,14 @@ test("the Python fallback replays the same changes when 7-Zip is missing", () =>
       nodes: after,
     });
     expect(target).toBe("folder");
-    // A folder replay with no archives needs nothing but bash: no archive
-    // engine is looked for, and 7-Zip is never mentioned.
+    // A folder replay with no archives and no transitions needs nothing but
+    // bash: the engine block is not embedded, and the transition stage is
+    // guarded by counts of zero, so no lookup can run.
     expect(script).not.toContain("7z ");
     expect(script).not.toContain("python3");
-    expect(script).not.toContain("archive_engine");
+    expect(script).not.toContain("apply_archive_plan");
+    expect(script).toContain("N_EXTRACTS=0");
+    expect(script).toContain("N_COMPRESSES=0");
   });
 
   test("an archive script with nothing to change never asks about an engine", () => {
@@ -1235,7 +1238,13 @@ describe("archive transitions", () => {
     expect(plan.moves).toEqual([{ id: "logo", from: "Logos/a.txt", to: "Logos/b.txt" }]);
   });
 
-  test("the exported script warns that transitions are not replayed yet", () => {
+  test("a compressed folder becomes a real archive on disk", () => {
+    if (!bashAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-compress-"));
+    const project = join(root, "project");
+    mkdirSync(join(project, "Photos"), { recursive: true });
+    writeFileSync(join(project, "Photos", "a.jpg"), "pixels");
+
     const before = shaped([
       { id: "root", path: "project", root: true },
       { id: "photos", path: "project/Photos" },
@@ -1247,9 +1256,142 @@ describe("archive transitions", () => {
       { id: "pic", path: "project/Photos.zip/a.jpg", type: "file" },
     ]);
 
-    const { warnings } = buildChangesScript({ baseline: baselineOf(before), nodes: after });
+    const { script } = buildChangesScript({
+      baseline: baselineOf(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
 
-    expect(warnings.some((w) => w.includes("transition(s) are not replayed"))).toBe(true);
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: project });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    expect(listTree(project)).toEqual(["Photos.zip"]);
+    const listing = Bun.spawnSync([
+      "python3",
+      "-c",
+      `import zipfile,sys; print("\\n".join(sorted(zipfile.ZipFile(sys.argv[1]).namelist())))`,
+      join(project, "Photos.zip"),
+    ]);
+    expect(listing.stdout.toString().trim().split("\n")).toEqual(["a.jpg"]);
+  });
+
+  test("an extracted archive becomes a real folder on disk", () => {
+    if (!bashAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-extract-"));
+    const project = join(root, "project");
+    mkdirSync(project, { recursive: true });
+    writeFileSync(join(root, "a.txt"), "hello");
+    Bun.spawnSync([
+      "python3",
+      "-c",
+      `import zipfile,sys; z=zipfile.ZipFile(sys.argv[1],"w"); z.write(sys.argv[2],"a.txt"); z.close()`,
+      join(project, "Logos.zip"),
+      join(root, "a.txt"),
+    ]);
+
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logos.zip/a.txt", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos" },
+      { id: "logo", path: "project/Logos/a.txt", type: "file" },
+    ]);
+
+    const { script } = buildChangesScript({
+      baseline: baselineOf(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: project });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+    expect(listTree(project)).toEqual(["Logos/a.txt"]);
+  });
+
+  test("an entry moved out of an archive lands on disk and leaves the archive", () => {
+    if (!bashAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-export-"));
+    const project = join(root, "project");
+    mkdirSync(project, { recursive: true });
+    writeFileSync(join(root, "Logo.eps"), "vector");
+    Bun.spawnSync([
+      "python3",
+      "-c",
+      `import zipfile,sys; z=zipfile.ZipFile(sys.argv[1],"w"); z.write(sys.argv[2],"Logo.eps"); z.close()`,
+      join(project, "Logos.zip"),
+      join(root, "Logo.eps"),
+    ]);
+
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logos.zip/Logo.eps", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "zip", path: "project/Logos.zip", archive: true },
+      { id: "logo", path: "project/Logo.eps", type: "file" },
+    ]);
+
+    const { script } = buildChangesScript({
+      baseline: baselineOf(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: project });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+    expect(listTree(project)).toEqual(["Logo.eps", "Logos.zip"]);
+    const listing = Bun.spawnSync([
+      "python3",
+      "-c",
+      `import zipfile,sys; print(",".join(zipfile.ZipFile(sys.argv[1]).namelist()))`,
+      join(project, "Logos.zip"),
+    ]);
+    expect(listing.stdout.toString().trim()).toBe("");
+  });
+
+  test("a dry run changes neither the folder nor the archive", () => {
+    if (!bashAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-transition-dry-"));
+    const project = join(root, "project");
+    mkdirSync(join(project, "Photos"), { recursive: true });
+    writeFileSync(join(project, "Photos", "a.jpg"), "pixels");
+
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos" },
+      { id: "pic", path: "project/Photos/a.jpg", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "photos", path: "project/Photos.zip", archive: true },
+      { id: "pic", path: "project/Photos.zip/a.jpg", type: "file" },
+    ]);
+
+    const { script } = buildChangesScript({
+      baseline: baselineOf(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--dry-run", "--yes"], { cwd: project });
+    expect(run.exitCode).toBe(0);
+    expect(listTree(project)).toEqual(["Photos/a.jpg"]);
   });
 });
 
