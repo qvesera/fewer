@@ -7643,7 +7643,7 @@ tasks:
   session_count: 1
 - id: "T-264"
   title: "Archive to folder transitions and Compress folder action"
-  status: "backlog"
+  status: "triaged"
   type: "feat"
   area: "export"
   tier: 1
@@ -7782,7 +7782,7 @@ tasks:
   session_count: 1
 - id: "T-269"
   title: "Task pipeline: auto-sync new rows to GitHub and board, and fix Board Reconcile drift gate"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: 1
