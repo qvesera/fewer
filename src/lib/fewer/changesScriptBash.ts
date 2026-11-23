@@ -266,19 +266,6 @@ if [ "$N_EXTRACTS" -gt 0 ] || [ "$N_COMPRESSES" -gt 0 ]; then
     fi
     i=$((i+1))
   done
-
-  i=0
-  while [ "$i" -lt "$N_COMPRESSES" ]; do
-    from="\${COMPRESS_FROM[$i]}"; to="\${COMPRESS_TO[$i]}"
-    say "· compress $from → $to"
-    if [ "$DRY_RUN" = 1 ]; then
-      printf '+ compress %q into %q\\n' "$from" "$to"
-    else
-      pack_folder "$from" "$to" || die "could not compress '$from' — it is unchanged"
-      rm -rf -- "$from"
-    fi
-    i=$((i+1))
-  done
 fi
 
 # A deletion that frees the path another entry moves into has to happen first,
@@ -379,6 +366,25 @@ if [ "$N_DELETES" -gt 0 ]; then
   fi
 fi
 
+# Compresses run last among folder work: their source is the folder at its
+# final path (an ancestor rename carried it), and any destination parent the
+# moves created already exists.
+if [ "$N_COMPRESSES" -gt 0 ]; then
+  i=0
+  while [ "$i" -lt "$N_COMPRESSES" ]; do
+    from="\${COMPRESS_FROM[$i]}"; to="\${COMPRESS_TO[$i]}"
+    say "· compress $from → $to"
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ compress %q into %q\\n' "$from" "$to"
+    else
+      mkdir -p -- "$(dirname -- "$to")"
+      pack_folder "$from" "$to" || die "could not compress '$from' — it is unchanged"
+      rm -rf -- "$from"
+    fi
+    i=$((i+1))
+  done
+fi
+
 done_ok=1
 say ""
 say "Done — $CHANGES change(s) applied to $(pwd)."
@@ -391,7 +397,10 @@ say "Done — $CHANGES change(s) applied to $(pwd)."
 export const BASH_ARCHIVE_SECTION = `
 # ── 6. the archives ───────────────────────────────────────────────────────
 # An archive is a real file in this folder: the edits you made inside it are
-# applied to the archive itself, in place.
+# applied to the archive itself, in place. Every plan is written first, then
+# applied in TWO passes: mutations and exports, then imports. That is what
+# makes a move between two archives (A→B, B→A) work without depending on the
+# order the archives are named in.
 if [ "$ARCHIVE_COUNT" -gt 0 ]; then
   ARCHIVE_WORK_OWN=0
   if [ -z "\${ARCHIVE_WORK:-}" ]; then ARCHIVE_WORK="$(mktemp -d)"; ARCHIVE_WORK_OWN=1; fi
@@ -399,9 +408,26 @@ if [ "$ARCHIVE_COUNT" -gt 0 ]; then
   while [ "$j" -lt "$ARCHIVE_COUNT" ]; do
     archive="\${ARCHIVE_NAMES[$j]}"
     plan="$ARCHIVE_WORK/plan-$j.tsv"
-    printf '%s\\n' "\${ARCHIVE_ROWS[$j]}" > "$plan"
+    # __XFER__/n is the shared temp path a transfer uses; resolve it to the
+    # work dir so both archives read and write the same file.
+    printf '%s\\n' "\${ARCHIVE_ROWS[$j]}" | sed "s|__XFER__|$ARCHIVE_WORK|g" > "$plan"
+    j=$((j+1))
+  done
+  say ""
+  say "· applying archive edits"
+  j=0
+  while [ "$j" -lt "$ARCHIVE_COUNT" ]; do
+    archive="\${ARCHIVE_NAMES[$j]}"
     say "· editing $archive"
-    apply_archive_plan "$archive" "$plan"
+    apply_archive_plan "$archive" "$ARCHIVE_WORK/plan-$j.tsv"
+    j=$((j+1))
+  done
+  say ""
+  say "· adding entries to archives"
+  j=0
+  while [ "$j" -lt "$ARCHIVE_COUNT" ]; do
+    archive="\${ARCHIVE_NAMES[$j]}"
+    apply_archive_imports "$archive" "$ARCHIVE_WORK/plan-$j.tsv"
     j=$((j+1))
   done
   if [ "$ARCHIVE_WORK_OWN" = 1 ]; then rm -rf "$ARCHIVE_WORK"; fi

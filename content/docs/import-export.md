@@ -351,8 +351,10 @@ copied in, then removed from disk; entries dragged **out** are written to
 disk, then removed from the archive. Extracting keeps the archive unless you
 pass `--keep-archive`. A `.tar.gz`/`.tar.xz` is unpacked in two passes.
 
-A move **between two archives** is still reported rather than replayed: no
-engine can copy between two archives in one run.
+A move **between two archives** works too: the entry is written to a temporary
+file, added to the destination archive, and removed from the source. Every
+archive's edits and exports run first, then all imports, so swapping entries
+between two archives in one run is safe.
 
 The `.bat` version is a plain cmd script: double-click it in File Explorer (it pauses at the end so the result stays visible) or run it from a terminal the same way.
 
