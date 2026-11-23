@@ -121,13 +121,16 @@ apply_archive_plan() {
   archive_engine
 
   if [ "$ARCHIVE_ENGINE" = "python" ]; then
-    local effective="$plan"
+    # Imports run in the second pass, never here: a transfer's temp file may
+    # be written by another archive's export later in this same run.
+    local effective="$ARCHIVE_WORK/plan-pass1.tsv"
     if [ "$ALLOW_DELETE" = 0 ]; then
       # Deletions were not allowed: drop them, and the renames that would
       # have landed on an entry that is still there. (Pre-deletes free a
       # path for a rename and are part of the rename itself, so they stay.)
-      effective="$ARCHIVE_WORK/plan-allowed.tsv"
-      awk -F'\t' '$1 == "DELETE" { drop[$2] = 1; next } ($1 == "MOVE" || $1 == "COMMIT") && ($3 in drop) { next } { print }' "$plan" > "$effective"
+      awk -F'\t' '$1 == "DELETE" || $1 == "IMPORT" { drop[$2] = 1; next } ($1 == "MOVE" || $1 == "COMMIT") && ($3 in drop) { next } { print }' "$plan" > "$effective"
+    else
+      awk -F'\t' '$1 != "IMPORT"' "$plan" > "$effective"
     fi
     if [ "$DRY_RUN" = 1 ]; then
       # A dry run only shows what would happen inside the archive.
@@ -218,22 +221,6 @@ apply_archive_plan() {
       die "could not remove '$member' from '$archive' after copying it out"
   done < "$plan"
 
-  while IFS="\t" read -r kind src member _; do
-    [ "$kind" = "IMPORT" ] || continue
-    if [ "$DRY_RUN" = 1 ]; then
-      printf '+ 7z a %s < %q as %q (dry run)\\n' "$abs" "$src" "$member"
-      continue
-    fi
-    say "· inside $archive: add $member"
-    rm -rf -- "$ARCHIVE_WORK/import"
-    mkdir -p -- "$ARCHIVE_WORK/import/$(dirname -- "$member")"
-    cp -R -- "$src" "$ARCHIVE_WORK/import/$member" ||
-      die "could not read '$src' for '$archive'"
-    ( cd "$ARCHIVE_WORK/import" && "$SEVENZIP" a -bso0 -bsp0 "$abs" "$member" ) ||
-      die "7-Zip could not add '$member' to '$archive'"
-    rm -rf -- "$src"
-  done < "$plan"
-
   # New entries are staged in a temp folder that mirrors their paths inside
   # the archive, then added from there.
   local staged=0
@@ -283,4 +270,46 @@ apply_archive_plan() {
     done < "$plan"
   fi
 }
+
+# Apply only the IMPORT rows. This runs after every archive's mutations and
+# exports, so a transfer's exported temp exists before its destination reads
+# it — and A→B / B→A both work without any ordering between archives.
+apply_archive_imports() {
+  local archive="$1" plan="$2" abs effective
+  abs="$(cd "$(dirname -- "$archive")" && pwd)/$(basename -- "$archive")"
+  archive_engine
+  effective="$ARCHIVE_WORK/imports-$(basename -- "$plan")"
+  awk -F'\t' '$1 == "IMPORT"' "$plan" > "$effective"
+  [ -s "$effective" ] || return 0
+
+  if [ "$ARCHIVE_ENGINE" = "python" ]; then
+    if [ "$DRY_RUN" = 1 ]; then
+      while IFS="\t" read -r kind src member _; do
+        [ "$kind" = "IMPORT" ] || continue
+        printf '+ python3 fewer_zip.py: add %q to %s as %q (dry run)\\n' "$src" "$archive" "$member"
+      done < "$effective"
+      return 0
+    fi
+    "$PYTHON" "$ARCHIVE_WORK/fewer_zip.py" --apply "$abs" "$effective" ||
+      die "Python could not add the entries to '$archive'"
+    return 0
+  fi
+
+  while IFS="\t" read -r kind src member _; do
+    [ "$kind" = "IMPORT" ] || continue
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z a %s < %q as %q (dry run)\\n' "$abs" "$src" "$member"
+      continue
+    fi
+    say "· inside $archive: add $member"
+    rm -rf -- "$ARCHIVE_WORK/import"
+    mkdir -p -- "$ARCHIVE_WORK/import/$(dirname -- "$member")"
+    cp -R -- "$src" "$ARCHIVE_WORK/import/$member" ||
+      die "could not read '$src' for '$archive'"
+    ( cd "$ARCHIVE_WORK/import" && "$SEVENZIP" a -bso0 -bsp0 "$abs" "$member" ) ||
+      die "7-Zip could not add '$member' to '$archive'"
+    rm -rf -- "$src"
+  done < "$effective"
+}
+
 `;

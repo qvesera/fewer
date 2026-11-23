@@ -35,7 +35,7 @@
  * as it is after the renames), `ADDFILE<tab>path`, `ADDDIR<tab>path`,
  * `ADDCOPY<tab>src<tab>dest`.
  */
-export const ARCHIVE_PYTHON_PROGRAM = `import os, sys, zipfile
+export const ARCHIVE_PYTHON_PROGRAM = `import os, shutil, sys, zipfile
 
 
 def read_plan(path):
@@ -221,6 +221,13 @@ def main():
             for src, member in imports:
                 add_from_disk(out, src, member)
     os.replace(temp, archive)
+    # A move into the archive leaves the source behind only after the new
+    # archive is in place: a failure above keeps both copies.
+    for src, _member in imports:
+        if os.path.isdir(src):
+            shutil.rmtree(src, ignore_errors=True)
+        elif os.path.exists(src):
+            os.remove(src)
 
 
 main()

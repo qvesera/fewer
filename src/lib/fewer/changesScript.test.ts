@@ -1393,5 +1393,94 @@ describe("archive transitions", () => {
     expect(run.exitCode).toBe(0);
     expect(listTree(project)).toEqual(["Photos/a.jpg"]);
   });
+
+  test("entries swap between two archives (A→B and B→A)", () => {
+    if (!bashAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-transfer-"));
+    const project = join(root, "project");
+    mkdirSync(project, { recursive: true });
+    writeFileSync(join(root, "x.txt"), "ex");
+    writeFileSync(join(root, "y.txt"), "why");
+    Bun.spawnSync([
+      "python3",
+      "-c",
+      `import zipfile,sys; a=zipfile.ZipFile(sys.argv[1],"w"); a.write(sys.argv[3],"x.txt"); a.close(); b=zipfile.ZipFile(sys.argv[2],"w"); b.write(sys.argv[4],"y.txt"); b.close()`,
+      join(project, "A.zip"),
+      join(project, "B.zip"),
+      join(root, "x.txt"),
+      join(root, "y.txt"),
+    ]);
+
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "a", path: "project/A.zip", archive: true },
+      { id: "b", path: "project/B.zip", archive: true },
+      { id: "x", path: "project/A.zip/x.txt", type: "file" },
+      { id: "y", path: "project/B.zip/y.txt", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "a", path: "project/A.zip", archive: true },
+      { id: "b", path: "project/B.zip", archive: true },
+      { id: "x", path: "project/B.zip/x.txt", type: "file" },
+      { id: "y", path: "project/A.zip/y.txt", type: "file" },
+    ]);
+
+    const { script } = buildChangesScript({
+      baseline: baselineOf(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: project });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+
+    const listing = (archive: string) =>
+      Bun.spawnSync([
+        "python3",
+        "-c",
+        `import zipfile,sys; print(",".join(sorted(zipfile.ZipFile(sys.argv[1]).namelist())))`,
+        join(project, archive),
+      ]).stdout.toString().trim();
+    expect(listing("A.zip")).toBe("y.txt");
+    expect(listing("B.zip")).toBe("x.txt");
+  });
+
+  test("a compress under a renamed parent runs after the rename", () => {
+    if (!bashAvailable()) return;
+    const root = mkdtempSync(join(tmpdir(), "fewer-compress-rename-"));
+    const project = join(root, "project");
+    mkdirSync(join(project, "Old", "Photos"), { recursive: true });
+    writeFileSync(join(project, "Old", "Photos", "a.jpg"), "pixels");
+
+    const before = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "old", path: "project/Old" },
+      { id: "photos", path: "project/Old/Photos" },
+      { id: "pic", path: "project/Old/Photos/a.jpg", type: "file" },
+    ]);
+    const after = shaped([
+      { id: "root", path: "project", root: true },
+      { id: "old", path: "project/New" },
+      { id: "photos", path: "project/New/Photos.zip", archive: true },
+      { id: "pic", path: "project/New/Photos.zip/a.jpg", type: "file" },
+    ]);
+
+    const { script } = buildChangesScript({
+      baseline: baselineOf(before),
+      nodes: after,
+      fileName: "fewer-changes.sh",
+    });
+    const file = join(root, "fewer-changes.sh");
+    writeFileSync(file, script);
+
+    const run = Bun.spawnSync(["bash", file, "--yes"], { cwd: project });
+    expect(run.stderr.toString()).toBe("");
+    expect(run.exitCode).toBe(0);
+    expect(listTree(project)).toEqual(["New/Photos.zip"]);
+  });
 });
 

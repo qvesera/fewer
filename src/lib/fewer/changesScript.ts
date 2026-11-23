@@ -554,6 +554,12 @@ export function planChanges(
 
   let moves = reduceMoves(rawMoves);
   const remap = makeRemapper(moves);
+  // Compresses run AFTER the folder moves, so their source is the path the
+  // folder has on disk by then (an ancestor rename carries it). Extracts run
+  // BEFORE the moves, so their source stays the imported path.
+  for (const transition of compresses) {
+    if (!transition.root && transition.from) transition.from = remap(transition.from);
+  }
 
   // Each archive's renames are reduced and remapped on their own, so a
   // rename of a parent inside an archive carries its children with it — one
@@ -573,8 +579,10 @@ export function planChanges(
   // Boundary moves become operations on the archive they leave or enter. A
   // member path is remapped through that archive's own renames first: the
   // bytes live at the path the renames leave them at.
-  // A transfer names both sides; it is reported rather than replayed until
-  // the engine can copy between two archives in one run.
+  // A transfer is the same pair across two archives: export to a shared temp
+  // path, then import from it in the second pass (imports run after every
+  // export, so A→B and B→A both work). The token is resolved by the script.
+  let transferIndex = 0;
   for (const op of keptBoundary) {
     const ref = archives.get(op.refId);
     if (!ref?.currentPath) continue;
@@ -585,9 +593,21 @@ export function planChanges(
     } else if (op.kind === "import") {
       plan.imports.push({ from: op.base, member: remapMember ? remapMember(op.memberTo) : op.memberTo });
     } else {
+      const destRef = op.toRefId ? archives.get(op.toRefId) : undefined;
+      if (!destRef?.currentPath) continue;
+      const token = `__XFER__/${transferIndex++}`;
+      const destRemap = op.toRefId ? archiveRemapById.get(op.toRefId) : undefined;
+      plan.exports.push({
+        member: remapMember ? remapMember(op.memberFrom) : op.memberFrom,
+        to: token,
+      });
+      planFor(destRef.currentPath).imports.push({
+        from: token,
+        member: destRemap ? destRemap(op.memberTo) : op.memberTo,
+      });
       plan.transfers.push({
         member: remapMember ? remapMember(op.memberFrom) : op.memberFrom,
-        toArchive: op.toArchive ?? "",
+        toArchive: destRef.currentPath,
         toMember: op.memberTo,
       });
     }
@@ -1021,12 +1041,6 @@ export function buildChangesScript(args: {
   // like it forgot them: the next slice renders these operations, and the
   // warning goes away with it.
   const allWarnings = [...plan.warnings];
-  const transfers = plan.archivePlans.reduce((sum, archive) => sum + archive.transfers.length, 0);
-  if (transfers > 0) {
-    allWarnings.push(
-      `${transfers} change(s) move between two archives and are not replayed yet by this script.`,
-    );
-  }
 
   const branding = includeBranding ? ["# Created with fewer"] : [];
   const header = [...branding, `# ${summaryLine(summary)}`].join("\n");
