@@ -7695,7 +7695,7 @@ tasks:
   session_count: 1
 - id: "T-266"
   title: "Graph actions: Compress to zip and Extract Archive"
-  status: "in-progress"
+  status: "triaged"
   type: "feat"
   area: "graph"
   tier: 1
@@ -7708,19 +7708,19 @@ tasks:
   blocked_by: []
   parent: "T-264"
   source: null
-  time_source: null
+  time_source: "measured"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-11-23T12:58:09Z"
   notes: []
   sessions:
   - start: "2026-11-23T13:16:48Z"
-    end: null
+    end: "2026-11-23T13:22:00Z"
     measured: true
-    note: ""
-    proof: []
-    effort: null
-  spent_min: 0
+    note: "Graph actions: compressFolder/extractArchive store methods, archive-toggle history op with subtree rebase, context-menu entries, guards (inside archive, nested archive card, name clash); 10 tests, full suite + lint + build clean."
+    proof: ["a65616d"]
+    effort: {commits: 1, files: 8, insertions: 439, deletions: 5}
+  spent_min: 5
   session_count: 1
 - id: "T-267"
   title: "Export Changes scripts: compress, extract and moves across the archive boundary"
