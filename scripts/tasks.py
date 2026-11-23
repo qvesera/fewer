@@ -878,6 +878,40 @@ def cmd_status(args: argparse.Namespace) -> int:
     return 0
 
 
+def auto_sync(row_id: str) -> None:
+    """Mirror a just-written row onto GitHub and the board, best effort.
+
+    `gh-sync` creates/relabels the issue; `sync-details` writes the details
+    block and the project item (it adds the item when missing). A machine
+    without gh, a token without `read:project`, or a rate limit must never
+    block a ledger write that already happened — it says so and returns.
+    `TASKS_NO_SYNC=1` turns it off (CI, tests, offline work).
+    """
+    if os.environ.get("TASKS_NO_SYNC"):
+        print("sync: skipped (TASKS_NO_SYNC)")
+        return
+    if not have_gh():
+        print("sync: skipped (gh not available)")
+        return
+    script = os.path.abspath(__file__)
+    try:
+        first = subprocess.run([sys.executable, script, "gh-sync"], cwd=ROOT,
+                               capture_output=True, text=True)
+        if first.returncode != 0:
+            line = next((ln.strip() for ln in (first.stdout + first.stderr).splitlines()
+                         if ln.strip()), f"exit {first.returncode}")
+            print(f"sync: gh-sync failed ({line}) — run it by hand")
+            return
+        row = find_row(load(), row_id)
+        if row and row.get("issue"):
+            subprocess.run([sys.executable, script, "sync-details",
+                            "--issue", str(row["issue"])], cwd=ROOT,
+                           capture_output=True, text=True)
+        print(f"sync: {row_id} → issue + board")
+    except (OSError, SystemExit) as exc:
+        print(f"sync: skipped ({exc})")
+
+
 def cmd_add(args: argparse.Namespace) -> int:
     ledger = load()
     if args.issue and find_row(ledger, str(args.issue)):
@@ -902,6 +936,7 @@ def cmd_add(args: argparse.Namespace) -> int:
     save(ledger)
     print(f"created {row['id']}  status=backlog  type={row['type']}  estimate={row['estimate_min']}m")
     print(f"  triage it: python3 scripts/tasks.py triage {row['id']} --estimate-min … --area …")
+    auto_sync(row["id"])
     return 0
 
 
@@ -944,6 +979,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
     save(ledger)
     print(f"{row['id']}  status=triaged  estimate={row['estimate_min']}m "
           f"basis={row['estimate_basis']}  area={row['area']}  blocked_by={row['blocked_by'] or '-'}")
+    auto_sync(row["id"])
     return 0
 
 
@@ -2973,6 +3009,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 if row["issue"] not in known:
                     problems.append(f"{row['id']} references #{row['issue']}, "
                                     "which does not exist")
+    board_drift: list[str] = []
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
         # projection of the row, and `sync-details` is its only writer. Extend,
@@ -2980,6 +3017,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         board_drift, board_notes = board_problems(ledger)
         problems.extend(board_drift)
         notes.extend(board_notes)
+    if getattr(args, "board_only", False):
+        # The board job can only heal the projection. Ledger drift (a closed
+        # issue on a review row, a label race) is real but needs a human or a
+        # reviewed `reconcile --apply`, so it must not red-X a job whose own
+        # writes were correct.
+        for problem in problems:
+            if problem not in board_drift:
+                print(f"NOTE   {problem}")
+        problems = board_drift
     for note in notes:
         print(f"NOTE   {note}")
     payload = {"problems": problems, "count": len(problems)}
@@ -4176,6 +4222,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--board", action="store_true",
                     help="also compare each row with its project item's Status "
                          "(needs read:project)")
+    sp.add_argument("--board-only", action="store_true",
+                    help="exit nonzero only on board drift; ledger drift is a NOTE "
+                         "(the scheduled board job cannot fix the ledger)")
 
     sp = add("report", cmd_report, "time and estimate rollup")
     sp.add_argument("--since", help="ISO date, e.g. 2026-09-01")
