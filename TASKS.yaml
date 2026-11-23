@@ -7731,7 +7731,7 @@ tasks:
   estimate_min: 900
   estimate_basis: "cli"
   issue: 614
-  pr: 617
+  pr: 620
   internal: false
   milestone: null
   blocked_by: []
@@ -7753,14 +7753,14 @@ tasks:
   session_count: 1
 - id: "T-268"
   title: "Export ordering: dependency phases and archive-to-archive transfers"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "export"
   tier: 1
   estimate_min: 180
   estimate_basis: "cli"
   issue: 618
-  pr: null
+  pr: 620
   internal: false
   milestone: null
   blocked_by: []
