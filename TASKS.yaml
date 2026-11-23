@@ -7641,3 +7641,101 @@ tasks:
     effort: {commits: 1, files: 2, insertions: 39, deletions: 4}
   spent_min: 2
   session_count: 1
+- id: "T-264"
+  title: "Archive to folder transitions and Compress folder action"
+  status: "triaged"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 1740
+  estimate_basis: "cli"
+  issue: 611
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-23T12:58:06Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-265"
+  title: "Changes plan: archive-folder transitions and cross-boundary moves"
+  status: "review"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 612
+  pr: 615
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-264"
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-23T12:58:09Z"
+  notes: []
+  sessions:
+  - start: "2026-11-23T13:06:40Z"
+    end: "2026-11-23T13:13:30Z"
+    measured: true
+    note: "Plan engine: archive refs from baseline + current, compress/extract transitions (root and nested), boundary exports/imports/transfers with folder collapse; 11 new tests, 44 pass in file, tsc/lint/build clean."
+    proof: ["2244eae"]
+    effort: {commits: 1, files: 4, insertions: 741, deletions: 137}
+  spent_min: 7
+  session_count: 1
+- id: "T-266"
+  title: "Graph actions: Compress to zip and Extract Archive"
+  status: "triaged"
+  type: "feat"
+  area: "graph"
+  tier: 1
+  estimate_min: 360
+  estimate_basis: "cli"
+  issue: 613
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-264"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-23T12:58:09Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-267"
+  title: "Export Changes scripts: compress, extract and moves across the archive boundary"
+  status: "triaged"
+  type: "feat"
+  area: "export"
+  tier: 1
+  estimate_min: 900
+  estimate_basis: "cli"
+  issue: 614
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: "T-264"
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-23T12:58:09Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
