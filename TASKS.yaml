@@ -7724,7 +7724,7 @@ tasks:
   session_count: 1
 - id: "T-267"
   title: "Export Changes scripts: compress, extract and moves across the archive boundary"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
@@ -7753,7 +7753,7 @@ tasks:
   session_count: 1
 - id: "T-268"
   title: "Export ordering: dependency phases and archive-to-archive transfers"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
