@@ -33,6 +33,8 @@ set -euo pipefail
 [ -n "\${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 
 ARCHIVE_NAME='__ROOT__'
+ROOT_COMPRESS_FROM='__ROOT_COMPRESS_FROM__'
+ROOT_COMPRESS_TO='__ROOT_COMPRESS_TO__'
 CHANGES=__CHANGES__
 DELETES=__DELETES__
 
@@ -145,13 +147,52 @@ else
   die "nothing here can edit an archive: install 7-Zip (apt install p7zip-full, brew install p7zip) or Python 3, and run this script again."
 fi
 
+# ── 0b. the archive may not exist yet ─────────────────────────────────────
+# A folder compressed in the graph is created here, from its own CONTENTS:
+# the archive holds what the graph shows under the card.
+if [ -n "$ROOT_COMPRESS_FROM" ]; then
+  [ -d "$ROOT_COMPRESS_FROM" ] || die "cannot find '$ROOT_COMPRESS_FROM' — run the script in its folder"
+  # zip is the cheapest way to make one; when it is missing, the Python
+  # program that travels with this script writes it.
+  if [ -z "$SEVENZIP" ] && ! command -v zip >/dev/null 2>&1; then
+    WORK="\${WORK:-$(mktemp -d)}"
+    cat > "$WORK/fewer_zip.py" <<'FEWER_ZIP_PY_EOF'
+__PYTHON__
+FEWER_ZIP_PY_EOF
+  fi
+  temp="\${ROOT_COMPRESS_TO%.zip}.fewer-new.zip"
+  abs_new="$(pwd)/$temp"
+  if [ "$DRY_RUN" = 1 ]; then
+    printf '+ compress %q into %q (dry run)\\n' "$ROOT_COMPRESS_FROM" "$ROOT_COMPRESS_TO"
+    target="$ROOT_COMPRESS_TO"
+  else
+    say "· compress $ROOT_COMPRESS_FROM → $ROOT_COMPRESS_TO"
+    if command -v zip >/dev/null 2>&1; then
+      ( cd "$ROOT_COMPRESS_FROM" && zip -q -r "$abs_new" . ) ||
+        die "could not compress '$ROOT_COMPRESS_FROM' — it is unchanged"
+    elif [ -n "$SEVENZIP" ]; then
+      ( cd "$ROOT_COMPRESS_FROM" && "$SEVENZIP" a -bso0 -bsp0 "$abs_new" . ) ||
+        die "could not compress '$ROOT_COMPRESS_FROM' — it is unchanged"
+    elif [ -n "$PYTHON" ]; then
+      "$PYTHON" "$WORK/fewer_zip.py" --pack "$ROOT_COMPRESS_FROM" "$temp" ||
+        die "could not compress '$ROOT_COMPRESS_FROM' — it is unchanged"
+    else
+      die "cannot create '$ROOT_COMPRESS_TO': install zip, 7-Zip or Python 3"
+    fi
+    mv -f "$temp" "$ROOT_COMPRESS_TO"
+    rm -rf "$ROOT_COMPRESS_FROM"
+    target="$ROOT_COMPRESS_TO"
+  fi
+fi
+
 # ── 1. the archive must be the one that was imported ───────────────────────
 if [ -f "$target" ]; then
   ARCHIVE="$(cd "$(dirname -- "$target")" && pwd)/$(basename -- "$target")"
 else
   ARCHIVE="$(cd "$target" && pwd)/$ARCHIVE_NAME"
 fi
-[ -f "$ARCHIVE" ] || die "cannot find '$ARCHIVE_NAME' in '$target' — point the script at the archive (or pass its path)"
+[ -f "$ARCHIVE" ] || [ "$DRY_RUN" = 1 ] ||
+  die "cannot find '$ARCHIVE_NAME' in '$target' — point the script at the archive (or pass its path)"
 
 case "$ARCHIVE" in
   *.rar|*.RAR)
@@ -162,7 +203,7 @@ case "$ARCHIVE" in
     die "self-extracting archives are not supported — this archive is left untouched." ;;
 esac
 
-WORK="$(mktemp -d)"
+WORK="\${WORK:-$(mktemp -d)}"
 cleanup() {
   if [ -n "$WORK" ]; then rm -rf "$WORK"; fi
 }

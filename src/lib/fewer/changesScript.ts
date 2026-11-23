@@ -552,26 +552,6 @@ export function planChanges(
     }
   }
 
-  // Boundary moves become operations on the archive they leave or enter.
-  // A transfer names both sides; the script moves the bytes through a temp
-  // directory, because no engine can copy between two archives in one call.
-  for (const op of keptBoundary) {
-    const ref = archives.get(op.refId);
-    if (!ref?.currentPath) continue;
-    const plan = planFor(ref.currentPath);
-    if (op.kind === "export") {
-      plan.exports.push({ member: op.memberFrom, to: op.current });
-    } else if (op.kind === "import") {
-      plan.imports.push({ from: op.base, member: op.memberTo });
-    } else {
-      plan.transfers.push({
-        member: op.memberFrom,
-        toArchive: op.toArchive ?? "",
-        toMember: op.memberTo,
-      });
-    }
-  }
-
   let moves = reduceMoves(rawMoves);
   const remap = makeRemapper(moves);
 
@@ -588,6 +568,29 @@ export function planChanges(
     planFor(ref.currentPath).moves = reduced;
     archiveRemapById.set(id, makeRemapper(reduced));
     archiveDestsById.set(id, new Set(reduced.map((move) => move.to)));
+  }
+
+  // Boundary moves become operations on the archive they leave or enter. A
+  // member path is remapped through that archive's own renames first: the
+  // bytes live at the path the renames leave them at.
+  // A transfer names both sides; it is reported rather than replayed until
+  // the engine can copy between two archives in one run.
+  for (const op of keptBoundary) {
+    const ref = archives.get(op.refId);
+    if (!ref?.currentPath) continue;
+    const plan = planFor(ref.currentPath);
+    const remapMember = archiveRemapById.get(op.refId);
+    if (op.kind === "export") {
+      plan.exports.push({ member: remapMember ? remapMember(op.memberFrom) : op.memberFrom, to: op.current });
+    } else if (op.kind === "import") {
+      plan.imports.push({ from: op.base, member: remapMember ? remapMember(op.memberTo) : op.memberTo });
+    } else {
+      plan.transfers.push({
+        member: remapMember ? remapMember(op.memberFrom) : op.memberFrom,
+        toArchive: op.toArchive ?? "",
+        toMember: op.memberTo,
+      });
+    }
   }
 
   // ── deletions ───────────────────────────────────────────────────────────
@@ -825,6 +828,9 @@ function renderArchivePlanRows(plan: ArchivePlan): string[] {
   const rows: string[] = [];
   for (const path of plan.preDeletes) rows.push(`PREDELETE	${path}`);
   for (const path of plan.deletes) rows.push(`DELETE	${path}`);
+  for (const exp of plan.exports) rows.push(`EXPORT\t${exp.member}\t${exp.to}`);
+  for (const imp of plan.imports) rows.push(`IMPORT\t${imp.from}\t${imp.member}`);
+
   // Phase 1: every source is renamed aside, deepest source first.
   const stageOrder = [...plan.moves].sort((a, b) => b.from.length - a.from.length);
   const tempNames = new Map<string, string>();
@@ -855,6 +861,13 @@ function renderPlan(plan: ChangesPlan): string {
     `COPIES=(${shArray(plan.copies.flatMap((copy) => [copy.from, copy.to]))})`,
     `PRE_DELETES=(${shArray(plan.preDeletes)})`,
     `DELETE_PATHS=(${shArray(plan.deletes)})`,
+    `EXTRACT_FROM=(${shArray(plan.extracts.filter((e) => !e.root).map((e) => e.from ?? ""))})`,
+    `EXTRACT_TO=(${shArray(plan.extracts.filter((e) => !e.root).map((e) => e.to))})`,
+    `COMPRESS_FROM=(${shArray(plan.compresses.filter((e) => !e.root).map((e) => e.from ?? ""))})`,
+    `COMPRESS_TO=(${shArray(plan.compresses.filter((e) => !e.root).map((e) => e.to))})`,
+    `N_EXTRACTS=${plan.extracts.filter((e) => !e.root).length}`,
+    `N_COMPRESSES=${plan.compresses.filter((e) => !e.root).length}`,
+
     `FINGERPRINT=(${shArray(plan.fingerprint)})`,
     `N_MOVES=${plan.moves.length}`,
     `N_MKDIRS=${plan.mkdirs.length}`,
@@ -1008,14 +1021,10 @@ export function buildChangesScript(args: {
   // like it forgot them: the next slice renders these operations, and the
   // warning goes away with it.
   const allWarnings = [...plan.warnings];
-  if (boundaryOps > 0) {
+  const transfers = plan.archivePlans.reduce((sum, archive) => sum + archive.transfers.length, 0);
+  if (transfers > 0) {
     allWarnings.push(
-      `${boundaryOps} change(s) move entries in or out of an archive and are not replayed by this script yet.`,
-    );
-  }
-  if (plan.compresses.length + plan.extracts.length > 0) {
-    allWarnings.push(
-      `${plan.compresses.length + plan.extracts.length} folder/archive transition(s) are not replayed by this script yet.`,
+      `${transfers} change(s) move between two archives and are not replayed yet by this script.`,
     );
   }
 
@@ -1052,6 +1061,14 @@ echo ""
     const archiveName = plan.rootName.replace(/'/g, `'\\''`);
     const preamble = BASH_ARCHIVE_PREAMBLE.replace("# __SUMMARY__", () => header)
       .replaceAll("__ROOT__", () => archiveName)
+      .replaceAll(
+        "__ROOT_COMPRESS_FROM__",
+        () => plan.compresses.find((transition) => transition.root)?.from ?? "",
+      )
+      .replaceAll(
+        "__ROOT_COMPRESS_TO__",
+        () => plan.compresses.find((transition) => transition.root)?.to ?? "",
+      )
       .replaceAll("__DATE__", () => generatedAt)
       .replaceAll("__CHANGES__", () => String(summary.total))
       .replaceAll("__DELETES__", () => String(summary.deleted))
@@ -1059,7 +1076,7 @@ echo ""
       .replace("__NOTES__", () => notes)
       // The Python fallback travels with the script, so the file the user runs
       // needs nothing beside it.
-      .replace("__PYTHON__", () => ARCHIVE_PYTHON_PROGRAM);
+      .replaceAll("__PYTHON__", () => ARCHIVE_PYTHON_PROGRAM);
 
     const script = [
       asciiArtBashBlock,
@@ -1080,6 +1097,8 @@ echo ""
   const preamble = BASH_PREAMBLE.replace("# __SUMMARY__", () => header)
     .replaceAll("__BASELINE__", () => String(plan.baselineCount))
     .replaceAll("__ROOT__", () => plan.rootName.replace(/'/g, `'\\''`))
+    .replaceAll("__ROOT_EXTRACT_FROM__", () => plan.extracts.find((transition) => transition.root)?.from ?? "")
+    .replaceAll("__ROOT_EXTRACT_TO__", () => plan.extracts.find((transition) => transition.root)?.to ?? "")
     .replaceAll("__DATE__", () => generatedAt)
     .replaceAll("__CHANGES__", () => String(summary.total))
     .replaceAll("__DELETES__", () => String(summary.deleted))
@@ -1109,11 +1128,12 @@ echo ""
   // program that goes with it travel with the script ONLY when the plan
   // actually has archive work: a folder without archives needs nothing but
   // bash, and saying so keeps the script honest.
-  const hasArchiveWork = plan.archivePlans.length > 0;
+  const hasArchiveWork =
+    plan.archivePlans.length > 0 || plan.compresses.length + plan.extracts.length > 0;
   const engine = hasArchiveWork
     ? BASH_ARCHIVE_ENGINE.replace("__PYTHON__", () => ARCHIVE_PYTHON_PROGRAM)
     : "";
-  const archiveApply = hasArchiveWork ? BASH_ARCHIVE_SECTION : "";
+  const archiveApply = plan.archivePlans.length > 0 ? BASH_ARCHIVE_SECTION : "";
 
   const script = [
     asciiArtBashBlock,

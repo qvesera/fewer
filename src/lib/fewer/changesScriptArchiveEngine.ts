@@ -136,6 +136,9 @@ apply_archive_plan() {
           PREDELETE|DELETE) printf '+ python3 fewer_zip.py: delete %q inside %s (dry run)\n' "$a" "$archive" ;;
           MOVE)             printf '+ python3 fewer_zip.py: rename %q to %q inside %s (dry run)\n' "$a" "$b" "$archive" ;;
           ADDFILE|ADDDIR)   printf '+ python3 fewer_zip.py: add %q to %s (dry run)\n' "$a" "$archive" ;;
+          EXPORT)           printf '+ python3 fewer_zip.py: write %q out of %s to %q (dry run)\\n' "$a" "$archive" "$b" ;;
+          IMPORT)           printf '+ python3 fewer_zip.py: add %q to %s as %q (dry run)\\n' "$a" "$archive" "$b" ;;
+
           COMMIT)           ;;
         esac
       done < "$effective"
@@ -191,6 +194,44 @@ apply_archive_plan() {
     else
       printf '· skipped delete %q inside %q (not allowed)\\n' "$path" "$archive"
     fi
+  done < "$plan"
+
+  # Members that leave the archive land on disk; imports read a file or a
+  # folder from disk and add it under the member path. The source is removed
+  # only after the archive took the bytes, so a failure never loses data.
+  while IFS="\t" read -r kind member dest _; do
+    [ "$kind" = "EXPORT" ] || continue
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z x %s %q → %q (dry run)\\n' "$archive" "$member" "$dest"
+      continue
+    fi
+    say "· inside $archive: copy $member out"
+    rm -rf -- "$ARCHIVE_WORK/export"
+    mkdir -p -- "$ARCHIVE_WORK/export"
+    "$SEVENZIP" x -bso0 -bsp0 -o"$ARCHIVE_WORK/export" "$abs" "$member" ||
+      die "7-Zip could not read '$member' out of '$archive'"
+    mkdir -p -- "$(dirname -- "$dest")"
+    mv -- "$ARCHIVE_WORK/export/$member" "$dest" ||
+      die "could not place the copy of '$member' at '$dest'"
+    # A move out leaves the archive: the bytes are on disk now.
+    "$SEVENZIP" d -bso0 -bsp0 "$abs" "$member" ||
+      die "could not remove '$member' from '$archive' after copying it out"
+  done < "$plan"
+
+  while IFS="\t" read -r kind src member _; do
+    [ "$kind" = "IMPORT" ] || continue
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ 7z a %s < %q as %q (dry run)\\n' "$abs" "$src" "$member"
+      continue
+    fi
+    say "· inside $archive: add $member"
+    rm -rf -- "$ARCHIVE_WORK/import"
+    mkdir -p -- "$ARCHIVE_WORK/import/$(dirname -- "$member")"
+    cp -R -- "$src" "$ARCHIVE_WORK/import/$member" ||
+      die "could not read '$src' for '$archive'"
+    ( cd "$ARCHIVE_WORK/import" && "$SEVENZIP" a -bso0 -bsp0 "$abs" "$member" ) ||
+      die "7-Zip could not add '$member' to '$archive'"
+    rm -rf -- "$src"
   done < "$plan"
 
   # New entries are staged in a temp folder that mirrors their paths inside

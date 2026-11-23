@@ -39,7 +39,7 @@ export const ARCHIVE_PYTHON_PROGRAM = `import os, sys, zipfile
 
 
 def read_plan(path):
-    moves, deletes, pre_deletes, adds, copies = [], [], [], [], []
+    moves, deletes, pre_deletes, adds, copies, exports, imports = [], [], [], [], [], [], []
     with open(path, encoding="utf-8") as handle:
         for line in handle:
             line = line.rstrip("\\n")
@@ -62,7 +62,13 @@ def read_plan(path):
             elif kind == "ADDCOPY":
                 src, _, dst = rest.partition("\\t")
                 copies.append((src, dst))
-    return moves, deletes, pre_deletes, adds, copies
+            elif kind == "EXPORT":
+                src, _, dst = rest.partition("\\t")
+                exports.append((src, dst))
+            elif kind == "IMPORT":
+                src, _, dst = rest.partition("\\t")
+                imports.append((src, dst))
+    return moves, deletes, pre_deletes, adds, copies, exports, imports
 
 
 def renamed(name, moves):
@@ -102,8 +108,63 @@ def copy_of(item, name):
     return info
 
 
+def file_info(name):
+    info = zipfile.ZipInfo(name, date_time=(1980, 1, 1, 0, 0, 0))
+    info.compress_type = zipfile.ZIP_STORED
+    return info
+
+
+def add_from_disk(out, src, member):
+    """Add a file or a whole folder from disk under \`member\`."""
+    if not os.path.isdir(src):
+        with open(src, "rb") as handle:
+            out.writestr(file_info(member), handle.read())
+        return
+    for root, _dirs, files in os.walk(src):
+        rel = os.path.relpath(root, src)
+        base = member if rel == "." else member + "/" + rel.replace(os.sep, "/")
+        out.writestr(file_info(base.rstrip("/") + "/"), b"")
+        for name in files:
+            full = os.path.join(root, name)
+            with open(full, "rb") as handle:
+                out.writestr(file_info(base + "/" + name), handle.read())
+
+
+def pack(folder, archive):
+    """Compress the CONTENTS of \`folder\` into \`archive\`, atomically."""
+    temp = archive + ".fewer-new"
+    with zipfile.ZipFile(temp, "w", zipfile.ZIP_DEFLATED) as out:
+        for root, _dirs, files in os.walk(folder):
+            rel = os.path.relpath(root, folder)
+            base = "" if rel == "." else rel.replace(os.sep, "/") + "/"
+            if base:
+                out.writestr(file_info(base), b"")
+            for name in files:
+                full = os.path.join(root, name)
+                out.write(full, base + name)
+    os.replace(temp, archive)
+
+
+def unpack(archive, folder):
+    """Extract an archive into \`folder\`, refusing entries outside it."""
+    root = os.path.realpath(folder)
+    os.makedirs(root, exist_ok=True)
+    with zipfile.ZipFile(archive, "r") as source:
+        for item in source.infolist():
+            target = os.path.realpath(os.path.join(root, item.filename))
+            if target != root and not target.startswith(root + os.sep):
+                raise SystemExit("refusing to extract outside the folder: " + item.filename)
+            source.extract(item, root)
+
+
 def main():
     mode = sys.argv[1]
+    if mode == "--pack":
+        pack(sys.argv[2], sys.argv[3])
+        return
+    if mode == "--unpack":
+        unpack(sys.argv[2], sys.argv[3])
+        return
     archive = sys.argv[2]
     with zipfile.ZipFile(archive, "r") as source:
         items = source.infolist()
@@ -113,7 +174,7 @@ def main():
                 # names line up with the paths in the plan.
                 print(item.filename.rstrip("/"))
             return
-        moves, deletes, pre_deletes, adds, copies = read_plan(sys.argv[3])
+        moves, deletes, pre_deletes, adds, copies, exports, imports = read_plan(sys.argv[3])
         temp = archive + ".fewer-new"
         with zipfile.ZipFile(temp, "w") as out:
             for item in items:
@@ -127,6 +188,24 @@ def main():
                 new_name = renamed(item.filename, moves)
                 if is_deleted(new_name, deletes):
                     continue
+                exported = None
+                for member, dest in exports:
+                    if item.filename == member:
+                        exported = dest
+                        break
+                    if item.filename.startswith(member + "/"):
+                        exported = dest + item.filename[len(member):]
+                        break
+                if exported is not None:
+                    if item.filename.endswith("/"):
+                        os.makedirs(exported, exist_ok=True)
+                    else:
+                        parent = os.path.dirname(exported)
+                        if parent:
+                            os.makedirs(parent, exist_ok=True)
+                        with open(exported, "wb") as handle:
+                            handle.write(source.read(item))
+                    continue
                 out.writestr(copy_of(item, new_name), source.read(item))
             for path, kind in adds:
                 name = path if kind == "file" else path.rstrip("/") + "/"
@@ -139,6 +218,8 @@ def main():
                     if item.filename != src and not item.filename.startswith(src + "/"):
                         continue
                     out.writestr(copy_of(item, dest + item.filename[len(src):]), source.read(item))
+            for src, member in imports:
+                add_from_disk(out, src, member)
     os.replace(temp, archive)
 
 

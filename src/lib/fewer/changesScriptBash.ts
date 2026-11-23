@@ -27,6 +27,8 @@ set -euo pipefail
 [ -n "\${BASH_VERSION:-}" ] || exec bash "$0" "$@"
 
 ROOT_NAME='__ROOT__'
+ROOT_EXTRACT_FROM='__ROOT_EXTRACT_FROM__'
+ROOT_EXTRACT_TO='__ROOT_EXTRACT_TO__'
 CHANGES=__CHANGES__
 DELETES=__DELETES__
 NOTES_COUNT=__NOTES_COUNT__
@@ -36,6 +38,7 @@ DRY_RUN=0
 ALLOW_DELETE=0
 ASSUME_YES=0
 FORCE=0
+KEEP_ARCHIVE=0
 
 die() { printf '\\n✗ %s\\n' "$*" >&2; exit 1; }
 say() { printf '%s\\n' "$*"; }
@@ -47,6 +50,7 @@ while [ $# -gt 0 ]; do
     --allow-delete) ALLOW_DELETE=1 ;;
     --yes|-y)       ASSUME_YES=1 ;;
     --force)        FORCE=1 ;;
+    --keep-archive) KEEP_ARCHIVE=1 ;;
     -h|--help)      sed -n '2,14p' "$0"; exit 0 ;;
     *)              target="$1" ;;
   esac
@@ -67,7 +71,9 @@ fi
 cd "$target" || die "cannot enter folder '$target'"
 
 # ── 1. the folder must be the one that was imported ────────────────────────
-if [ "$FORCE" = 0 ]; then
+# A root extraction runs in the archive's PARENT: the folder does not exist
+# yet, so there is no name to check — the archive file is checked instead.
+if [ "$FORCE" = 0 ] && [ -z "$ROOT_EXTRACT_FROM" ]; then
   here="$(basename "$(pwd)")"
   [ "$here" = "$ROOT_NAME" ] || die "wrong folder: expected '$ROOT_NAME', got '$here' (--force to override)"
 fi
@@ -160,8 +166,120 @@ cleanup() {
   else
     if [ -n "$staging" ]; then printf '\\n✗ stopped — the moved files are still in %s\\n' "$staging" >&2; fi
   fi
+  if [ "\${TRANSITION_WORK_OWN:-0}" = 1 ] && [ -n "\${ARCHIVE_WORK:-}" ]; then rm -rf "$ARCHIVE_WORK"; fi
 }
 trap cleanup EXIT
+
+# ── 4. transitions: cards that changed shape ──────────────────────────────
+# A folder compressed into an archive is packed from its own CONTENTS (the
+# archive holds what the graph shows under the card); an archive extracted
+# into a folder is unpacked into it. Both build the new side beside the old
+# one and move it into place, so a failure leaves the original untouched.
+if [ "$N_EXTRACTS" -gt 0 ] || [ "$N_COMPRESSES" -gt 0 ]; then
+  if ! { command -v zip >/dev/null 2>&1 && command -v unzip >/dev/null 2>&1; }; then
+    ARCHIVE_WORK="\${ARCHIVE_WORK:-$(mktemp -d)}"
+    TRANSITION_WORK_OWN=1
+    archive_engine
+  fi
+
+  extract_archive() {
+    local archive="$1" dest="$2"
+    case "$archive" in
+      *.zip|*.ZIP)
+        if command -v unzip >/dev/null 2>&1; then unzip -q "$archive" -d "$dest"; return $?; fi
+        ;;
+    esac
+    if [ -n "$SEVENZIP" ]; then
+      "$SEVENZIP" x -bso0 -bsp0 -o"$dest" "$archive"
+      return $?
+    fi
+    case "$archive" in
+      *.zip|*.ZIP)
+        if [ -n "$PYTHON" ]; then
+          "$PYTHON" "$ARCHIVE_WORK/fewer_zip.py" --unpack "$archive" "$dest"
+          return $?
+        fi
+        ;;
+    esac
+    say "cannot extract '$archive': install unzip or 7-Zip"
+    return 1
+  }
+
+  unpack_archive() {
+    local archive="$1" dest="$2" tmp="\${2}.fewer-tmp" only
+    rm -rf -- "$tmp"
+    mkdir -p -- "$tmp"
+    extract_archive "$archive" "$tmp" || return 1
+    # A .tar.gz / .tar.xz is two layers: the first pass hands back the .tar.
+    only="$(ls -A "$tmp" 2>/dev/null)"
+    case "$only" in
+      *.tar)
+        mv -- "$tmp/$only" "$tmp/.fewer-inner.tar"
+        rm -rf -- "$tmp/$only"
+        extract_archive "$tmp/.fewer-inner.tar" "$tmp" || return 1
+        rm -f -- "$tmp/.fewer-inner.tar"
+        ;;
+    esac
+    rm -rf -- "$dest"
+    mv -- "$tmp" "$dest"
+  }
+
+  pack_folder() {
+    local folder="$1" archive="$2" temp="\${2%.zip}.fewer-new.zip" abs
+    abs="$(cd "$(dirname -- "$archive")" && pwd)/$(basename -- "$temp")"
+    rm -f -- "$temp"
+    if command -v zip >/dev/null 2>&1; then
+      ( cd "$folder" && zip -q -r "$abs" . ) || return 1
+    elif [ -n "$SEVENZIP" ]; then
+      ( cd "$folder" && "$SEVENZIP" a -bso0 -bsp0 "$abs" . ) || return 1
+    elif [ -n "$PYTHON" ]; then
+      "$PYTHON" "$ARCHIVE_WORK/fewer_zip.py" --pack "$folder" "$temp" || return 1
+    else
+      say "cannot create '$archive': install zip, 7-Zip or Python 3"
+      return 1
+    fi
+    mv -f -- "$temp" "$archive"
+  }
+
+  if [ -n "$ROOT_EXTRACT_FROM" ]; then
+    say "· extract $ROOT_EXTRACT_FROM → $ROOT_EXTRACT_TO"
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ unpack %q into %q\\n' "$ROOT_EXTRACT_FROM" "$ROOT_EXTRACT_TO"
+    else
+      [ -f "$ROOT_EXTRACT_FROM" ] || die "cannot find '$ROOT_EXTRACT_FROM' here — run the script in its folder"
+      unpack_archive "$ROOT_EXTRACT_FROM" "$ROOT_EXTRACT_TO" ||
+        die "could not extract '$ROOT_EXTRACT_FROM' — nothing changed"
+      if [ "$KEEP_ARCHIVE" = 0 ]; then rm -f -- "$ROOT_EXTRACT_FROM"; fi
+      cd "$ROOT_EXTRACT_TO" || die "cannot enter '$ROOT_EXTRACT_TO'"
+    fi
+  fi
+
+  i=0
+  while [ "$i" -lt "$N_EXTRACTS" ]; do
+    from="\${EXTRACT_FROM[$i]}"; to="\${EXTRACT_TO[$i]}"
+    say "· extract $from → $to"
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ unpack %q into %q\\n' "$from" "$to"
+    else
+      unpack_archive "$from" "$to" || die "could not extract '$from' — nothing changed"
+      if [ "$KEEP_ARCHIVE" = 0 ]; then rm -f -- "$from"; fi
+    fi
+    i=$((i+1))
+  done
+
+  i=0
+  while [ "$i" -lt "$N_COMPRESSES" ]; do
+    from="\${COMPRESS_FROM[$i]}"; to="\${COMPRESS_TO[$i]}"
+    say "· compress $from → $to"
+    if [ "$DRY_RUN" = 1 ]; then
+      printf '+ compress %q into %q\\n' "$from" "$to"
+    else
+      pack_folder "$from" "$to" || die "could not compress '$from' — it is unchanged"
+      rm -rf -- "$from"
+    fi
+    i=$((i+1))
+  done
+fi
 
 # A deletion that frees the path another entry moves into has to happen first,
 # or that move would land inside the folder that is still there.
@@ -275,7 +393,8 @@ export const BASH_ARCHIVE_SECTION = `
 # An archive is a real file in this folder: the edits you made inside it are
 # applied to the archive itself, in place.
 if [ "$ARCHIVE_COUNT" -gt 0 ]; then
-  ARCHIVE_WORK="$(mktemp -d)"
+  ARCHIVE_WORK_OWN=0
+  if [ -z "\${ARCHIVE_WORK:-}" ]; then ARCHIVE_WORK="$(mktemp -d)"; ARCHIVE_WORK_OWN=1; fi
   j=0
   while [ "$j" -lt "$ARCHIVE_COUNT" ]; do
     archive="\${ARCHIVE_NAMES[$j]}"
@@ -285,6 +404,6 @@ if [ "$ARCHIVE_COUNT" -gt 0 ]; then
     apply_archive_plan "$archive" "$plan"
     j=$((j+1))
   done
-  rm -rf "$ARCHIVE_WORK"
+  if [ "$ARCHIVE_WORK_OWN" = 1 ]; then rm -rf "$ARCHIVE_WORK"; fi
 fi
 `;
