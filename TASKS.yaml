@@ -7788,7 +7788,7 @@ tasks:
   session_count: 1
 - id: "T-269"
   title: "Task pipeline: auto-sync new rows to GitHub and board, and fix Board Reconcile drift gate"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "infra"
   tier: 1
@@ -7813,5 +7813,11 @@ tasks:
     note: "Auto-sync on add/triage (gh-sync + sync-details, TASKS_NO_SYNC opt-out), board-reconcile checkout dev on schedule, shared concurrency group, doctor --board-only, one-time reconcile of closed rows; selftest + validate clean."
     proof: ["f57aa23"]
     effort: {commits: 1, files: 4, insertions: 95, deletions: 23}
+  - start: "2026-11-24T08:04:26Z"
+    end: "2026-11-24T08:04:31Z"
+    measured: true
+    note: "Fix pr_task_rows so a stacked branch cannot re-stamp earlier rows; ledger cleanup recorded (T-027/T-032 wontfix, T-044 done, shipped rows restored)."
+    proof: ["74a9100"]
+    effort: {commits: 1, files: 2, insertions: 21, deletions: 11}
   spent_min: 14
-  session_count: 1
+  session_count: 2
