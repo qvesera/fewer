@@ -698,7 +698,7 @@ tasks:
   session_count: 2
 - id: "T-027"
   title: "Mermaid markdown import + export"
-  status: "backlog"
+  status: "wontfix"
   type: "feat"
   area: "import"
   tier: null
@@ -837,7 +837,7 @@ tasks:
   session_count: 0
 - id: "T-032"
   title: "Depth-level colour coding / gradient by hierarchy depth"
-  status: "backlog"
+  status: "wontfix"
   type: "feat"
   area: "theme"
   tier: null
@@ -1143,7 +1143,7 @@ tasks:
   session_count: 0
 - id: "T-044"
   title: "Gallery templates + first-run startup defaults for new users"
-  status: "backlog"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: null
@@ -1156,14 +1156,20 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "reconstructed"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:17Z"
   notes: ["2026-09-25T12:38:21Z · come up with templates and designs for the gallery plus an initial startup setting for new users"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-23T19:20:00Z"
+    end: "2026-11-23T19:21:00Z"
+    measured: true
+    note: "Backfill: issue #219 was closed as completed before the ledger recorded a session."
+    proof: ["#219"]
+    effort: null
+  spent_min: 1
+  session_count: 1
 - id: "T-045"
   title: "Sort by Name/Size/Type does not re-flow a per-view canvas (dock pane keeps per-view positions, which outrank the layout engine)"
   status: "done"
@@ -7509,7 +7515,7 @@ tasks:
   session_count: 2
 - id: "T-260"
   title: "Export Changes for archives: replay graph edits inside a zip with 7z"
-  status: "done"
+  status: "triaged"
   type: "feat"
   area: "export"
   tier: 1
@@ -7731,7 +7737,7 @@ tasks:
   estimate_min: 900
   estimate_basis: "cli"
   issue: 614
-  pr: 620
+  pr: 617
   internal: false
   milestone: null
   blocked_by: []
@@ -7789,7 +7795,7 @@ tasks:
   estimate_min: 240
   estimate_basis: "cli"
   issue: 619
-  pr: null
+  pr: 621
   internal: false
   milestone: null
   blocked_by: []

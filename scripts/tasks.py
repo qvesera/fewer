@@ -1381,7 +1381,11 @@ def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> li
     for row in ledger["tasks"]:
         if row.get("pr") == pr and row not in rows:
             rows.append(row)
-    return rows
+    # A stacked branch carries earlier slices' commits, so their trailers name
+    # rows that already shipped under another PR. Never re-stamp those: the
+    # link/metadata pass would point a done row at this PR (and add its issue
+    # to the PR's `Fixes` lines).
+    return [row for row in rows if row.get("pr") in (None, pr)]
 
 
 # GitHub builds the Development-sidebar link from a closing keyword that is
