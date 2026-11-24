@@ -7788,7 +7788,7 @@ tasks:
   session_count: 1
 - id: "T-269"
   title: "Task pipeline: auto-sync new rows to GitHub and board, and fix Board Reconcile drift gate"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: 1
