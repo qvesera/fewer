@@ -23,6 +23,12 @@ permissions:
   contents: read
   issues: write
 
+# One writer per surface: pr-metadata also projects rows onto the same board.
+# Serialize the two so a label/field write cannot interleave with this pass.
+concurrency:
+  group: task-projections
+  cancel-in-progress: false
+
 jobs:
   reconcile:
     runs-on: ubuntu-latest
@@ -31,6 +37,11 @@ jobs:
     if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
     steps:
       - uses: actions/checkout@v4
+        with:
+          # The ledger is integrated on dev. A scheduled run on main would see
+          # every issue created from dev as "no ledger row" and go red for a
+          # branch that is simply behind.
+          ref: ${{ (github.event_name == 'schedule' || github.event_name == 'workflow_dispatch') && 'dev' || github.sha }}
 
       # Labels: ledger -> issue `status:*`. GITHUB_TOKEN can read/write issues.
       - name: Mirror the ledger's status labels onto the issues
@@ -53,9 +64,11 @@ jobs:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: python3 scripts/tasks.py reconcile
 
-      # Fails the job when a row and its item disagree, so the drift is visible
-      # in CI rather than only on the board.
+      # Fails only when the BOARD projection disagrees with the ledger: that is
+      # the surface this job writes, and the next pass can heal it. Ledger drift
+      # (a closed issue on a review row) is printed as a NOTE — it needs a
+      # reviewed `reconcile --apply` or a human decision, not a red run.
       - name: Report ledger ↔ board drift
         env:
           GH_TOKEN: ${{ secrets.PROJECTS_TOKEN }}
-        run: python3 scripts/tasks.py doctor --board
+        run: python3 scripts/tasks.py doctor --board --board-only

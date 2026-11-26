@@ -23,6 +23,10 @@ the gate, and no task may start until these steps have run.**
    bun run task:triage <T-###> --estimate-min <n> [--tier 0|1|2] --area <category> \
        [--blocked-by T-00x] [--issue <N>]
    ```
+   Both commands now mirror the row immediately: `gh-sync` creates/relabels the
+   issue, `sync-details` writes its details block and the board item. `TASKS_NO_SYNC=1`
+   turns that off (CI, tests, offline); a missing `gh` or `read:project` scope prints
+   `sync: skipped (…)` and never blocks the ledger write.
 4. `bun run task:ready` — **the start gate**, and the shape of the queue. It
    scans the **triaged** set by default, because that is the "can I start this
    now" set: a `backlog` row is ungroomed by design, so listing it would bury

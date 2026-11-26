@@ -356,7 +356,7 @@ tasks:
   session_count: 0
 - id: "T-015"
   title: "Licensing — the strategic blocker"
-  status: "triaged"
+  status: "backlog"
   type: "task"
   area: "other"
   tier: 2
@@ -698,7 +698,7 @@ tasks:
   session_count: 2
 - id: "T-027"
   title: "Mermaid markdown import + export"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "import"
   tier: null
@@ -837,7 +837,7 @@ tasks:
   session_count: 0
 - id: "T-032"
   title: "Depth-level colour coding / gradient by hierarchy depth"
-  status: "triaged"
+  status: "wontfix"
   type: "feat"
   area: "theme"
   tier: null
@@ -1074,7 +1074,7 @@ tasks:
   session_count: 0
 - id: "T-041"
   title: "Diff view between directory versions (composes with T-007 Diff v2)"
-  status: "triaged"
+  status: "backlog"
   type: "feat"
   area: "import"
   tier: null
@@ -1143,7 +1143,7 @@ tasks:
   session_count: 0
 - id: "T-044"
   title: "Gallery templates + first-run startup defaults for new users"
-  status: "triaged"
+  status: "done"
   type: "feat"
   area: "ux"
   tier: null
@@ -1156,14 +1156,20 @@ tasks:
   blocked_by: []
   parent: null
   source: null
-  time_source: null
+  time_source: "reconstructed"
   reporter: null
   assignee: "qvesera"
   created_at: "2026-09-25T12:37:17Z"
   notes: ["2026-09-25T12:38:21Z · come up with templates and designs for the gallery plus an initial startup setting for new users"]
-  sessions: []
-  spent_min: 0
-  session_count: 0
+  sessions:
+  - start: "2026-11-23T19:20:00Z"
+    end: "2026-11-23T19:21:00Z"
+    measured: true
+    note: "Backfill: issue #219 was closed as completed before the ledger recorded a session."
+    proof: ["#219"]
+    effort: null
+  spent_min: 1
+  session_count: 1
 - id: "T-045"
   title: "Sort by Name/Size/Type does not re-flow a per-view canvas (dock pane keeps per-view positions, which outrank the layout engine)"
   status: "done"
@@ -5132,7 +5138,7 @@ tasks:
   session_count: 1
 - id: "T-183"
   title: "Auto-hide cap re-derives when the background scan lands"
-  status: "triaged"
+  status: "backlog"
   type: "fix"
   area: "perf"
   tier: null
@@ -7263,7 +7269,7 @@ tasks:
   session_count: 2
 - id: "T-254"
   title: "DB-backed FAQ section on the landing page"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "growth"
   tier: 1
@@ -7322,7 +7328,7 @@ tasks:
   session_count: 6
 - id: "T-255"
   title: "Blog listing index rail"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "blog"
   tier: 1
@@ -7351,7 +7357,7 @@ tasks:
   session_count: 1
 - id: "T-256"
   title: "Move unbranded export and watch digests behind the Pro plan"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "billing"
   tier: 1
@@ -7380,7 +7386,7 @@ tasks:
   session_count: 1
 - id: "T-257"
   title: "Pricing page with the Pro plan and an enterprise contact form"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "growth"
   tier: 1
@@ -7439,7 +7445,7 @@ tasks:
   session_count: 6
 - id: "T-258"
   title: "doctor: an issue older than the 200-row window is not a missing issue"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "infra"
   tier: 1
@@ -7509,7 +7515,7 @@ tasks:
   session_count: 2
 - id: "T-260"
   title: "Export Changes for archives: replay graph edits inside a zip with 7z"
-  status: "review"
+  status: "triaged"
   type: "feat"
   area: "export"
   tier: 1
@@ -7544,7 +7550,7 @@ tasks:
   session_count: 2
 - id: "T-261"
   title: "Archive delete uses stale path when its parent folder was renamed in the same replay"
-  status: "review"
+  status: "done"
   type: "fix"
   area: "export"
   tier: null
@@ -7614,7 +7620,7 @@ tasks:
   session_count: 3
 - id: "T-263"
   title: "Windows .bat export for Export Changes"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
@@ -7666,7 +7672,7 @@ tasks:
   session_count: 0
 - id: "T-265"
   title: "Changes plan: archive-folder transitions and cross-boundary moves"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
@@ -7695,7 +7701,7 @@ tasks:
   session_count: 1
 - id: "T-266"
   title: "Graph actions: Compress to zip and Extract Archive"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "graph"
   tier: 1
@@ -7724,14 +7730,14 @@ tasks:
   session_count: 1
 - id: "T-267"
   title: "Export Changes scripts: compress, extract and moves across the archive boundary"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
   estimate_min: 900
   estimate_basis: "cli"
   issue: 614
-  pr: 620
+  pr: 617
   internal: false
   milestone: null
   blocked_by: []
@@ -7753,7 +7759,7 @@ tasks:
   session_count: 1
 - id: "T-268"
   title: "Export ordering: dependency phases and archive-to-archive transfers"
-  status: "review"
+  status: "done"
   type: "feat"
   area: "export"
   tier: 1
@@ -7782,13 +7788,48 @@ tasks:
   session_count: 1
 - id: "T-269"
   title: "Task pipeline: auto-sync new rows to GitHub and board, and fix Board Reconcile drift gate"
-  status: "triaged"
+  status: "review"
   type: "feat"
   area: "infra"
   tier: 1
   estimate_min: 240
   estimate_basis: "cli"
   issue: 619
+  pr: 621
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-23T18:59:02Z"
+  notes: []
+  sessions:
+  - start: "2026-11-23T19:13:23Z"
+    end: "2026-11-23T19:27:18Z"
+    measured: true
+    note: "Auto-sync on add/triage (gh-sync + sync-details, TASKS_NO_SYNC opt-out), board-reconcile checkout dev on schedule, shared concurrency group, doctor --board-only, one-time reconcile of closed rows; selftest + validate clean."
+    proof: ["f57aa23"]
+    effort: {commits: 1, files: 4, insertions: 95, deletions: 23}
+  - start: "2026-11-24T08:04:26Z"
+    end: "2026-11-24T08:04:31Z"
+    measured: true
+    note: "Fix pr_task_rows so a stacked branch cannot re-stamp earlier rows; ledger cleanup recorded (T-027/T-032 wontfix, T-044 done, shipped rows restored)."
+    proof: ["74a9100"]
+    effort: {commits: 1, files: 2, insertions: 21, deletions: 11}
+  spent_min: 14
+  session_count: 2
+- id: "T-270"
+  title: "Configurable archive read-size cap (user-controlled) so large non-seekable archives can be expanded on demand"
+  status: "backlog"
+  type: "feat"
+  area: "import"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 622
   pr: null
   internal: false
   milestone: null
@@ -7798,8 +7839,428 @@ tasks:
   time_source: null
   reporter: null
   assignee: "qvesera"
-  created_at: "2026-11-23T18:59:02Z"
+  created_at: "2026-11-24T08:38:53Z"
+  notes: ["2026-11-24T08:42:32Z · Seam: expandOne() guards WHOLE_READ_LIMIT_BYTES (64 MB) in src/lib/fewer/archiveExpand.ts:177 for non-seekable formats only (gz/xz/bz2/7z/rar/zst); zip/tar seek and stay uncapped. Add archiveReadLimitMb to ImportOptions (default 64) surfaced in ImportOptionsPanel advanced options, plus an account default in userSettings/Settings dialog. Keep MAX_EXPANDED_ARCHIVES=200 / MAX_EXPANDED_MEMBERS=50000 as the real guards and make the skipped note name the configured limit instead of a hardcoded 64 MB."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-271"
+  title: "Size display stops at MB - 2 GB renders as 2000.0 MB; scale formatter to PB across cards, export, stats and auto-index parsing"
+  status: "backlog"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 90
+  estimate_basis: "cli"
+  issue: 623
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:41:59Z"
+  notes: ["2026-11-24T08:42:38Z · Three duplicated formatters + one parser: nodeVisuals.formatSize (cards; re-exported by nodeDisplay), graphRenderer.formatBytes (SVG/PNG export), stats.formatBytes (sidebar; array stops at TB so a PB value indexes undefined), ImportOriginStep.formatBytes (disk/cloud listing). autoIndex.parseSize accepts only K/M/G, so 2.0T in an auto-index listing parses as 2 bytes. Collapse to one helper, extend to PB, keep the existing 1024-based unit labels, and update nodeDisplay.test / stats tests."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-272"
+  title: "Automation rules engine (v1): account-scoped triggers, conditions and actions for auto-tagging, segregation and organization"
+  status: "backlog"
+  type: "feat"
+  area: "rules"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 624
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:41:59Z"
+  notes: ["2026-11-24T08:42:39Z · Gmail-filter/IFTTT shape: triggers -> conditions -> actions, so a rule set is {when[], if[], then[]}. Store it account-scoped in user_settings.settings (free-form jsonb, already synced by /api/settings, owner-only RLS) - not in graph snapshots, which is why rules must match tags by LABEL: snapshot.ts prunes tag ids per graph, so ids are not portable. Share/import of rule sets = one JSON document, same shape as .fwr. Distinct from T-012 (#192), which is connection validation. Decompose at pickup (>=2400 min): model+engine, UI, share/import."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-273"
+  title: "Auto-organize into folders by tag/type (undoable one-shot action)"
+  status: "backlog"
+  type: "feat"
+  area: "file-ops"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 625
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:00Z"
+  notes: ["2026-11-24T08:42:39Z · Builds on moveNode(id, newParentId) in src/store/slices/graph/nodes/creation.ts:202, already undoable as the move-node history op. One-shot action: group selected (or all) leaves by tag label or by FileCategory, create folders, batch-move, and register the whole thing as one history entry. Standalone - does not need the T-272 rules engine; if the rules engine lands first this becomes a built-in preset over it."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-274"
+  title: "Gallery deep links mint ?auth=open while the auth session is still loading"
+  status: "backlog"
+  type: "fix"
+  area: "auth"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 626
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:24Z"
   notes: []
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-275"
+  title: "Docs search: wire DocsSearch into /docs and search page bodies"
+  status: "backlog"
+  type: "feat"
+  area: "docs"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 627
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:24Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-276"
+  title: "Connection and resize handles: 8px hit area is untouchable - enlarge hitbox, keep the dot"
+  status: "backlog"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 628
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:24Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-277"
+  title: "Import flow Upload file button reads as background - use accent styling"
+  status: "backlog"
+  type: "fix"
+  area: "ux"
+  tier: 0
+  estimate_min: 30
+  estimate_basis: "cli"
+  issue: 629
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:27Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-278"
+  title: "In-app gallery browser: browse and open gallery graphs and themes from a dock panel"
+  status: "backlog"
+  type: "feat"
+  area: "ux"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 630
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:27Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-279"
+  title: "E2EE for saved graphs: threat model, key envelope and share/gallery/versions design"
+  status: "backlog"
+  type: "feat"
+  area: "security"
+  tier: 1
+  estimate_min: 960
+  estimate_basis: "cli"
+  issue: 631
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-24T08:42:27Z"
+  notes: []
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-280"
+  title: "Referral system: users generate a code, referees paste it at signup for pro access for x time, referrer earns y time per referee"
+  status: "backlog"
+  type: "feat"
+  area: "growth"
+  tier: 1
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 632
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: null
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-25T11:36:39Z"
+  notes: ["2026-11-25T11:36:40Z · Database: add referral_codes (code unique, owner user_id, expires_at, max_uses, used_count, pro_months_for_referee) and referral_usages (code, referee_user_id, created_at). Signup flow: add optional referral_code field to AuthDialog signup form, validate against active codes, apply pro for x months (TBD) on referee, and credit y months per successful referral to the referrer (count tracked in referral_codes.used_count). Gate on billing/plan tier (stripe_customer_id, plan) - design depends on the plan model, so spike first, implement after plan-table work settles.]"]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-281"
+  title: "Ruling: fewer does not store user file bytes — ADR rejecting the FMS/storage-engine plan; blobs stay local or with the provider"
+  status: "triaged"
+  type: "research"
+  area: "other"
+  tier: 0
+  estimate_min: 60
+  estimate_basis: "cli"
+  issue: 633
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-25T13:43:33Z"
+  notes: ["2026-11-25T13:48:50Z · Rejects FMS storage-engine plan server-backed blobs search OCR RBAC. Findings README cloud privacy promise contradicts blob upload Netlify serverless cannot run BullMQ workers ltree cannot hold filenames with spaces canvas_meta on nodes contradicts commit 4408122 settings stay with viewer middleware-only authz bypasses Supabase RLS presigned URL bearer bypass no migration story saved_graphs graph_versions shared_graphs overlap weeks 1-3 infeasible solo deletes T-259 T-260 export-script moat T-184 FTS5 closed wontfix T-040 collab and T-279 E2EE already exist blobs stay local-or-provider Mirrors repowise decisions.yaml ruling."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-282"
+  title: "Workspace-lite: membership + roles over saved_graphs and graph_versions, share a graph with another account (no CRDT, no blobs)"
+  status: "triaged"
+  type: "feat"
+  area: "security"
+  tier: 1
+  estimate_min: 1920
+  estimate_basis: "cli"
+  issue: 634
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-25T13:53:26Z"
+  notes: ["2026-11-25T14:07:38Z · Workspace-lite: membership and roles viewer/editor over saved_graphs plus graph_versions, both already RLS-gated (0017_graph_versions.sql) and versioned. Invite by email, no CRDT, no file blobs. Narrows T-040 (collab WebSocket) rather than duplicating it; if T-279 E2EE lands first, membership rows must stay payload-blind. This is the cheap 80 percent team path."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-283"
+  title: "Server-side trash for saved graphs: deleted_at column, restore route, pg_cron purge"
+  status: "triaged"
+  type: "feat"
+  area: "infra"
+  tier: 0
+  estimate_min: 360
+  estimate_basis: "cli"
+  issue: 635
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-25T13:58:17Z"
+  notes: ["2026-11-25T14:08:51Z · Server-side trash for saved graphs: deleted_at column, restore route, and a pg_cron purge after retention. Reuses the deleteUndo UX. This is the FMS plan Phase 2 only genuine gap: version history and restore already ship for graphs (0017_graph_versions.sql plus VersionHistoryDialog.tsx), trash does not. Migration must be idempotent and numbered above 0068."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-284"
+  title: "Conditional opt-in blob workspace: Supabase Storage plus Postgres-only, RLS-first (only when a customer demands bytes)"
+  status: "blocked"
+  type: "feat"
+  area: "cloud"
+  tier: 1
+  estimate_min: 4800
+  estimate_basis: "cli"
+  issue: 636
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-281"]
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-25T14:03:17Z"
+  notes: ["2026-11-25T14:09:27Z · Customer-gated. Only when a paying customer demands bytes. Supabase Storage plus Postgres-only (no Redis/BullMQ/Meilisearch, which Netlify cannot host anyway). RLS forced on every table from the first migration, node_views split for per-user positions, presigned-upload confirm route, quota counter, orphan sweep, pgTAP or branch-per-PR tests for policies. Tika and ClamAV only behind explicit per-workspace opt-in, and the privacy docs (README.md:16, content/docs/privacy.md, cloud.md:31) rewritten BEFORE any byte is stored. Blocked by T-281."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-285"
+  title: "Port cardSize: one card-geometry contract shared by canvas, export renderer and selection bounds"
+  status: "triaged"
+  type: "refactor"
+  area: "layout"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 637
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T16:43:15Z"
+  notes: ["2026-11-26T16:53:41Z · Port cardSize.ts (84 lines, pure) from fewer-desktop. One geometry contract for the export renderer, the canvas and selection bounds. Today web has two chains: layout.ts DEFAULT_FOLDER 240x200 / file 220x58, and graphRenderer.nodeSize style -> measured -> DEFAULT_NODE_WIDTH/HEIGHT with its own PILL_HEIGHT/FILE_HEIGHT. An unmeasured graph (loaded from share/.fwr, or exported straight from the store) therefore exports at sizes the canvas never drew. Prerequisite for T-287 surface ghost geometry. No host dependency, one test."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-286"
+  title: "Port the browser perf harness: Playwright perf spec and budget table, skip the Electron host rows"
+  status: "triaged"
+  type: "task"
+  area: "devtools"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 639
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T16:43:20Z"
+  notes: ["2026-11-26T16:58:10Z · Port the browser half of fewer-desktop perf harness v2: e2e/perf.spec.ts plus playwright.perf.config.ts and the budget table from docs/perf-baseline.md. Playwright is already a dep here and e2e/app.spec.ts exists. Skip the Electron-only rows (cold start via electron.launch, PSS from /proc, --user-data-dir, installer size) and skip scripts/perf-host-gate.ts. Purpose: make the T-285/T-287 verdicts measurable instead of argued; keep the doc discipline where every row states what it is NOT measuring."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-287"
+  title: "Port the WebGL2 surface renderer: renderer choice by graph size, surface stack, hit testing"
+  status: "blocked"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 2880
+  estimate_basis: "cli"
+  issue: 640
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-285"]
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T16:49:14Z"
+  notes: ["2026-11-26T17:02:35Z · Port the fewer-desktop WebGL2 surface: webgl2Surface 579, surfaceGeometry 429, surfaceFrame 335, graphSurface 209, lodBucketing 146, rendererChoice 102, use-canvas-surface-interaction 468, SurfaceFocusProxy 100, SurfaceNodeMenu 112, plus hitTest 50 and e2e/surface.spec.ts 850. Raw WebGL2, zero new dependencies (webgl2Surface imports only sibling modules). Additive: web has none of these files; only GraphCanvas wiring collides (desktop +696 there). rendererChoice is pure with hysteresis (on at 6000, release at 3000), ?surface=webgl2|off override, once-per-load probe; DOM path stays authoritative on init failure. Desktop measured 25k cards renderer-crash -> 8.6s/1330MB. Gate: confirm a real 25k import in THIS build first (T-286). Accessibility is real work: surface bypasses React Flow, CanvasLiveRegion needs a surface equivalent. Blocked by T-285 (cardSize ghost geometry)."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-288"
+  title: "tasks.py: a throttled milestone read must not look like a missing milestone"
+  status: "review"
+  type: "fix"
+  area: "infra"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 641
+  pr: 621
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T18:00:22Z"
+  notes: ["2026-11-26T18:00:59Z · Defect: _issue_milestone() shells out to gh issue view --json (GraphQL) with check=False, so a THROTTLED call returns empty stdout and is reported as has no milestone. On 2026-11-25 that produced five false hard validate failures (#601 #611 #633 #635 #637) while gh api REST showed all five milestones set; the failing set rotated between runs. Fix: probe via REST first with GraphQL fallback, distinguish cannot-read from none-set, and treat unverified as a WARN that never blocks start, never fails validate and never demotes. Also add selftest coverage."]
+  sessions:
+  - start: "2026-11-26T18:02:40Z"
+    end: "2026-11-26T18:10:23Z"
+    measured: true
+    note: "Milestone probe now REST-first with GraphQL fallback and a separate cannot-read outcome; unverified is a WARN in validate, non-blocking in start, non-demotable in ready, filtered from status counts. Adds 6 selftest checks. Fixed two name collisions with run_validate counters (hard/soft) that the selftest caught."
+    proof: ["2a2b85f"]
+    effort: {commits: 1, files: 1, insertions: 97, deletions: 16}
+  spent_min: 8
+  session_count: 1

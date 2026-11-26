@@ -669,13 +669,42 @@ def current_pr() -> str | None:
 # `ready` prints the list. One implementation, so the three can never disagree
 # about what "ready" means.
 
+def _probe_issue_milestone(number: int) -> tuple[bool, str | None]:
+    """`(ok, title)` for an issue's milestone.
+
+    REST first, GraphQL second. `gh issue view --json` answers over GraphQL,
+    whose per-user quota a busy session exhausts — and with `check=False` a
+    throttled call returns empty stdout, which the old implementation reported
+    as "has no milestone". On 2026-11-26 that turned one rate limit into five
+    hard `validate` failures (#601 #611 #633 #635 #637) while `gh api` showed
+    all five milestones set, and the failing set rotated between runs.
+
+    `ok=False` means neither transport could answer: UNKNOWN, not missing. That
+    distinction is the whole point — callers must treat it as a warning (see
+    `hard_reasons`), never as a readiness failure.
+    """
+    for args in (
+        ("api", f"repos/{REPO_SLUG}/issues/{number}", "--jq", '.milestone.title // ""'),
+        ("issue", "view", str(number), "--json", "milestone", "--jq", '.milestone.title // ""'),
+    ):
+        try:
+            r = subprocess.run(["gh", *args], cwd=ROOT, capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL)
+        except FileNotFoundError:
+            return False, None
+        if r.returncode == 0:
+            return True, r.stdout.strip() or None
+    return False, None
+
+
 def _issue_milestone(number: int) -> str | None:
-    """Title of the issue's milestone, or None (empty string means none set)."""
-    try:
-        return gh("issue", "view", str(number), "--json", "milestone",
-                  "--jq", ".milestone.title // \"\"", check=False).strip() or None
-    except (SystemExit, FileNotFoundError):
-        return None
+    """Title of the issue's milestone, or None — display paths only.
+
+    `details_block` wants a best-effort title; readiness must go through
+    `_probe_issue_milestone`, because here a throttled call is indistinguishable
+    from an unset milestone (T-288).
+    """
+    return _probe_issue_milestone(number)[1]
 
 
 def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
@@ -706,8 +735,16 @@ def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
             out.append(f"blocked by {dep} ({target.get('status')})")
     number = row.get("issue")
     if check_milestone and number and have_gh():
-        milestone = _issue_milestone(int(number))
-        if milestone is None:
+        ok, milestone = _probe_issue_milestone(int(number))
+        if not ok:
+            # UNKNOWN, not missing: gh could not answer (throttled, offline).
+            # Never a readiness failure — `hard_reasons` drops this prefix, so
+            # validate warns, `start` proceeds and `ready --demote` leaves the
+            # row alone. An exhausted API quota must not look like ungroomed work.
+            out.append(f"{MILESTONE_UNVERIFIED} issue #{number} — could not read its "
+                       f"milestone (gh throttled or offline); set one when you can: "
+                       f"gh issue edit {number} --milestone <title>")
+        elif milestone is None:
             # The MILESTONE_REASON prefix is machine-readable: `ready --demote`
             # moves a row whose *only* problem is this one back to backlog,
             # because a release train is part of what triage decides.
@@ -718,6 +755,15 @@ def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
 
 
 MILESTONE_REASON = "milestone:"
+# "gh could not answer", which is NOT a missing milestone. A distinct prefix is
+# load-bearing: this one can never demote a row, fail `validate`, or refuse
+# `start`, and it never satisfies `is_demotable`'s all-milestone test.
+MILESTONE_UNVERIFIED = "milestone-unverified:"
+
+
+def hard_reasons(reasons: list[str]) -> list[str]:
+    """The reasons that really block, dropping an unverifiable milestone check."""
+    return [r for r in reasons if not r.startswith(MILESTONE_UNVERIFIED)]
 
 
 def is_demotable(status: str, reasons: list[str]) -> bool:
@@ -767,7 +813,12 @@ def cmd_ready(args: argparse.Namespace) -> int:
     ledger = load()
     check_ms = not args.no_milestone
     states = ("triaged", "backlog") if args.all else ("triaged",)
-    unready = unready_rows(ledger, states, check_milestone=check_ms)
+    scanned = unready_rows(ledger, states, check_milestone=check_ms)
+    # A row whose only complaint is an UNVERIFIABLE milestone is startable: gh
+    # simply could not answer (rate limit / offline). Keep it out of the queue so
+    # `--strict` and `--demote` can never act on an exhausted API quota.
+    skipped = [row for row, reasons in scanned if not hard_reasons(reasons)]
+    unready = [(row, reasons) for row, reasons in scanned if hard_reasons(reasons)]
     moved: list[str] = []
     for row, reasons in unready:
         if (args.demote and is_demotable(row.get("status", ""), reasons)):
@@ -775,6 +826,9 @@ def cmd_ready(args: argparse.Namespace) -> int:
             moved.append(row["id"])
     if moved:
         save(ledger)
+    if skipped:
+        print(f"note: {len(skipped)} row(s) not judged — gh could not confirm their "
+              f"milestone (throttled/offline); treat them as startable")
     if not unready:
         print(f"ready: every {'/'.join(states)} row is startable")
         return 0
@@ -856,7 +910,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     # Definition of ready: the count the start gate enforces, on the default
     # view. Backlog rows are excluded — they are ungroomed by design.
     triaged = [r for r in ledger["tasks"] if r.get("status") == "triaged"]
-    unready = [r for r in triaged if readiness_issues(r, ledger)]
+    unready = [r for r in triaged if hard_reasons(readiness_issues(r, ledger))]
     if unready:
         lines.append(f"UNREADY  {len(unready)} of {len(triaged)} triaged rows "
                      f"are not startable")
@@ -876,6 +930,40 @@ def cmd_status(args: argparse.Namespace) -> int:
             lines.append("UNTRACKED OPEN ISSUES  unknown (gh unavailable)")
     print("\n".join(lines))
     return 0
+
+
+def auto_sync(row_id: str) -> None:
+    """Mirror a just-written row onto GitHub and the board, best effort.
+
+    `gh-sync` creates/relabels the issue; `sync-details` writes the details
+    block and the project item (it adds the item when missing). A machine
+    without gh, a token without `read:project`, or a rate limit must never
+    block a ledger write that already happened — it says so and returns.
+    `TASKS_NO_SYNC=1` turns it off (CI, tests, offline work).
+    """
+    if os.environ.get("TASKS_NO_SYNC"):
+        print("sync: skipped (TASKS_NO_SYNC)")
+        return
+    if not have_gh():
+        print("sync: skipped (gh not available)")
+        return
+    script = os.path.abspath(__file__)
+    try:
+        first = subprocess.run([sys.executable, script, "gh-sync"], cwd=ROOT,
+                               capture_output=True, text=True)
+        if first.returncode != 0:
+            line = next((ln.strip() for ln in (first.stdout + first.stderr).splitlines()
+                         if ln.strip()), f"exit {first.returncode}")
+            print(f"sync: gh-sync failed ({line}) — run it by hand")
+            return
+        row = find_row(load(), row_id)
+        if row and row.get("issue"):
+            subprocess.run([sys.executable, script, "sync-details",
+                            "--issue", str(row["issue"])], cwd=ROOT,
+                           capture_output=True, text=True)
+        print(f"sync: {row_id} → issue + board")
+    except (OSError, SystemExit) as exc:
+        print(f"sync: skipped ({exc})")
 
 
 def cmd_add(args: argparse.Namespace) -> int:
@@ -902,6 +990,7 @@ def cmd_add(args: argparse.Namespace) -> int:
     save(ledger)
     print(f"created {row['id']}  status=backlog  type={row['type']}  estimate={row['estimate_min']}m")
     print(f"  triage it: python3 scripts/tasks.py triage {row['id']} --estimate-min … --area …")
+    auto_sync(row["id"])
     return 0
 
 
@@ -944,6 +1033,7 @@ def cmd_triage(args: argparse.Namespace) -> int:
     save(ledger)
     print(f"{row['id']}  status=triaged  estimate={row['estimate_min']}m "
           f"basis={row['estimate_basis']}  area={row['area']}  blocked_by={row['blocked_by'] or '-'}")
+    auto_sync(row["id"])
     return 0
 
 
@@ -1051,14 +1141,18 @@ def cmd_start(args: argparse.Namespace) -> int:
     # unblocked before a session opens, so the session cannot be spent on work
     # nobody groomed. `ready` prints the same list; validate fails on it.
     reasons = readiness_issues(row, ledger)
-    if reasons and not args.force:
+    for unverified in reasons:
+        if unverified.startswith(MILESTONE_UNVERIFIED):
+            print(f"! {unverified}", file=sys.stderr)
+    blocking = hard_reasons(reasons)
+    if blocking and not args.force:
         print(f"{row['id']} is not ready to start:", file=sys.stderr)
-        for reason in reasons:
+        for reason in blocking:
             print(f"  - {reason}", file=sys.stderr)
         print(f"  fix the above, or re-run with --force", file=sys.stderr)
         return 1
-    if reasons:
-        print(f"! {row['id']} started with --force despite: {', '.join(reasons)}")
+    if blocking:
+        print(f"! {row['id']} started with --force despite: {', '.join(blocking)}")
     row["sessions"].append({"start": now_iso(), "end": None, "measured": True,
                             "note": "", "proof": [], "effort": None})
     row["status"] = "in-progress"
@@ -1345,7 +1439,11 @@ def pr_task_rows(ledger: dict[str, Any], pr_info: dict[str, Any], pr: int) -> li
     for row in ledger["tasks"]:
         if row.get("pr") == pr and row not in rows:
             rows.append(row)
-    return rows
+    # A stacked branch carries earlier slices' commits, so their trailers name
+    # rows that already shipped under another PR. Never re-stamp those: the
+    # link/metadata pass would point a done row at this PR (and add its issue
+    # to the PR's `Fixes` lines).
+    return [row for row in rows if row.get("pr") in (None, pr)]
 
 
 # GitHub builds the Development-sidebar link from a closing keyword that is
@@ -2973,6 +3071,7 @@ def cmd_doctor(args: argparse.Namespace) -> int:
                 if row["issue"] not in known:
                     problems.append(f"{row['id']} references #{row['issue']}, "
                                     "which does not exist")
+    board_drift: list[str] = []
     if getattr(args, "board", False):
         # Board drift is the same class of drift, one surface over: the item is a
         # projection of the row, and `sync-details` is its only writer. Extend,
@@ -2980,6 +3079,15 @@ def cmd_doctor(args: argparse.Namespace) -> int:
         board_drift, board_notes = board_problems(ledger)
         problems.extend(board_drift)
         notes.extend(board_notes)
+    if getattr(args, "board_only", False):
+        # The board job can only heal the projection. Ledger drift (a closed
+        # issue on a review row, a label race) is real but needs a human or a
+        # reviewed `reconcile --apply`, so it must not red-X a job whose own
+        # writes were correct.
+        for problem in problems:
+            if problem not in board_drift:
+                print(f"NOTE   {problem}")
+        problems = board_drift
     for note in notes:
         print(f"NOTE   {note}")
     payload = {"problems": problems, "count": len(problems)}
@@ -3111,8 +3219,14 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
         if status == "triaged":
             reasons = readiness_issues(row, ledger,
                                        check_milestone=have_gh() and path == LEDGER)
-            if reasons:
-                fail(f"{rid}: triaged but not ready to start — " + "; ".join(reasons))
+            # An unverifiable milestone is a warning, never a failure: failing
+            # the gate on an exhausted gh quota is how five rows read as unset.
+            for unverified in reasons:
+                if unverified.startswith(MILESTONE_UNVERIFIED):
+                    warn(f"{rid}: {unverified}")
+            blocking = hard_reasons(reasons)
+            if blocking:
+                fail(f"{rid}: triaged but not ready to start — " + "; ".join(blocking))
         if status == "blocked":
             rows_by_id = {r["id"]: r for r in rows}
             stale = [d for d in (row.get("blocked_by") or [])
@@ -3835,6 +3949,23 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
           not is_demotable("backlog", ms_only))
     check("demote: a ready row is not demotable", not is_demotable("triaged", []))
 
+    # An unverifiable milestone (gh throttled/offline) is UNKNOWN, not missing:
+    # it must not demote, must not block start, and must not fail validate.
+    unverified_only = [f"{MILESTONE_UNVERIFIED} issue #501 — could not read its milestone"]
+    check("unverified: an unreadable milestone is not a hard reason",
+          hard_reasons(unverified_only) == [], str(hard_reasons(unverified_only)))
+    check("unverified: a real missing milestone stays hard",
+          hard_reasons(ms_only) == ms_only, str(hard_reasons(ms_only)))
+    check("unverified: hard_reasons keeps a mixed list honest",
+          hard_reasons(unverified_only + ms_only) == ms_only,
+          str(hard_reasons(unverified_only + ms_only)))
+    check("unverified: it does not demote a row", not is_demotable("triaged", unverified_only))
+    check("unverified: it does not outrank a real reason",
+          not is_demotable("triaged", unverified_only + ["no estimate — triage it"]))
+    check("unverified: the two milestone prefixes cannot collide",
+          not MILESTONE_UNVERIFIED.startswith(MILESTONE_REASON)
+          and not MILESTONE_REASON.startswith(MILESTONE_UNVERIFIED))
+
     # `ready` scans the triaged queue by default: a backlog row is ungroomed by
     # design, so reporting it would bury the real signal. `--all` widens it.
     backlog_fixture = json.loads(json.dumps(ready_row))
@@ -4176,6 +4307,9 @@ def build_parser() -> argparse.ArgumentParser:
     sp.add_argument("--board", action="store_true",
                     help="also compare each row with its project item's Status "
                          "(needs read:project)")
+    sp.add_argument("--board-only", action="store_true",
+                    help="exit nonzero only on board drift; ledger drift is a NOTE "
+                         "(the scheduled board job cannot fix the ledger)")
 
     sp = add("report", cmd_report, "time and estimate rollup")
     sp.add_argument("--since", help="ISO date, e.g. 2026-09-01")
