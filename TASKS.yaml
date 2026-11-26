@@ -8237,14 +8237,14 @@ tasks:
   session_count: 0
 - id: "T-288"
   title: "tasks.py: a throttled milestone read must not look like a missing milestone"
-  status: "triaged"
+  status: "review"
   type: "fix"
   area: "infra"
   tier: 0
   estimate_min: 120
   estimate_basis: "cli"
   issue: 641
-  pr: null
+  pr: 621
   internal: false
   milestone: null
   blocked_by: []
