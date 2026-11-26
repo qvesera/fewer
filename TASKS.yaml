@@ -8235,3 +8235,32 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-288"
+  title: "tasks.py: a throttled milestone read must not look like a missing milestone"
+  status: "triaged"
+  type: "fix"
+  area: "infra"
+  tier: 0
+  estimate_min: 120
+  estimate_basis: "cli"
+  issue: 641
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: "measured"
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T18:00:22Z"
+  notes: ["2026-11-26T18:00:59Z · Defect: _issue_milestone() shells out to gh issue view --json (GraphQL) with check=False, so a THROTTLED call returns empty stdout and is reported as has no milestone. On 2026-11-25 that produced five false hard validate failures (#601 #611 #633 #635 #637) while gh api REST showed all five milestones set; the failing set rotated between runs. Fix: probe via REST first with GraphQL fallback, distinguish cannot-read from none-set, and treat unverified as a WARN that never blocks start, never fails validate and never demotes. Also add selftest coverage."]
+  sessions:
+  - start: "2026-11-26T18:02:40Z"
+    end: "2026-11-26T18:10:23Z"
+    measured: true
+    note: "Milestone probe now REST-first with GraphQL fallback and a separate cannot-read outcome; unverified is a WARN in validate, non-blocking in start, non-demotable in ready, filtered from status counts. Adds 6 selftest checks. Fixed two name collisions with run_validate counters (hard/soft) that the selftest caught."
+    proof: ["2a2b85f"]
+    effort: {commits: 1, files: 1, insertions: 97, deletions: 16}
+  spent_min: 8
+  session_count: 1
