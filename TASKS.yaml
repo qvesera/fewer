@@ -8166,3 +8166,72 @@ tasks:
   sessions: []
   spent_min: 0
   session_count: 0
+- id: "T-285"
+  title: "Port cardSize: one card-geometry contract shared by canvas, export renderer and selection bounds"
+  status: "triaged"
+  type: "refactor"
+  area: "layout"
+  tier: 0
+  estimate_min: 240
+  estimate_basis: "cli"
+  issue: 637
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T16:43:15Z"
+  notes: ["2026-11-26T16:53:41Z · Port cardSize.ts (84 lines, pure) from fewer-desktop. One geometry contract for the export renderer, the canvas and selection bounds. Today web has two chains: layout.ts DEFAULT_FOLDER 240x200 / file 220x58, and graphRenderer.nodeSize style -> measured -> DEFAULT_NODE_WIDTH/HEIGHT with its own PILL_HEIGHT/FILE_HEIGHT. An unmeasured graph (loaded from share/.fwr, or exported straight from the store) therefore exports at sizes the canvas never drew. Prerequisite for T-287 surface ghost geometry. No host dependency, one test."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-286"
+  title: "Port the browser perf harness: Playwright perf spec and budget table, skip the Electron host rows"
+  status: "triaged"
+  type: "task"
+  area: "devtools"
+  tier: 0
+  estimate_min: 480
+  estimate_basis: "cli"
+  issue: 639
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T16:43:20Z"
+  notes: ["2026-11-26T16:58:10Z · Port the browser half of fewer-desktop perf harness v2: e2e/perf.spec.ts plus playwright.perf.config.ts and the budget table from docs/perf-baseline.md. Playwright is already a dep here and e2e/app.spec.ts exists. Skip the Electron-only rows (cold start via electron.launch, PSS from /proc, --user-data-dir, installer size) and skip scripts/perf-host-gate.ts. Purpose: make the T-285/T-287 verdicts measurable instead of argued; keep the doc discipline where every row states what it is NOT measuring."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-287"
+  title: "Port the WebGL2 surface renderer: renderer choice by graph size, surface stack, hit testing"
+  status: "blocked"
+  type: "perf"
+  area: "performance"
+  tier: 1
+  estimate_min: 2880
+  estimate_basis: "cli"
+  issue: 640
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: ["T-285"]
+  parent: null
+  source: "plan-review"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-26T16:49:14Z"
+  notes: ["2026-11-26T17:02:35Z · Port the fewer-desktop WebGL2 surface: webgl2Surface 579, surfaceGeometry 429, surfaceFrame 335, graphSurface 209, lodBucketing 146, rendererChoice 102, use-canvas-surface-interaction 468, SurfaceFocusProxy 100, SurfaceNodeMenu 112, plus hitTest 50 and e2e/surface.spec.ts 850. Raw WebGL2, zero new dependencies (webgl2Surface imports only sibling modules). Additive: web has none of these files; only GraphCanvas wiring collides (desktop +696 there). rendererChoice is pure with hysteresis (on at 6000, release at 3000), ?surface=webgl2|off override, once-per-load probe; DOM path stays authoritative on init failure. Desktop measured 25k cards renderer-crash -> 8.6s/1330MB. Gate: confirm a real 25k import in THIS build first (T-286). Accessibility is real work: surface bypasses React Flow, CanvasLiveRegion needs a surface equivalent. Blocked by T-285 (cardSize ghost geometry)."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
