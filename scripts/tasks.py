@@ -669,13 +669,42 @@ def current_pr() -> str | None:
 # `ready` prints the list. One implementation, so the three can never disagree
 # about what "ready" means.
 
+def _probe_issue_milestone(number: int) -> tuple[bool, str | None]:
+    """`(ok, title)` for an issue's milestone.
+
+    REST first, GraphQL second. `gh issue view --json` answers over GraphQL,
+    whose per-user quota a busy session exhausts — and with `check=False` a
+    throttled call returns empty stdout, which the old implementation reported
+    as "has no milestone". On 2026-11-26 that turned one rate limit into five
+    hard `validate` failures (#601 #611 #633 #635 #637) while `gh api` showed
+    all five milestones set, and the failing set rotated between runs.
+
+    `ok=False` means neither transport could answer: UNKNOWN, not missing. That
+    distinction is the whole point — callers must treat it as a warning (see
+    `hard_reasons`), never as a readiness failure.
+    """
+    for args in (
+        ("api", f"repos/{REPO_SLUG}/issues/{number}", "--jq", '.milestone.title // ""'),
+        ("issue", "view", str(number), "--json", "milestone", "--jq", '.milestone.title // ""'),
+    ):
+        try:
+            r = subprocess.run(["gh", *args], cwd=ROOT, capture_output=True, text=True,
+                               stdin=subprocess.DEVNULL)
+        except FileNotFoundError:
+            return False, None
+        if r.returncode == 0:
+            return True, r.stdout.strip() or None
+    return False, None
+
+
 def _issue_milestone(number: int) -> str | None:
-    """Title of the issue's milestone, or None (empty string means none set)."""
-    try:
-        return gh("issue", "view", str(number), "--json", "milestone",
-                  "--jq", ".milestone.title // \"\"", check=False).strip() or None
-    except (SystemExit, FileNotFoundError):
-        return None
+    """Title of the issue's milestone, or None — display paths only.
+
+    `details_block` wants a best-effort title; readiness must go through
+    `_probe_issue_milestone`, because here a throttled call is indistinguishable
+    from an unset milestone (T-288).
+    """
+    return _probe_issue_milestone(number)[1]
 
 
 def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
@@ -706,8 +735,16 @@ def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
             out.append(f"blocked by {dep} ({target.get('status')})")
     number = row.get("issue")
     if check_milestone and number and have_gh():
-        milestone = _issue_milestone(int(number))
-        if milestone is None:
+        ok, milestone = _probe_issue_milestone(int(number))
+        if not ok:
+            # UNKNOWN, not missing: gh could not answer (throttled, offline).
+            # Never a readiness failure — `hard_reasons` drops this prefix, so
+            # validate warns, `start` proceeds and `ready --demote` leaves the
+            # row alone. An exhausted API quota must not look like ungroomed work.
+            out.append(f"{MILESTONE_UNVERIFIED} issue #{number} — could not read its "
+                       f"milestone (gh throttled or offline); set one when you can: "
+                       f"gh issue edit {number} --milestone <title>")
+        elif milestone is None:
             # The MILESTONE_REASON prefix is machine-readable: `ready --demote`
             # moves a row whose *only* problem is this one back to backlog,
             # because a release train is part of what triage decides.
@@ -718,6 +755,15 @@ def readiness_issues(row: dict[str, Any], ledger: dict[str, Any],
 
 
 MILESTONE_REASON = "milestone:"
+# "gh could not answer", which is NOT a missing milestone. A distinct prefix is
+# load-bearing: this one can never demote a row, fail `validate`, or refuse
+# `start`, and it never satisfies `is_demotable`'s all-milestone test.
+MILESTONE_UNVERIFIED = "milestone-unverified:"
+
+
+def hard_reasons(reasons: list[str]) -> list[str]:
+    """The reasons that really block, dropping an unverifiable milestone check."""
+    return [r for r in reasons if not r.startswith(MILESTONE_UNVERIFIED)]
 
 
 def is_demotable(status: str, reasons: list[str]) -> bool:
@@ -767,7 +813,12 @@ def cmd_ready(args: argparse.Namespace) -> int:
     ledger = load()
     check_ms = not args.no_milestone
     states = ("triaged", "backlog") if args.all else ("triaged",)
-    unready = unready_rows(ledger, states, check_milestone=check_ms)
+    scanned = unready_rows(ledger, states, check_milestone=check_ms)
+    # A row whose only complaint is an UNVERIFIABLE milestone is startable: gh
+    # simply could not answer (rate limit / offline). Keep it out of the queue so
+    # `--strict` and `--demote` can never act on an exhausted API quota.
+    skipped = [row for row, reasons in scanned if not hard_reasons(reasons)]
+    unready = [(row, reasons) for row, reasons in scanned if hard_reasons(reasons)]
     moved: list[str] = []
     for row, reasons in unready:
         if (args.demote and is_demotable(row.get("status", ""), reasons)):
@@ -775,6 +826,9 @@ def cmd_ready(args: argparse.Namespace) -> int:
             moved.append(row["id"])
     if moved:
         save(ledger)
+    if skipped:
+        print(f"note: {len(skipped)} row(s) not judged — gh could not confirm their "
+              f"milestone (throttled/offline); treat them as startable")
     if not unready:
         print(f"ready: every {'/'.join(states)} row is startable")
         return 0
@@ -856,7 +910,7 @@ def cmd_status(args: argparse.Namespace) -> int:
     # Definition of ready: the count the start gate enforces, on the default
     # view. Backlog rows are excluded — they are ungroomed by design.
     triaged = [r for r in ledger["tasks"] if r.get("status") == "triaged"]
-    unready = [r for r in triaged if readiness_issues(r, ledger)]
+    unready = [r for r in triaged if hard_reasons(readiness_issues(r, ledger))]
     if unready:
         lines.append(f"UNREADY  {len(unready)} of {len(triaged)} triaged rows "
                      f"are not startable")
@@ -1087,14 +1141,18 @@ def cmd_start(args: argparse.Namespace) -> int:
     # unblocked before a session opens, so the session cannot be spent on work
     # nobody groomed. `ready` prints the same list; validate fails on it.
     reasons = readiness_issues(row, ledger)
-    if reasons and not args.force:
+    for unverified in reasons:
+        if unverified.startswith(MILESTONE_UNVERIFIED):
+            print(f"! {unverified}", file=sys.stderr)
+    blocking = hard_reasons(reasons)
+    if blocking and not args.force:
         print(f"{row['id']} is not ready to start:", file=sys.stderr)
-        for reason in reasons:
+        for reason in blocking:
             print(f"  - {reason}", file=sys.stderr)
         print(f"  fix the above, or re-run with --force", file=sys.stderr)
         return 1
-    if reasons:
-        print(f"! {row['id']} started with --force despite: {', '.join(reasons)}")
+    if blocking:
+        print(f"! {row['id']} started with --force despite: {', '.join(blocking)}")
     row["sessions"].append({"start": now_iso(), "end": None, "measured": True,
                             "note": "", "proof": [], "effort": None})
     row["status"] = "in-progress"
@@ -3161,8 +3219,14 @@ def run_validate(path: str = LEDGER) -> tuple[int, int]:
         if status == "triaged":
             reasons = readiness_issues(row, ledger,
                                        check_milestone=have_gh() and path == LEDGER)
-            if reasons:
-                fail(f"{rid}: triaged but not ready to start — " + "; ".join(reasons))
+            # An unverifiable milestone is a warning, never a failure: failing
+            # the gate on an exhausted gh quota is how five rows read as unset.
+            for unverified in reasons:
+                if unverified.startswith(MILESTONE_UNVERIFIED):
+                    warn(f"{rid}: {unverified}")
+            blocking = hard_reasons(reasons)
+            if blocking:
+                fail(f"{rid}: triaged but not ready to start — " + "; ".join(blocking))
         if status == "blocked":
             rows_by_id = {r["id"]: r for r in rows}
             stale = [d for d in (row.get("blocked_by") or [])
@@ -3884,6 +3948,23 @@ def cmd_selftest(_args: argparse.Namespace) -> int:
     check("demote: an already-backlog row is not moved",
           not is_demotable("backlog", ms_only))
     check("demote: a ready row is not demotable", not is_demotable("triaged", []))
+
+    # An unverifiable milestone (gh throttled/offline) is UNKNOWN, not missing:
+    # it must not demote, must not block start, and must not fail validate.
+    unverified_only = [f"{MILESTONE_UNVERIFIED} issue #501 — could not read its milestone"]
+    check("unverified: an unreadable milestone is not a hard reason",
+          hard_reasons(unverified_only) == [], str(hard_reasons(unverified_only)))
+    check("unverified: a real missing milestone stays hard",
+          hard_reasons(ms_only) == ms_only, str(hard_reasons(ms_only)))
+    check("unverified: hard_reasons keeps a mixed list honest",
+          hard_reasons(unverified_only + ms_only) == ms_only,
+          str(hard_reasons(unverified_only + ms_only)))
+    check("unverified: it does not demote a row", not is_demotable("triaged", unverified_only))
+    check("unverified: it does not outrank a real reason",
+          not is_demotable("triaged", unverified_only + ["no estimate — triage it"]))
+    check("unverified: the two milestone prefixes cannot collide",
+          not MILESTONE_UNVERIFIED.startswith(MILESTONE_REASON)
+          and not MILESTONE_REASON.startswith(MILESTONE_UNVERIFIED))
 
     # `ready` scans the triaged queue by default: a backlog row is ungroomed by
     # design, so reporting it would bury the real signal. `--all` widens it.
