@@ -8264,3 +8264,95 @@ tasks:
     effort: {commits: 1, files: 1, insertions: 97, deletions: 16}
   spent_min: 8
   session_count: 1
+- id: "T-289"
+  title: "Command palette (Ctrl+K): fuzzy launcher over existing action registries"
+  status: "backlog"
+  type: "feat"
+  area: "ux"
+  tier: 0
+  estimate_min: 210
+  estimate_basis: "cli"
+  issue: 642
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "https://github.com/Bexxs75/dualfile"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-27T10:35:46Z"
+  notes: ["2026-11-27T10:54:52Z · Source: dualfile src/components/CommandPalette.tsx (MIT). Shape: command registry {id,title,group,icon,shortcut,enabled(state),execute}; matchCommand returns matched char indices so the list renders mark highlights; recents group; aria combobox/listbox/activedescendant; Ctrl+K and Ctrl+P, ignore isComposing and event.repeat; flushSync unmount before execute. Reuse fewer fuzzyMatch (stats.ts:55), the ShortcutsDialog map and menuSections - no second action registry. Also touch ShortcutsDialog.tsx, content/docs/shortcuts.md, README."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-290"
+  title: "Disk usage overlay: per-folder size rollup + proportional card sizing"
+  status: "backlog"
+  type: "feat"
+  area: "layout"
+  tier: 0
+  estimate_min: 420
+  estimate_basis: "cli"
+  issue: 643
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "https://github.com/Bexxs75/dualfile"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-27T10:40:11Z"
+  notes: ["2026-11-27T10:54:52Z · Source: dualfile crates/dualfile-core/src/usage.rs (MIT - port the model, not the code). UsageNode{path,totals{size,allocated,files,directories},children,other}; bounded max_entries with an exact other bucket; compact() pops the smallest child first; hardlink dedupe + one_file_system apply on the dev-server path only (browser FileSystem API exposes no inode/dev); ScanIssue enum + incomplete flag instead of a silent 0; progress throttled to 100ms. fewer already has data.size (treeToGraph.ts:56,175) and totals in stats.ts:23-34; missing is the per-folder rollup + proportional sizing. Must respect visibleRange virtualization (dualfile perf doc: 50k unvirtualized rows = 33-46s and OOM)."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-291"
+  title: "Directory compare: 8-state CompareState model in treeDiff"
+  status: "backlog"
+  type: "feat"
+  area: "import"
+  tier: 0
+  estimate_min: 600
+  estimate_basis: "cli"
+  issue: 644
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "https://github.com/Bexxs75/dualfile"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-27T10:45:03Z"
+  notes: ["2026-11-27T10:55:28Z · Source: dualfile crates/dualfile-core/src/compare/dirs.rs (MIT - port the spec). CompareState = OnlyLeft|OnlyRight|Same|LeftNewer|RightNewer|Different|TypeMismatch|Unknown; 2s mtime tolerance because FAT and ZIP store 2s resolution; modes SizeTime vs Content with a max_content_bytes budget; iterative stack walk, folder-before-content ordering; errors, limits and cancel are Unknown (never empty or missing) and the result carries incomplete + issues[]. Current fewer treeDiff.ts is a bare path set-diff (39 lines). Unlocks ROADMAP:36 multi-directory compare and ROADMAP:62 cross-branch diff."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
+- id: "T-292"
+  title: "Dual-pane view: per-pane graph state + cross-pane drag"
+  status: "backlog"
+  type: "feat"
+  area: "layout"
+  tier: 1
+  estimate_min: 2400
+  estimate_basis: "cli"
+  issue: 645
+  pr: null
+  internal: false
+  milestone: null
+  blocked_by: []
+  parent: null
+  source: "https://github.com/Bexxs75/dualfile"
+  time_source: null
+  reporter: null
+  assignee: "qvesera"
+  created_at: "2026-11-27T10:50:02Z"
+  notes: ["2026-11-27T10:55:28Z · Source: dualfile pane model (state shape, not code). fewer already has the dock split-tree and a non-primary graph leaf (DockAreaContent.tsx:43-52), but every leaf reads the single Zustand graph store, so N graph leaves mirror one graph. Work = extract per-pane {graphId,viewport,selection,hiddenIds} out of the singleton plus cross-pane drag. Related: T-245 per-leaf selection path. 2400m estimate means start will require decomposition into subtasks first."]
+  sessions: []
+  spent_min: 0
+  session_count: 0
